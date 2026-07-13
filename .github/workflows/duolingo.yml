@@ -1,0 +1,133 @@
+name: Duolingo
+
+on:
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: Trigger reason
+        required: false
+        default: manual
+      action:
+        description: Optional NotionHub service action, for example fix/repair action name
+        required: false
+        default: sync
+      payload:
+        description: Optional JSON payload for service action
+        required: false
+        default: '{}'
+  schedule:
+    - cron: '0 16 * * *'
+
+concurrency:
+  group: notionhub-duolingo-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  NOTIONHUB_SERVICE: duolingo
+  NOTIONHUB_WORKFLOW_FILE: duolingo.yml
+  NOTIONHUB_CONFIG_VERSION: '7'
+  NOTIONHUB_ACTION: ${{ github.event.inputs.action || 'sync' }}
+  NOTIONHUB_ACTION_PAYLOAD: ${{ github.event.inputs.payload || '{}' }}
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Check activation
+        id: activation
+        env:
+          SERVICE_CONFIG: ${{ secrets.DUOLINGO_CONFIG }}
+        run: |
+          if [ -z "$SERVICE_CONFIG" ]; then
+            echo "Duolingo 尚未启用，跳过本次运行。"
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "enabled=true" >> "$GITHUB_OUTPUT"
+          if [ -z "${{ secrets.NOTIONHUB_RUN_TOKEN }}" ]; then
+            echo "缺少 NOTIONHUB_RUN_TOKEN，无法获取 NotionHub 私有 runner。"
+            exit 1
+          fi
+
+      - name: Prepare NotionHub runner
+        if: steps.activation.outputs.enabled == 'true'
+        id: prepare
+        env:
+          NOTIONHUB_RUN_TOKEN: ${{ secrets.NOTIONHUB_RUN_TOKEN }}
+          GITHUB_REPOSITORY_NAME: ${{ github.repository }}
+        run: |
+          PAYLOAD=$(jq -n --arg service "duolingo" --arg repository "$GITHUB_REPOSITORY_NAME" --arg workflow_file "duolingo.yml" --arg config_version "7" '{service: $service, repository: $repository, workflowFile: $workflow_file, configVersion: $config_version}')
+          RESPONSE=$(curl -fsSL -X POST "https://i.notionhub.app/v1/github/runner/prepare" -H "Authorization: Bearer $NOTIONHUB_RUN_TOKEN" -H "Content-Type: application/json" --data "$PAYLOAD")
+          echo "redispatched=$(echo "$RESPONSE" | jq -r '.redispatched // false')" >> "$GITHUB_OUTPUT"
+          REPO=$(echo "$RESPONSE" | jq -r '.repo // empty')
+          REF=$(echo "$RESPONSE" | jq -r '.ref // empty')
+          TOKEN=$(echo "$RESPONSE" | jq -r '.token // empty')
+          if [ -n "$REPO" ]; then echo "repo=$REPO" >> "$GITHUB_OUTPUT"; fi
+          if [ -n "$REF" ]; then echo "ref=$REF" >> "$GITHUB_OUTPUT"; fi
+          if [ -n "$TOKEN" ]; then
+            echo "::add-mask::$TOKEN"
+            echo "token=$TOKEN" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Stop after self update
+        if: steps.activation.outputs.enabled == 'true' && steps.prepare.outputs.redispatched == 'true'
+        run: echo "Workflow 已更新并重新触发，本次旧配置运行结束。"
+
+      - name: Checkout private runner
+        if: steps.activation.outputs.enabled == 'true' && steps.prepare.outputs.redispatched != 'true'
+        uses: actions/checkout@v5
+        with:
+          repository: ${{ steps.prepare.outputs.repo }}
+          ref: ${{ steps.prepare.outputs.ref }}
+          token: ${{ steps.prepare.outputs.token }}
+          path: runner
+
+      - name: Setup Python
+        if: steps.activation.outputs.enabled == 'true' && steps.prepare.outputs.redispatched != 'true'
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        if: steps.activation.outputs.enabled == 'true' && steps.prepare.outputs.redispatched != 'true'
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f runner/requirements.txt ]; then pip install -r runner/requirements.txt; fi
+          SERVICE_REQUIREMENTS=$(cd runner && python -m notionhub_runner requirements duolingo)
+          if [ -f "$SERVICE_REQUIREMENTS" ]; then pip install -r "$SERVICE_REQUIREMENTS"; fi
+
+      - name: Run Duolingo sync
+        if: steps.activation.outputs.enabled == 'true' && steps.prepare.outputs.redispatched != 'true'
+        env:
+          PYTHONUNBUFFERED: '1'
+          TZ: Asia/Shanghai
+          NOTIONHUB_SERVICE: duolingo
+          NOTIONHUB_ACTION: ${{ github.event.inputs.action || 'sync' }}
+          NOTIONHUB_ACTION_PAYLOAD: ${{ github.event.inputs.payload || '{}' }}
+          DUOLINGO_CONFIG: ${{ secrets.DUOLINGO_CONFIG }}
+        run: |
+          cd runner
+          python - <<'PY'
+          import json, os
+          for value in json.loads(os.environ.get('DUOLINGO_CONFIG', '{}')).values():
+              escaped = str(value).replace(chr(37), '%25').replace(chr(13), '%0D').replace(chr(10), '%0A')
+              if escaped:
+                  print(f'::add-mask::{escaped}')
+          PY
+          python -m notionhub_runner sync duolingo
+
+      - name: Show sync log
+        if: always() && steps.activation.outputs.enabled == 'true' && steps.prepare.outputs.redispatched != 'true'
+        run: |
+          FOUND_LOG=0
+          while IFS= read -r -d '' LOG_FILE; do
+            FOUND_LOG=1
+            echo "::group::$LOG_FILE"
+            cat "$LOG_FILE"
+            echo "::endgroup::"
+          done < <(find runner/scripts -type f -path '*/log/*.log' -print0)
+          if [ "$FOUND_LOG" -eq 0 ]; then echo "No service log file was generated."; fi

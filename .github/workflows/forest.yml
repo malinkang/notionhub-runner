@@ -28,7 +28,7 @@ permissions:
 env:
   NOTIONHUB_SERVICE: forest
   NOTIONHUB_WORKFLOW_FILE: forest.yml
-  NOTIONHUB_CONFIG_VERSION: '8'
+  NOTIONHUB_CONFIG_VERSION: '9'
   NOTIONHUB_ACTION: ${{ github.event.inputs.action || 'sync' }}
   NOTIONHUB_ACTION_PAYLOAD: ${{ github.event.inputs.payload || '{}' }}
 
@@ -37,30 +37,31 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
-      - name: Check activation
+      - name: 验证服务配置
         id: activation
         env:
           SERVICE_CONFIG: ${{ secrets.FOREST_CONFIG }}
         run: |
           if [ -z "$SERVICE_CONFIG" ]; then
-            echo "Forest 尚未启用，跳过本次运行。"
+            echo "::warning title=Forest尚未启用::缺少服务配置，本次运行已跳过。"
             echo "enabled=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           echo "enabled=true" >> "$GITHUB_OUTPUT"
           if [ -z "${{ secrets.NOTIONHUB_RUN_TOKEN }}" ]; then
-            echo "缺少 NOTIONHUB_RUN_TOKEN，无法获取 NotionHub 私有 runner。"
+            echo "::error title=Runner 配置缺失::缺少 NOTIONHUB_RUN_TOKEN，无法获取同步程序。"
             exit 1
           fi
+          echo "::notice title=Forest::服务配置验证通过。"
 
-      - name: Prepare NotionHub runner
+      - name: 准备同步程序
         if: steps.activation.outputs.enabled == 'true'
         id: prepare
         env:
           NOTIONHUB_RUN_TOKEN: ${{ secrets.NOTIONHUB_RUN_TOKEN }}
           GITHUB_REPOSITORY_NAME: ${{ github.repository }}
         run: |
-          PAYLOAD=$(jq -n --arg service "forest" --arg repository "$GITHUB_REPOSITORY_NAME" --arg workflow_file "forest.yml" --arg config_version "8" '{service: $service, repository: $repository, workflowFile: $workflow_file, configVersion: $config_version}')
+          PAYLOAD=$(jq -n --arg service "forest" --arg repository "$GITHUB_REPOSITORY_NAME" --arg workflow_file "forest.yml" --arg config_version "9" '{service: $service, repository: $repository, workflowFile: $workflow_file, configVersion: $config_version}')
           RESPONSE=$(curl -fsSL -X POST "https://i.notionhub.app/v1/github/runner/prepare" -H "Authorization: Bearer $NOTIONHUB_RUN_TOKEN" -H "Content-Type: application/json" --data "$PAYLOAD")
           echo "redispatched=$(echo "$RESPONSE" | jq -r '.redispatched // false')" >> "$GITHUB_OUTPUT"
           REPO=$(echo "$RESPONSE" | jq -r '.repo // empty')
@@ -72,12 +73,13 @@ jobs:
             echo "::add-mask::$TOKEN"
             echo "token=$TOKEN" >> "$GITHUB_OUTPUT"
           fi
+          echo "::notice title=Runner 已就绪::同步程序配置检查完成。"
 
-      - name: Stop after self update
+      - name: 完成工作流自动更新
         if: steps.activation.outputs.enabled == 'true' && steps.prepare.outputs.redispatched == 'true'
-        run: echo "Workflow 已更新并重新触发，本次旧配置运行结束。"
+        run: echo "::notice title=工作流已更新::新版本已重新触发，本次旧配置运行结束。"
 
-      - name: Checkout private runner
+      - name: 获取同步程序
         if: steps.activation.outputs.enabled == 'true' && steps.prepare.outputs.redispatched != 'true'
         uses: actions/checkout@v5
         with:
@@ -86,13 +88,13 @@ jobs:
           token: ${{ steps.prepare.outputs.token }}
           path: runner
 
-      - name: Setup Python
+      - name: 配置 Python 环境
         if: steps.activation.outputs.enabled == 'true' && steps.prepare.outputs.redispatched != 'true'
         uses: actions/setup-python@v6
         with:
           python-version: '3.11'
 
-      - name: Install dependencies
+      - name: 安装运行依赖
         if: steps.activation.outputs.enabled == 'true' && steps.prepare.outputs.redispatched != 'true'
         run: |
           python -m pip install --upgrade pip
@@ -100,7 +102,8 @@ jobs:
           SERVICE_REQUIREMENTS=$(cd runner && python -m notionhub_runner requirements forest)
           if [ -f "$SERVICE_REQUIREMENTS" ]; then pip install -r "$SERVICE_REQUIREMENTS"; fi
 
-      - name: Run Forest sync
+      - name: 同步 Forest
+        id: sync
         if: steps.activation.outputs.enabled == 'true' && steps.prepare.outputs.redispatched != 'true'
         env:
           PYTHONUNBUFFERED: '1'
@@ -118,9 +121,19 @@ jobs:
               if escaped:
                   print(f'::add-mask::{escaped}')
           PY
+          echo "::notice title=Forest同步开始::正在读取数据并写入 Notion。"
+          set +e
           python -m notionhub_runner sync forest
+          SYNC_EXIT=$?
+          set -e
+          if [ "$SYNC_EXIT" -eq 0 ]; then
+            echo "::notice title=Forest同步成功::所有同步步骤均已完成。"
+          else
+            echo "::error title=Forest同步失败::同步程序退出码为 $SYNC_EXIT，请展开失败步骤查看日志。"
+          fi
+          exit "$SYNC_EXIT"
 
-      - name: Show sync log
+      - name: 查看补充日志
         if: always() && steps.activation.outputs.enabled == 'true' && steps.prepare.outputs.redispatched != 'true'
         run: |
           FOUND_LOG=0
@@ -130,4 +143,35 @@ jobs:
             cat "$LOG_FILE"
             echo "::endgroup::"
           done < <(find runner/scripts -type f -path '*/log/*.log' -print0)
-          if [ "$FOUND_LOG" -eq 0 ]; then echo "No service log file was generated."; fi
+          if [ "$FOUND_LOG" -eq 0 ]; then echo "脚本已直接输出实时日志，没有额外日志文件。"; fi
+
+      - name: 生成运行摘要
+        if: always()
+        env:
+          SYNC_OUTCOME: ${{ steps.sync.outcome }}
+          REDISPATCHED: ${{ steps.prepare.outputs.redispatched }}
+          EVENT_NAME: ${{ github.event_name }}
+          ACTION_NAME: ${{ github.event.inputs.action || 'sync' }}
+        run: |
+          if [ "$REDISPATCHED" = "true" ]; then
+            RESULT="已更新工作流并重新触发"
+          else
+            case "$SYNC_OUTCOME" in
+              success) RESULT="同步成功" ;;
+              failure) RESULT="同步失败" ;;
+              cancelled) RESULT="已取消" ;;
+              skipped) RESULT="已跳过" ;;
+              *) RESULT="未执行" ;;
+            esac
+          fi
+          if [ "$EVENT_NAME" = "schedule" ]; then TRIGGER="定时运行"; else TRIGGER="手动运行"; fi
+          {
+            echo "## Forest同步"
+            echo ""
+            echo "| 项目 | 内容 |"
+            echo "| --- | --- |"
+            echo "| 结果 | $RESULT |"
+            echo "| 触发方式 | $TRIGGER |"
+            echo "| 执行动作 | $ACTION_NAME |"
+            echo "| 运行记录 | [#${{ github.run_number }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) |"
+          } >> "$GITHUB_STEP_SUMMARY"

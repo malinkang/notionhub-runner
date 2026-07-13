@@ -28,7 +28,7 @@ permissions:
 env:
   NOTIONHUB_SERVICE: strava
   NOTIONHUB_WORKFLOW_FILE: strava.yml
-  NOTIONHUB_CONFIG_VERSION: '7'
+  NOTIONHUB_CONFIG_VERSION: '8'
   NOTIONHUB_ACTION: ${{ github.event.inputs.action || 'sync' }}
   NOTIONHUB_ACTION_PAYLOAD: ${{ github.event.inputs.payload || '{}' }}
 
@@ -60,7 +60,7 @@ jobs:
           NOTIONHUB_RUN_TOKEN: ${{ secrets.NOTIONHUB_RUN_TOKEN }}
           GITHUB_REPOSITORY_NAME: ${{ github.repository }}
         run: |
-          PAYLOAD=$(jq -n --arg service "strava" --arg repository "$GITHUB_REPOSITORY_NAME" --arg workflow_file "strava.yml" --arg config_version "7" '{service: $service, repository: $repository, workflowFile: $workflow_file, configVersion: $config_version}')
+          PAYLOAD=$(jq -n --arg service "strava" --arg repository "$GITHUB_REPOSITORY_NAME" --arg workflow_file "strava.yml" --arg config_version "8" '{service: $service, repository: $repository, workflowFile: $workflow_file, configVersion: $config_version}')
           RESPONSE=$(curl -fsSL -X POST "https://i.notionhub.app/v1/github/runner/prepare" -H "Authorization: Bearer $NOTIONHUB_RUN_TOKEN" -H "Content-Type: application/json" --data "$PAYLOAD")
           echo "redispatched=$(echo "$RESPONSE" | jq -r '.redispatched // false')" >> "$GITHUB_OUTPUT"
           REPO=$(echo "$RESPONSE" | jq -r '.repo // empty')

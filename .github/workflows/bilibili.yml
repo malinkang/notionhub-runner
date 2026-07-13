@@ -1,4 +1,4 @@
-name: Bilibili
+name: 哔哩哔哩
 
 on:
   workflow_dispatch:
@@ -28,7 +28,7 @@ permissions:
 env:
   NOTIONHUB_SERVICE: bilibili
   NOTIONHUB_WORKFLOW_FILE: bilibili.yml
-  NOTIONHUB_CONFIG_VERSION: '7'
+  NOTIONHUB_CONFIG_VERSION: '8'
   NOTIONHUB_ACTION: ${{ github.event.inputs.action || 'sync' }}
   NOTIONHUB_ACTION_PAYLOAD: ${{ github.event.inputs.payload || '{}' }}
 
@@ -43,7 +43,7 @@ jobs:
           SERVICE_CONFIG: ${{ secrets.BILIBILI_CONFIG }}
         run: |
           if [ -z "$SERVICE_CONFIG" ]; then
-            echo "Bilibili 尚未启用，跳过本次运行。"
+            echo "哔哩哔哩 尚未启用，跳过本次运行。"
             echo "enabled=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
@@ -60,7 +60,7 @@ jobs:
           NOTIONHUB_RUN_TOKEN: ${{ secrets.NOTIONHUB_RUN_TOKEN }}
           GITHUB_REPOSITORY_NAME: ${{ github.repository }}
         run: |
-          PAYLOAD=$(jq -n --arg service "bilibili" --arg repository "$GITHUB_REPOSITORY_NAME" --arg workflow_file "bilibili.yml" --arg config_version "7" '{service: $service, repository: $repository, workflowFile: $workflow_file, configVersion: $config_version}')
+          PAYLOAD=$(jq -n --arg service "bilibili" --arg repository "$GITHUB_REPOSITORY_NAME" --arg workflow_file "bilibili.yml" --arg config_version "8" '{service: $service, repository: $repository, workflowFile: $workflow_file, configVersion: $config_version}')
           RESPONSE=$(curl -fsSL -X POST "https://i.notionhub.app/v1/github/runner/prepare" -H "Authorization: Bearer $NOTIONHUB_RUN_TOKEN" -H "Content-Type: application/json" --data "$PAYLOAD")
           echo "redispatched=$(echo "$RESPONSE" | jq -r '.redispatched // false')" >> "$GITHUB_OUTPUT"
           REPO=$(echo "$RESPONSE" | jq -r '.repo // empty')
@@ -100,7 +100,7 @@ jobs:
           SERVICE_REQUIREMENTS=$(cd runner && python -m notionhub_runner requirements bilibili)
           if [ -f "$SERVICE_REQUIREMENTS" ]; then pip install -r "$SERVICE_REQUIREMENTS"; fi
 
-      - name: Run Bilibili sync
+      - name: Run 哔哩哔哩 sync
         if: steps.activation.outputs.enabled == 'true' && steps.prepare.outputs.redispatched != 'true'
         env:
           PYTHONUNBUFFERED: '1'

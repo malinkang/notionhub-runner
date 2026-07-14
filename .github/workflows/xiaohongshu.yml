@@ -28,7 +28,7 @@ permissions:
 env:
   NOTIONHUB_SERVICE: xiaohongshu
   NOTIONHUB_WORKFLOW_FILE: xiaohongshu.yml
-  NOTIONHUB_CONFIG_VERSION: '9'
+  NOTIONHUB_CONFIG_VERSION: '10'
   NOTIONHUB_ACTION: ${{ github.event.inputs.action || 'sync' }}
   NOTIONHUB_ACTION_PAYLOAD: ${{ github.event.inputs.payload || '{}' }}
 
@@ -61,7 +61,7 @@ jobs:
           NOTIONHUB_RUN_TOKEN: ${{ secrets.NOTIONHUB_RUN_TOKEN }}
           GITHUB_REPOSITORY_NAME: ${{ github.repository }}
         run: |
-          PAYLOAD=$(jq -n --arg service "xiaohongshu" --arg repository "$GITHUB_REPOSITORY_NAME" --arg workflow_file "xiaohongshu.yml" --arg config_version "9" '{service: $service, repository: $repository, workflowFile: $workflow_file, configVersion: $config_version}')
+          PAYLOAD=$(jq -n --arg service "xiaohongshu" --arg repository "$GITHUB_REPOSITORY_NAME" --arg workflow_file "xiaohongshu.yml" --arg config_version "10" '{service: $service, repository: $repository, workflowFile: $workflow_file, configVersion: $config_version}')
           RESPONSE=$(curl -fsSL -X POST "https://i.notionhub.app/v1/github/runner/prepare" -H "Authorization: Bearer $NOTIONHUB_RUN_TOKEN" -H "Content-Type: application/json" --data "$PAYLOAD")
           echo "redispatched=$(echo "$RESPONSE" | jq -r '.redispatched // false')" >> "$GITHUB_OUTPUT"
           REPO=$(echo "$RESPONSE" | jq -r '.repo // empty')

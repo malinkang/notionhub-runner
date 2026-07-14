@@ -4,15 +4,15 @@ on:
   workflow_dispatch:
     inputs:
       reason:
-        description: Trigger reason
+        description: 触发原因
         required: false
         default: manual
       action:
-        description: Optional NotionHub service action, for example fix/repair action name
+        description: 可选的 NotionHub 服务操作，例如修复操作名称
         required: false
         default: sync
       payload:
-        description: Optional JSON payload for service action
+        description: 服务操作的可选 JSON 参数
         required: false
         default: '{}'
   schedule:
@@ -28,12 +28,13 @@ permissions:
 env:
   NOTIONHUB_SERVICE: daily
   NOTIONHUB_WORKFLOW_FILE: daily.yml
-  NOTIONHUB_CONFIG_VERSION: '10'
+  NOTIONHUB_CONFIG_VERSION: '11'
   NOTIONHUB_ACTION: ${{ github.event.inputs.action || 'sync' }}
   NOTIONHUB_ACTION_PAYLOAD: ${{ github.event.inputs.payload || '{}' }}
 
 jobs:
   sync:
+    name: 同步 每日聚合
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
@@ -49,7 +50,7 @@ jobs:
           fi
           echo "enabled=true" >> "$GITHUB_OUTPUT"
           if [ -z "${{ secrets.NOTIONHUB_RUN_TOKEN }}" ]; then
-            echo "::error title=Runner 配置缺失::缺少 NOTIONHUB_RUN_TOKEN，无法获取同步程序。"
+            echo "::error title=运行器配置缺失::缺少 NOTIONHUB_RUN_TOKEN，无法获取同步程序。"
             exit 1
           fi
           echo "::notice title=每日聚合::服务配置验证通过。"
@@ -61,7 +62,7 @@ jobs:
           NOTIONHUB_RUN_TOKEN: ${{ secrets.NOTIONHUB_RUN_TOKEN }}
           GITHUB_REPOSITORY_NAME: ${{ github.repository }}
         run: |
-          PAYLOAD=$(jq -n --arg service "daily" --arg repository "$GITHUB_REPOSITORY_NAME" --arg workflow_file "daily.yml" --arg config_version "10" '{service: $service, repository: $repository, workflowFile: $workflow_file, configVersion: $config_version}')
+          PAYLOAD=$(jq -n --arg service "daily" --arg repository "$GITHUB_REPOSITORY_NAME" --arg workflow_file "daily.yml" --arg config_version "11" '{service: $service, repository: $repository, workflowFile: $workflow_file, configVersion: $config_version}')
           RESPONSE=$(curl -fsSL -X POST "https://i.notionhub.app/v1/github/runner/prepare" -H "Authorization: Bearer $NOTIONHUB_RUN_TOKEN" -H "Content-Type: application/json" --data "$PAYLOAD")
           echo "redispatched=$(echo "$RESPONSE" | jq -r '.redispatched // false')" >> "$GITHUB_OUTPUT"
           REPO=$(echo "$RESPONSE" | jq -r '.repo // empty')
@@ -73,7 +74,7 @@ jobs:
             echo "::add-mask::$TOKEN"
             echo "token=$TOKEN" >> "$GITHUB_OUTPUT"
           fi
-          echo "::notice title=Runner 已就绪::同步程序配置检查完成。"
+          echo "::notice title=运行器已就绪::同步程序配置检查完成。"
 
       - name: 完成工作流自动更新
         if: steps.activation.outputs.enabled == 'true' && steps.prepare.outputs.redispatched == 'true'
@@ -97,10 +98,10 @@ jobs:
       - name: 安装运行依赖
         if: steps.activation.outputs.enabled == 'true' && steps.prepare.outputs.redispatched != 'true'
         run: |
-          python -m pip install --upgrade pip
-          if [ -f runner/requirements.txt ]; then pip install -r runner/requirements.txt; fi
+          python -m pip install --quiet --disable-pip-version-check --upgrade pip
+          if [ -f runner/requirements.txt ]; then pip install --quiet --disable-pip-version-check -r runner/requirements.txt; fi
           SERVICE_REQUIREMENTS=$(cd runner && python -m notionhub_runner requirements daily)
-          if [ -f "$SERVICE_REQUIREMENTS" ]; then pip install -r "$SERVICE_REQUIREMENTS"; fi
+          if [ -f "$SERVICE_REQUIREMENTS" ]; then pip install --quiet --disable-pip-version-check -r "$SERVICE_REQUIREMENTS"; fi
 
       - name: 同步 每日聚合
         id: sync

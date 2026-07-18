@@ -1,6 +1,6 @@
 name: Apple Music
 
-on:
+'on':
   workflow_dispatch:
     inputs:
       reason:

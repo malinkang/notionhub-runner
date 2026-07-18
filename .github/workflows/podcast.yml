@@ -7,12 +7,8 @@ on:
         description: 触发原因
         required: false
         default: manual
-      action:
-        description: 可选的 NotionHub 服务操作，例如修复操作名称
-        required: false
-        default: sync
       payload:
-        description: 服务操作的可选 JSON 参数
+        description: 同步参数 JSON
         required: false
         default: '{}'
   schedule:
@@ -29,7 +25,6 @@ env:
   NOTIONHUB_SERVICE: podcast
   NOTIONHUB_WORKFLOW_FILE: podcast.yml
   NOTIONHUB_CONFIG_VERSION: '12'
-  NOTIONHUB_ACTION: ${{ github.event.inputs.action || 'sync' }}
   NOTIONHUB_ACTION_PAYLOAD: ${{ github.event.inputs.payload || '{}' }}
 
 jobs:
@@ -116,7 +111,6 @@ jobs:
           PYTHONUNBUFFERED: '1'
           TZ: Asia/Shanghai
           NOTIONHUB_SERVICE: podcast
-          NOTIONHUB_ACTION: ${{ github.event.inputs.action || 'sync' }}
           NOTIONHUB_ACTION_PAYLOAD: ${{ github.event.inputs.payload || '{}' }}
           PODCAST_CONFIG: ${{ secrets.PODCAST_CONFIG }}
         run: |
@@ -158,7 +152,6 @@ jobs:
           SYNC_OUTCOME: ${{ steps.sync.outcome }}
           REDISPATCHED: ${{ steps.prepare.outputs.redispatched }}
           EVENT_NAME: ${{ github.event_name }}
-          ACTION_NAME: ${{ github.event.inputs.action || 'sync' }}
         run: |
           if [ "$REDISPATCHED" = "true" ]; then
             RESULT="已更新工作流并重新触发"
@@ -179,6 +172,5 @@ jobs:
             echo "| --- | --- |"
             echo "| 结果 | $RESULT |"
             echo "| 触发方式 | $TRIGGER |"
-            echo "| 执行动作 | $ACTION_NAME |"
             echo "| 运行记录 | [#${{ github.run_number }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) |"
           } >> "$GITHUB_STEP_SUMMARY"

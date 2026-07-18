@@ -1,6 +1,6 @@
 name: 修复数据
 
-on:
+'on':
   workflow_dispatch:
     inputs:
       service:

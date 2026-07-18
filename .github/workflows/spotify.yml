@@ -178,7 +178,13 @@ jobs:
           cd runner
           python - <<'PY'
           import json, os
-          for value in json.loads(os.environ.get('SPOTIFY_CONFIG', '{}')).values():
+          raw_config = os.environ.get('SPOTIFY_CONFIG', '{}')
+          try:
+              parsed_config = json.loads(raw_config)
+          except Exception:
+              parsed_config = raw_config
+          values = parsed_config.values() if isinstance(parsed_config, dict) else [parsed_config]
+          for value in values:
               escaped = str(value).replace(chr(37), '%25').replace(chr(13), '%0D').replace(chr(10), '%0A')
               if escaped:
                   print(f'::add-mask::{escaped}')

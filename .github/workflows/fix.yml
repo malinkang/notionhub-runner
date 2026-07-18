@@ -1,4 +1,4 @@
-# NotionHub generated workflow v12
+# NotionHub generated workflow v20
 name: 修复数据
 
 'on':
@@ -14,7 +14,7 @@ name: 修复数据
       action:
         description: 修复动作
         required: false
-        default: safe-repair
+        default: repair-notion-data
       payload:
         description: 修复参数 JSON
         required: false
@@ -37,7 +37,7 @@ jobs:
         id: validate
         env:
           SERVICE: ${{ github.event.inputs.service }}
-          ACTION_NAME: ${{ github.event.inputs.action || 'safe-repair' }}
+          ACTION_NAME: ${{ github.event.inputs.action || 'repair-notion-data' }}
           WEREAD_CONFIG: ${{ secrets.WEREAD_CONFIG }}
           PODCAST_CONFIG: ${{ secrets.PODCAST_CONFIG }}
           DOUBAN_CONFIG: ${{ secrets.DOUBAN_CONFIG }}
@@ -140,7 +140,7 @@ jobs:
           NOTIONHUB_ACTION_PAYLOAD: ${{ github.event.inputs.payload || '{}' }}
           NOTIONHUB_FIX_USER_TRIGGER: '1'
           SERVICE: ${{ github.event.inputs.service }}
-          ACTION_NAME: ${{ github.event.inputs.action || 'safe-repair' }}
+          ACTION_NAME: ${{ github.event.inputs.action || 'repair-notion-data' }}
           WEREAD_CONFIG: ${{ secrets.WEREAD_CONFIG }}
           PODCAST_CONFIG: ${{ secrets.PODCAST_CONFIG }}
           DOUBAN_CONFIG: ${{ secrets.DOUBAN_CONFIG }}
@@ -190,7 +190,9 @@ jobs:
           FIX_OUTCOME: ${{ steps.fix.outcome }}
           REDISPATCHED: ${{ steps.prepare.outputs.redispatched }}
           SERVICE: ${{ github.event.inputs.service }}
-          ACTION_NAME: ${{ github.event.inputs.action || 'safe-repair' }}
+          ACTION_NAME: ${{ github.event.inputs.action || 'repair-notion-data' }}
+          ACTION_PAYLOAD: ${{ github.event.inputs.payload || '{}' }}
+          NOTIONHUB_RUN_TOKEN: ${{ secrets.NOTIONHUB_RUN_TOKEN }}
         run: |
           if [ "$REDISPATCHED" = "true" ]; then
             RESULT="已更新工作流并重新触发"
@@ -203,6 +205,20 @@ jobs:
               *) RESULT="未执行" ;;
             esac
           fi
+          DRY_RUN=$(printf '%s' "$ACTION_PAYLOAD" | jq -r '.dryRun // false' 2>/dev/null || echo "false")
+          if [ "$DRY_RUN" = "true" ]; then MODE_LABEL="预览修复"; else MODE_LABEL="实际修复"; fi
+          if [ "$REDISPATCHED" != "true" ] && [ -n "$NOTIONHUB_RUN_TOKEN" ]; then
+            case "$FIX_OUTCOME" in
+              success) REPORT_STATUS="success" ;;
+              failure) REPORT_STATUS="failure" ;;
+              cancelled) REPORT_STATUS="cancelled" ;;
+              *) REPORT_STATUS="" ;;
+            esac
+            if [ -n "$REPORT_STATUS" ]; then
+              SUMMARY_JSON=$(printf '%s' "${NOTIONHUB_REPAIR_STATS:-}" | jq -c . 2>/dev/null || echo '{}')
+              curl -fsSL -X POST "https://i.notionhub.app/v1/internal/sync-runs/report"                 -H "Authorization: Bearer $NOTIONHUB_RUN_TOKEN"                 -H "Content-Type: application/json"                 --data "$(jq -cn --arg service "$SERVICE" --arg repository "${{ github.repository }}" --arg github_run_id "${{ github.run_id }}" --arg status "$REPORT_STATUS" --arg message "$RESULT" --argjson summary "$SUMMARY_JSON" '{service:$service,repository:$repository,githubRunId:$github_run_id,status:$status,message:$message,summary:$summary}')"                 >/dev/null || echo "::warning title=运行状态更新失败::修复已结束，但统计结果没有写回 NotionHub。"
+            fi
+          fi
           {
             echo "## NotionHub 数据修复"
             echo ""
@@ -210,6 +226,8 @@ jobs:
             echo "| --- | --- |"
             echo "| 服务 | $SERVICE |"
             echo "| 动作 | $ACTION_NAME |"
+            echo "| 模式 | $MODE_LABEL |"
             echo "| 结果 | $RESULT |"
+            if [ "${NOTIONHUB_REPAIR_WARNING:-}" = "true" ] && [ -n "${NOTIONHUB_REPAIR_WARNING_MESSAGE:-}" ]; then echo "| 修复提醒 | $NOTIONHUB_REPAIR_WARNING_MESSAGE |"; fi
             echo "| 运行记录 | [#${{ github.run_number }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) |"
           } >> "$GITHUB_STEP_SUMMARY"

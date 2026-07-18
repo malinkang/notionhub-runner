@@ -1,6 +1,6 @@
 name: 哔哩哔哩
 
-on:
+'on':
   workflow_dispatch:
     inputs:
       reason:

@@ -1,6 +1,6 @@
 name: Toggl
 
-on:
+'on':
   workflow_dispatch:
     inputs:
       reason:

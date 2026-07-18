@@ -4,6 +4,10 @@ name: 修复数据
 'on':
   workflow_dispatch:
     inputs:
+      reason:
+        description: 触发原因
+        required: false
+        default: manual
       service:
         description: 同步服务
         required: true

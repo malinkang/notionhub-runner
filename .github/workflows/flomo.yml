@@ -1,6 +1,6 @@
 name: Flomo
 
-on:
+'on':
   workflow_dispatch:
     inputs:
       reason:

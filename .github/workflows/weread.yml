@@ -1,7 +1,7 @@
 # NotionHub generated workflow v20
 name: 微信读书
 
-'on':
+on:
   workflow_dispatch:
     inputs:
       reason:

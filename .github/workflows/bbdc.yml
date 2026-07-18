@@ -1,6 +1,6 @@
 name: 不背单词
 
-on:
+'on':
   workflow_dispatch:
     inputs:
       reason:

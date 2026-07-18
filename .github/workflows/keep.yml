@@ -1,6 +1,6 @@
 name: Keep
 
-on:
+'on':
   workflow_dispatch:
     inputs:
       reason:

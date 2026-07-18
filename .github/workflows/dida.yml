@@ -1,7 +1,7 @@
 # NotionHub generated workflow v20
 name: 滴答清单
 
-'on':
+on:
   workflow_dispatch:
     inputs:
       reason:

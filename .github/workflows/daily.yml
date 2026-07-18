@@ -1,6 +1,6 @@
 name: 每日聚合
 
-on:
+'on':
   workflow_dispatch:
     inputs:
       reason:

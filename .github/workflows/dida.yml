@@ -78,8 +78,7 @@ jobs:
           SIGNING_PAYLOAD=$(printf 'POST\n/v1/github/runner/prepare\n%s\n%s\n%s' "$TIMESTAMP" "$NONCE" "$BODY_SHA256")
           SIGNATURE=$(printf '%s' "$SIGNING_PAYLOAD" | openssl dgst -sha256 -hmac "$NOTIONHUB_RUN_TOKEN" -r | awk '{print $1}')
           echo "::add-mask::$SIGNATURE"
-          HTTP_RESPONSE=$(curl -sS -X POST "https://i.notionhub.app/v1/github/runner/prepare"             -H "Authorization: Bearer $NOTIONHUB_RUN_TOKEN"             -H "Content-Type: application/json"             -H "X-NotionHub-Timestamp: $TIMESTAMP"             -H "X-NotionHub-Nonce: $NONCE"             -H "X-NotionHub-Signature: $SIGNATURE"             --data "$PAYLOAD"             -w "
-%{http_code}")
+          HTTP_RESPONSE=$(curl -sS -X POST "https://i.notionhub.app/v1/github/runner/prepare"             -H "Authorization: Bearer $NOTIONHUB_RUN_TOKEN"             -H "Content-Type: application/json"             -H "X-NotionHub-Timestamp: $TIMESTAMP"             -H "X-NotionHub-Nonce: $NONCE"             -H "X-NotionHub-Signature: $SIGNATURE"             --data "$PAYLOAD"             -w "\n%{http_code}")
           HTTP_BODY=$(printf '%s' "$HTTP_RESPONSE" | sed '$d')
           HTTP_STATUS=$(printf '%s' "$HTTP_RESPONSE" | tail -n 1)
           if [ "$HTTP_STATUS" != "200" ]; then

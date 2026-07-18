@@ -99,7 +99,7 @@ jobs:
           REPO=$(echo "$RESPONSE" | jq -r '.repo // empty')
           REF=$(echo "$RESPONSE" | jq -r '.ref // empty')
           TOKEN=$(echo "$RESPONSE" | jq -r '.token // empty')
-          SERVICE_CONFIG=$(echo "$RESPONSE" | jq -c '.serviceConfig // empty')
+          SERVICE_CONFIG=$(echo "$RESPONSE" | jq -r '.serviceConfig // empty')
           PREPARED_PAYLOAD=$(echo "$RESPONSE" | jq -c '.actionPayload // {}')
           if [ -n "$REPO" ]; then echo "repo=$REPO" >> "$GITHUB_OUTPUT"; fi
           if [ -n "$REF" ]; then echo "ref=$REF" >> "$GITHUB_OUTPUT"; fi

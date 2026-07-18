@@ -1,7 +1,7 @@
 # NotionHub generated workflow v20
 name: 网易云音乐
 
-'on':
+on:
   workflow_dispatch:
     inputs:
       reason:

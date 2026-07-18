@@ -1,7 +1,7 @@
 # NotionHub generated workflow v20
 name: 每日聚合
 
-'on':
+on:
   workflow_dispatch:
     inputs:
       reason:

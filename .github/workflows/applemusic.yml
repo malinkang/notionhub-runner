@@ -1,7 +1,7 @@
 # NotionHub generated workflow v20
 name: Apple Music
 
-'on':
+on:
   workflow_dispatch:
     inputs:
       reason:

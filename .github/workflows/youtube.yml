@@ -1,6 +1,6 @@
 name: YouTube
 
-on:
+'on':
   workflow_dispatch:
     inputs:
       reason:

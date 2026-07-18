@@ -1,7 +1,7 @@
 # NotionHub generated workflow v20
 name: 修复数据
 
-'on':
+on:
   workflow_dispatch:
     inputs:
       reason:

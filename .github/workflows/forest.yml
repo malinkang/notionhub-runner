@@ -1,6 +1,6 @@
 name: Forest
 
-on:
+'on':
   workflow_dispatch:
     inputs:
       reason:

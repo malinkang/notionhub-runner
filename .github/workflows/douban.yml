@@ -1,6 +1,6 @@
 name: 豆瓣
 
-on:
+'on':
   workflow_dispatch:
     inputs:
       reason:

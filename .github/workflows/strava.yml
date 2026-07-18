@@ -1,6 +1,6 @@
 name: Strava
 
-on:
+'on':
   workflow_dispatch:
     inputs:
       reason:

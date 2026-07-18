@@ -1,6 +1,6 @@
 name: Spotify
 
-on:
+'on':
   workflow_dispatch:
     inputs:
       reason:

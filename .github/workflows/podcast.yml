@@ -1,6 +1,6 @@
 name: 小宇宙
 
-on:
+'on':
   workflow_dispatch:
     inputs:
       reason:

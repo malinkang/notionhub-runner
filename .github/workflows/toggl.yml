@@ -1,4 +1,4 @@
-# NotionHub generated workflow v12
+# NotionHub generated workflow v20
 name: Toggl
 
 'on':
@@ -8,6 +8,26 @@ name: Toggl
         description: 触发原因
         required: false
         default: manual
+      sync_mode:
+        description: 同步模式
+        required: false
+        default: incremental
+        type: choice
+        options:
+          - incremental
+          - full
+      syncMode:
+        description: 同步模式（兼容旧版本）
+        required: false
+        default: incremental
+        type: choice
+        options:
+          - incremental
+          - full
+      repair_after_sync:
+        description: 全量更新后自动修复 Notion 数据
+        required: false
+        default: 'false'
       payload:
         description: 同步参数 JSON
         required: false
@@ -27,6 +47,7 @@ env:
   NOTIONHUB_WORKFLOW_FILE: toggl.yml
   NOTIONHUB_CONFIG_VERSION: '12'
   NOTIONHUB_ACTION_PAYLOAD: ${{ github.event.inputs.payload || '{}' }}
+  NOTIONHUB_SUPPORTS_FULL_SYNC: 'true'
 
 jobs:
   sync:
@@ -34,22 +55,16 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
-      - name: 验证服务配置
+      - name: 验证运行配置
         id: activation
-        env:
-          SERVICE_CONFIG: ${{ secrets.TOGGL_CONFIG }}
         run: |
-          if [ -z "$SERVICE_CONFIG" ]; then
-            echo "::warning title=Toggl尚未启用::缺少服务配置，本次运行已跳过。"
+          if [ -z "${{ secrets.NOTIONHUB_RUN_TOKEN }}" ]; then
+            echo "::warning title=Toggl尚未启用::缺少运行凭证，本次运行已跳过。"
             echo "enabled=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           echo "enabled=true" >> "$GITHUB_OUTPUT"
-          if [ -z "${{ secrets.NOTIONHUB_RUN_TOKEN }}" ]; then
-            echo "::error title=运行器配置缺失::缺少 NOTIONHUB_RUN_TOKEN，无法获取同步程序。"
-            exit 1
-          fi
-          echo "::notice title=Toggl::服务配置验证通过。"
+          echo "::notice title=Toggl::运行凭证验证通过。"
 
       - name: 准备同步程序
         if: steps.activation.outputs.enabled == 'true'
@@ -65,17 +80,49 @@ jobs:
           SIGNING_PAYLOAD=$(printf 'POST\n/v1/github/runner/prepare\n%s\n%s\n%s' "$TIMESTAMP" "$NONCE" "$BODY_SHA256")
           SIGNATURE=$(printf '%s' "$SIGNING_PAYLOAD" | openssl dgst -sha256 -hmac "$NOTIONHUB_RUN_TOKEN" -r | awk '{print $1}')
           echo "::add-mask::$SIGNATURE"
-          RESPONSE=$(curl -fsSL -X POST "https://i.notionhub.app/v1/github/runner/prepare"             -H "Authorization: Bearer $NOTIONHUB_RUN_TOKEN"             -H "Content-Type: application/json"             -H "X-NotionHub-Timestamp: $TIMESTAMP"             -H "X-NotionHub-Nonce: $NONCE"             -H "X-NotionHub-Signature: $SIGNATURE"             --data "$PAYLOAD")
+          HTTP_RESPONSE=$(curl -sS -X POST "https://i.notionhub.app/v1/github/runner/prepare"             -H "Authorization: Bearer $NOTIONHUB_RUN_TOKEN"             -H "Content-Type: application/json"             -H "X-NotionHub-Timestamp: $TIMESTAMP"             -H "X-NotionHub-Nonce: $NONCE"             -H "X-NotionHub-Signature: $SIGNATURE"             --data "$PAYLOAD"             -w "
+%{http_code}")
+          HTTP_BODY=$(printf '%s' "$HTTP_RESPONSE" | sed '$d')
+          HTTP_STATUS=$(printf '%s' "$HTTP_RESPONSE" | tail -n 1)
+          if [ "$HTTP_STATUS" != "200" ]; then
+            REASON=$(printf '%s' "$HTTP_BODY" | jq -r '.reason // empty' 2>/dev/null || true)
+            MESSAGE=$(printf '%s' "$HTTP_BODY" | jq -r '.message // "准备同步配置失败"' 2>/dev/null || echo "准备同步配置失败")
+            if [ "$REASON" = "service_not_enabled" ]; then
+              echo "ready=false" >> "$GITHUB_OUTPUT"
+              echo "redispatched=false" >> "$GITHUB_OUTPUT"
+              echo "::warning title=Toggl尚未启用::$MESSAGE"
+              exit 0
+            fi
+            echo "::error title=准备同步配置失败::$MESSAGE"
+            exit 1
+          fi
+          RESPONSE="$HTTP_BODY"
+          echo "ready=$(echo "$RESPONSE" | jq -r '.ready // true')" >> "$GITHUB_OUTPUT"
           echo "redispatched=$(echo "$RESPONSE" | jq -r '.redispatched // false')" >> "$GITHUB_OUTPUT"
           REPO=$(echo "$RESPONSE" | jq -r '.repo // empty')
           REF=$(echo "$RESPONSE" | jq -r '.ref // empty')
           TOKEN=$(echo "$RESPONSE" | jq -r '.token // empty')
+          SERVICE_CONFIG=$(echo "$RESPONSE" | jq -c '.serviceConfig // empty')
+          PREPARED_PAYLOAD=$(echo "$RESPONSE" | jq -c '.actionPayload // {}')
           if [ -n "$REPO" ]; then echo "repo=$REPO" >> "$GITHUB_OUTPUT"; fi
           if [ -n "$REF" ]; then echo "ref=$REF" >> "$GITHUB_OUTPUT"; fi
           if [ -n "$TOKEN" ]; then
             echo "::add-mask::$TOKEN"
             echo "token=$TOKEN" >> "$GITHUB_OUTPUT"
           fi
+          if [ -n "$SERVICE_CONFIG" ]; then
+            echo "::add-mask::$SERVICE_CONFIG"
+            {
+              echo "service_config<<NOTIONHUB_EOF"
+              echo "$SERVICE_CONFIG"
+              echo "NOTIONHUB_EOF"
+            } >> "$GITHUB_OUTPUT"
+          fi
+          {
+            echo "action_payload<<NOTIONHUB_EOF"
+            echo "$PREPARED_PAYLOAD"
+            echo "NOTIONHUB_EOF"
+          } >> "$GITHUB_OUTPUT"
           echo "::notice title=运行器已就绪::同步程序配置检查完成。"
 
       - name: 完成工作流自动更新
@@ -83,7 +130,7 @@ jobs:
         run: echo "::notice title=工作流已更新::新版本已重新触发，本次旧配置运行结束。"
 
       - name: 获取同步程序
-        if: steps.activation.outputs.enabled == 'true' && steps.prepare.outputs.redispatched != 'true'
+        if: steps.activation.outputs.enabled == 'true' && steps.prepare.outputs.ready == 'true' && steps.prepare.outputs.redispatched != 'true'
         uses: actions/checkout@v5
         with:
           repository: ${{ steps.prepare.outputs.repo }}
@@ -92,13 +139,13 @@ jobs:
           path: runner
 
       - name: 配置 Python 环境
-        if: steps.activation.outputs.enabled == 'true' && steps.prepare.outputs.redispatched != 'true'
+        if: steps.activation.outputs.enabled == 'true' && steps.prepare.outputs.ready == 'true' && steps.prepare.outputs.redispatched != 'true'
         uses: actions/setup-python@v6
         with:
           python-version: '3.11'
 
       - name: 安装运行依赖
-        if: steps.activation.outputs.enabled == 'true' && steps.prepare.outputs.redispatched != 'true'
+        if: steps.activation.outputs.enabled == 'true' && steps.prepare.outputs.ready == 'true' && steps.prepare.outputs.redispatched != 'true'
         run: |
           python -m pip install --quiet --disable-pip-version-check --upgrade pip
           if [ -f runner/requirements.txt ]; then pip install --quiet --disable-pip-version-check -r runner/requirements.txt; fi
@@ -107,14 +154,30 @@ jobs:
 
       - name: 同步 Toggl
         id: sync
-        if: steps.activation.outputs.enabled == 'true' && steps.prepare.outputs.redispatched != 'true'
+        if: steps.activation.outputs.enabled == 'true' && steps.prepare.outputs.ready == 'true' && steps.prepare.outputs.redispatched != 'true'
         env:
           PYTHONUNBUFFERED: '1'
           TZ: Asia/Shanghai
           NOTIONHUB_SERVICE: toggl
-          NOTIONHUB_ACTION_PAYLOAD: ${{ github.event.inputs.payload || '{}' }}
-          TOGGL_CONFIG: ${{ secrets.TOGGL_CONFIG }}
+          RAW_ACTION_PAYLOAD: ${{ github.event.inputs.payload || '{}' }}
+          PREPARED_ACTION_PAYLOAD: ${{ steps.prepare.outputs.action_payload || '{}' }}
+          INPUT_SYNC_MODE: ${{ github.event.inputs.sync_mode || github.event.inputs.syncMode || '' }}
+          SUPPORTS_FULL_SYNC: 'true'
+          INPUT_REPAIR_AFTER_SYNC: ${{ github.event.inputs.repair_after_sync || '' }}
+          SYNC_PLAN: ${{ secrets.SYNC_PLAN || 'lifetime' }}
+          ENTITLEMENT_PLAN: ${{ secrets.ENTITLEMENT_PLAN || 'lifetime' }}
+          TOGGL_CONFIG: ${{ steps.prepare.outputs.service_config || secrets.TOGGL_CONFIG }}
         run: |
+          REQUESTED_SYNC_MODE=$(jq -nr --arg prepared "$PREPARED_ACTION_PAYLOAD" --arg raw "$RAW_ACTION_PAYLOAD" --arg sync_mode "$INPUT_SYNC_MODE" '($prepared | fromjson? // {}) as $prepared_payload | ($raw | fromjson? // {}) as $raw_payload | ($prepared_payload + $raw_payload) as $payload | ($payload.syncMode // $payload.sync_mode // "incremental") as $payload_mode | if $sync_mode == "full" or $sync_mode == "incremental" then $sync_mode else $payload_mode end')
+          if [ "$REQUESTED_SYNC_MODE" = "full" ] && [ "$SUPPORTS_FULL_SYNC" != "true" ]; then
+            echo "::error title=全量更新不可用::Toggl 暂不支持全量更新，请改用普通同步。"
+            exit 1
+          fi
+          ACTION_PAYLOAD=$(jq -cn --arg prepared "$PREPARED_ACTION_PAYLOAD" --arg raw "$RAW_ACTION_PAYLOAD" --arg sync_mode "$INPUT_SYNC_MODE" '($prepared | fromjson? // {}) as $prepared_payload | ($raw | fromjson? // {}) as $raw_payload | ($prepared_payload + $raw_payload) as $payload | ($payload.syncMode // $payload.sync_mode // "incremental") as $payload_mode | (if $sync_mode == "full" or $sync_mode == "incremental" then $sync_mode else $payload_mode end) as $mode | $payload + {syncMode: $mode, sync_mode: $mode}')
+          if [ "$INPUT_REPAIR_AFTER_SYNC" = "true" ] || [ "$INPUT_REPAIR_AFTER_SYNC" = "false" ]; then
+            ACTION_PAYLOAD=$(printf '%s' "$ACTION_PAYLOAD" | jq -c --arg repair_after_sync "$INPUT_REPAIR_AFTER_SYNC" '. + {repair_after_sync: ($repair_after_sync == "true"), runSafeRepairAfterSync: ($repair_after_sync == "true")}')
+          fi
+          export NOTIONHUB_ACTION_PAYLOAD="$ACTION_PAYLOAD"
           cd runner
           python - <<'PY'
           import json, os
@@ -136,7 +199,7 @@ jobs:
           exit "$SYNC_EXIT"
 
       - name: 查看补充日志
-        if: always() && steps.activation.outputs.enabled == 'true' && steps.prepare.outputs.redispatched != 'true'
+        if: always() && steps.activation.outputs.enabled == 'true' && steps.prepare.outputs.ready == 'true' && steps.prepare.outputs.redispatched != 'true'
         run: |
           FOUND_LOG=0
           while IFS= read -r -d '' LOG_FILE; do
@@ -153,12 +216,20 @@ jobs:
           SYNC_OUTCOME: ${{ steps.sync.outcome }}
           REDISPATCHED: ${{ steps.prepare.outputs.redispatched }}
           EVENT_NAME: ${{ github.event_name }}
+          RAW_ACTION_PAYLOAD: ${{ github.event.inputs.payload || '{}' }}
+          PREPARED_ACTION_PAYLOAD: ${{ steps.prepare.outputs.action_payload || '{}' }}
+          INPUT_SYNC_MODE: ${{ github.event.inputs.sync_mode || github.event.inputs.syncMode || '' }}
+          SUPPORTS_FULL_SYNC: 'true'
+          NOTIONHUB_RUN_TOKEN: ${{ secrets.NOTIONHUB_RUN_TOKEN }}
         run: |
+          ACTION_PAYLOAD=$(jq -cn --arg prepared "$PREPARED_ACTION_PAYLOAD" --arg raw "$RAW_ACTION_PAYLOAD" --arg sync_mode "$INPUT_SYNC_MODE" '($prepared | fromjson? // {}) as $prepared_payload | ($raw | fromjson? // {}) as $raw_payload | ($prepared_payload + $raw_payload) as $payload | ($payload.syncMode // $payload.sync_mode // "incremental") as $payload_mode | (if $sync_mode == "full" or $sync_mode == "incremental" then $sync_mode else $payload_mode end) as $mode | $payload + {syncMode: $mode, sync_mode: $mode}')
           if [ "$REDISPATCHED" = "true" ]; then
             RESULT="已更新工作流并重新触发"
           else
             case "$SYNC_OUTCOME" in
-              success) RESULT="同步成功" ;;
+              success)
+                if [ "${NOTIONHUB_REPAIR_WARNING:-}" = "true" ]; then RESULT="同步成功，修复有警告"; else RESULT="同步成功"; fi
+                ;;
               failure) RESULT="同步失败" ;;
               cancelled) RESULT="已取消" ;;
               skipped) RESULT="已跳过" ;;
@@ -166,12 +237,20 @@ jobs:
             esac
           fi
           if [ "$EVENT_NAME" = "schedule" ]; then TRIGGER="定时运行"; else TRIGGER="手动运行"; fi
+          SYNC_MODE=$(printf '%s' "$ACTION_PAYLOAD" | jq -r '.syncMode // "incremental"' 2>/dev/null || echo "incremental")
+          if [ "$SYNC_MODE" = "full" ]; then MODE_LABEL="全量更新"; else MODE_LABEL="增量同步"; fi
+          if [ "${NOTIONHUB_REPAIR_WARNING:-}" = "true" ] && [ -n "$NOTIONHUB_RUN_TOKEN" ]; then
+            SUMMARY_JSON=$(printf '%s' "${NOTIONHUB_REPAIR_STATS:-}" | jq -c . 2>/dev/null || echo '{}')
+            curl -fsSL -X POST "https://i.notionhub.app/v1/internal/sync-runs/report"               -H "Authorization: Bearer $NOTIONHUB_RUN_TOKEN"               -H "Content-Type: application/json"               --data "$(jq -cn --arg service "toggl" --arg repository "${{ github.repository }}" --arg github_run_id "${{ github.run_id }}" --arg message "${NOTIONHUB_REPAIR_WARNING_MESSAGE:-同步成功，修复有警告}" --argjson summary "$SUMMARY_JSON" '{service:$service,repository:$repository,githubRunId:$github_run_id,status:"warning",message:$message,summary:$summary}')"               >/dev/null || echo "::warning title=运行状态更新失败::同步已完成，但修复警告状态没有写回 NotionHub。"
+          fi
           {
             echo "## Toggl同步"
             echo ""
             echo "| 项目 | 内容 |"
             echo "| --- | --- |"
             echo "| 结果 | $RESULT |"
+            if [ "${NOTIONHUB_REPAIR_WARNING:-}" = "true" ] && [ -n "${NOTIONHUB_REPAIR_WARNING_MESSAGE:-}" ]; then echo "| 修复提醒 | $NOTIONHUB_REPAIR_WARNING_MESSAGE |"; fi
+            echo "| 模式 | $MODE_LABEL |"
             echo "| 触发方式 | $TRIGGER |"
             echo "| 运行记录 | [#${{ github.run_number }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) |"
           } >> "$GITHUB_STEP_SUMMARY"

@@ -82,11 +82,7 @@ jobs:
           TIMESTAMP=$(date +%s)
           NONCE=$(openssl rand -hex 16)
           BODY_SHA256=$(printf '%s' "$PAYLOAD" | openssl dgst -sha256 -r | awk '{print $1}')
-          SIGNING_PAYLOAD=$(printf 'POST
-/v1/github/runner/prepare
-%s
-%s
-%s' "$TIMESTAMP" "$NONCE" "$BODY_SHA256")
+          SIGNING_PAYLOAD=$(printf 'POST\n/v1/github/runner/prepare\n%s\n%s\n%s' "$TIMESTAMP" "$NONCE" "$BODY_SHA256")
           SIGNATURE=$(printf '%s' "$SIGNING_PAYLOAD" | openssl dgst -sha256 -hmac "$NOTIONHUB_RUN_TOKEN" -r | awk '{print $1}')
           echo "::add-mask::$SIGNATURE"
           RESPONSE=$(curl -fsSL -X POST "https://i.notionhub.app/v1/github/runner/prepare"             -H "Authorization: Bearer $NOTIONHUB_RUN_TOKEN"             -H "Content-Type: application/json"             -H "X-NotionHub-Timestamp: $TIMESTAMP"             -H "X-NotionHub-Nonce: $NONCE"             -H "X-NotionHub-Signature: $SIGNATURE"             --data "$PAYLOAD")

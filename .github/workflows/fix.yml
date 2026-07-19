@@ -1,4 +1,4 @@
-# NotionHub generated workflow v20
+# NotionHub generated workflow v21
 name: 修复数据
 
 on:
@@ -82,7 +82,7 @@ jobs:
           GITHUB_REPOSITORY_NAME: ${{ github.repository }}
           SERVICE: ${{ github.event.inputs.service }}
         run: |
-          PAYLOAD=$(jq -cn --arg service "$SERVICE" --arg repository "$GITHUB_REPOSITORY_NAME" --arg workflow_file "fix.yml" --arg config_version "12" '{service: $service, repository: $repository, workflowFile: $workflow_file, configVersion: $config_version}')
+          PAYLOAD=$(jq -cn --arg service "$SERVICE" --arg repository "$GITHUB_REPOSITORY_NAME" --arg workflow_file "fix.yml" --arg config_version "13" '{service: $service, repository: $repository, workflowFile: $workflow_file, configVersion: $config_version}')
           TIMESTAMP=$(date +%s)
           NONCE=$(openssl rand -hex 16)
           BODY_SHA256=$(printf '%s' "$PAYLOAD" | openssl dgst -sha256 -r | awk '{print $1}')
@@ -222,7 +222,7 @@ jobs:
             esac
             if [ -n "$REPORT_STATUS" ]; then
               SUMMARY_JSON=$(printf '%s' "${NOTIONHUB_REPAIR_STATS:-}" | jq -c . 2>/dev/null || echo '{}')
-              curl -fsSL -X POST "https://i.notionhub.app/v1/internal/sync-runs/report"                 -H "Authorization: Bearer $NOTIONHUB_RUN_TOKEN"                 -H "Content-Type: application/json"                 --data "$(jq -cn --arg service "$SERVICE" --arg repository "${{ github.repository }}" --arg github_run_id "${{ github.run_id }}" --arg status "$REPORT_STATUS" --arg message "$RESULT" --argjson summary "$SUMMARY_JSON" '{service:$service,repository:$repository,githubRunId:$github_run_id,status:$status,message:$message,summary:$summary}')"                 >/dev/null || echo "::warning title=运行状态更新失败::修复已结束，但统计结果没有写回 NotionHub。"
+              curl -fsSL -X POST "https://i.notionhub.app/v1/internal/sync-runs/report"                 -H "Authorization: Bearer $NOTIONHUB_RUN_TOKEN"                 -H "Content-Type: application/json"                 --data "$(jq -cn --arg service "$SERVICE" --arg repository "${{ github.repository }}" --arg github_run_id "${{ github.run_id }}" --arg status "$REPORT_STATUS" --arg message "$RESULT" --arg summary "$SUMMARY_JSON" '{service:$service,repository:$repository,githubRunId:$github_run_id,status:$status,message:$message,summary:($summary | fromjson? // {})}')"                 >/dev/null || echo "::warning title=运行状态更新失败::修复已结束，但统计结果没有写回 NotionHub。"
             fi
           fi
           {

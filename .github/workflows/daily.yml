@@ -1,4 +1,4 @@
-# NotionHub generated workflow v20
+# NotionHub generated workflow v21
 name: 每日聚合
 
 on:
@@ -43,7 +43,7 @@ permissions:
 env:
   NOTIONHUB_SERVICE: daily
   NOTIONHUB_WORKFLOW_FILE: daily.yml
-  NOTIONHUB_CONFIG_VERSION: '12'
+  NOTIONHUB_CONFIG_VERSION: '13'
   NOTIONHUB_ACTION_PAYLOAD: ${{ github.event.inputs.payload || '{}' }}
   NOTIONHUB_SUPPORTS_FULL_SYNC: 'false'
 
@@ -71,7 +71,7 @@ jobs:
           NOTIONHUB_RUN_TOKEN: ${{ secrets.NOTIONHUB_RUN_TOKEN }}
           GITHUB_REPOSITORY_NAME: ${{ github.repository }}
         run: |
-          PAYLOAD=$(jq -cn --arg service "daily" --arg repository "$GITHUB_REPOSITORY_NAME" --arg workflow_file "daily.yml" --arg config_version "12" '{service: $service, repository: $repository, workflowFile: $workflow_file, configVersion: $config_version}')
+          PAYLOAD=$(jq -cn --arg service "daily" --arg repository "$GITHUB_REPOSITORY_NAME" --arg workflow_file "daily.yml" --arg config_version "13" '{service: $service, repository: $repository, workflowFile: $workflow_file, configVersion: $config_version}')
           TIMESTAMP=$(date +%s)
           NONCE=$(openssl rand -hex 16)
           BODY_SHA256=$(printf '%s' "$PAYLOAD" | openssl dgst -sha256 -r | awk '{print $1}')
@@ -244,7 +244,7 @@ jobs:
           if [ "$SYNC_MODE" = "full" ]; then MODE_LABEL="全量更新"; else MODE_LABEL="增量同步"; fi
           if [ "${NOTIONHUB_REPAIR_WARNING:-}" = "true" ] && [ -n "$NOTIONHUB_RUN_TOKEN" ]; then
             SUMMARY_JSON=$(printf '%s' "${NOTIONHUB_REPAIR_STATS:-}" | jq -c . 2>/dev/null || echo '{}')
-            curl -fsSL -X POST "https://i.notionhub.app/v1/internal/sync-runs/report"               -H "Authorization: Bearer $NOTIONHUB_RUN_TOKEN"               -H "Content-Type: application/json"               --data "$(jq -cn --arg service "daily" --arg repository "${{ github.repository }}" --arg github_run_id "${{ github.run_id }}" --arg message "${NOTIONHUB_REPAIR_WARNING_MESSAGE:-同步成功，修复有警告}" --argjson summary "$SUMMARY_JSON" '{service:$service,repository:$repository,githubRunId:$github_run_id,status:"warning",message:$message,summary:$summary}')"               >/dev/null || echo "::warning title=运行状态更新失败::同步已完成，但修复警告状态没有写回 NotionHub。"
+            curl -fsSL -X POST "https://i.notionhub.app/v1/internal/sync-runs/report"               -H "Authorization: Bearer $NOTIONHUB_RUN_TOKEN"               -H "Content-Type: application/json"               --data "$(jq -cn --arg service "daily" --arg repository "${{ github.repository }}" --arg github_run_id "${{ github.run_id }}" --arg message "${NOTIONHUB_REPAIR_WARNING_MESSAGE:-同步成功，修复有警告}" --arg summary "$SUMMARY_JSON" '{service:$service,repository:$repository,githubRunId:$github_run_id,status:"warning",message:$message,summary:($summary | fromjson? // {})}')"               >/dev/null || echo "::warning title=运行状态更新失败::同步已完成，但修复警告状态没有写回 NotionHub。"
           fi
           {
             echo "## 每日聚合同步"

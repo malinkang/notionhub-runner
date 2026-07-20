@@ -1,4 +1,4 @@
-# NotionHub generated workflow v21
+# NotionHub generated workflow v22
 name: 修复数据
 
 on:
@@ -82,7 +82,7 @@ jobs:
           GITHUB_REPOSITORY_NAME: ${{ github.repository }}
           SERVICE: ${{ github.event.inputs.service }}
         run: |
-          PAYLOAD=$(jq -cn --arg service "$SERVICE" --arg repository "$GITHUB_REPOSITORY_NAME" --arg workflow_file "fix.yml" --arg config_version "13" '{service: $service, repository: $repository, workflowFile: $workflow_file, configVersion: $config_version}')
+          PAYLOAD=$(jq -cn --arg service "$SERVICE" --arg repository "$GITHUB_REPOSITORY_NAME" --arg workflow_file "fix.yml" --arg config_version "14" '{service: $service, repository: $repository, workflowFile: $workflow_file, configVersion: $config_version}')
           TIMESTAMP=$(date +%s)
           NONCE=$(openssl rand -hex 16)
           BODY_SHA256=$(printf '%s' "$PAYLOAD" | openssl dgst -sha256 -r | awk '{print $1}')

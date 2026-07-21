@@ -1,4 +1,4 @@
-# NotionHub generated workflow v22
+# NotionHub generated workflow v23
 name: 滴答清单
 
 on:
@@ -40,109 +40,96 @@ concurrency:
 permissions:
   contents: read
 
-env:
-  NOTIONHUB_SERVICE: dida
-  NOTIONHUB_WORKFLOW_FILE: dida.yml
-  NOTIONHUB_CONFIG_VERSION: '14'
-  NOTIONHUB_ACTION_PAYLOAD: ${{ github.event.inputs.payload || '{}' }}
-  NOTIONHUB_SUPPORTS_FULL_SYNC: 'false'
-
 jobs:
   sync:
     name: 同步 滴答清单
     runs-on: ubuntu-latest
     timeout-minutes: 120
+    env:
+      DIDA_CONFIG: ${{ secrets.DIDA_CONFIG }}
     steps:
       - name: 验证运行配置
         id: activation
+        env:
+          SERVICE_CONFIG: ${{ secrets.DIDA_CONFIG }}
+          RUNNER_SSH_KEY: ${{ secrets.NOTIONHUB_RUNNER_SSH_KEY }}
         run: |
-          if [ -z "${{ secrets.NOTIONHUB_RUN_TOKEN }}" ]; then
-            echo "::warning title=滴答清单尚未启用::缺少运行凭证，本次运行已跳过。"
+          if [ -z "$SERVICE_CONFIG" ]; then
+            echo "::warning title=滴答清单尚未配置::请先在插件中完成配置并保存。"
             echo "enabled=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
+          if [ -z "$RUNNER_SSH_KEY" ]; then
+            echo "::error title=运行器配置缺失::缺少只读部署密钥，请在插件中重新连接 GitHub。"
+            exit 1
+          fi
           echo "enabled=true" >> "$GITHUB_OUTPUT"
-          echo "::notice title=滴答清单::运行凭证验证通过。"
+          echo "::notice title=滴答清单::运行配置验证通过。"
 
-      - name: 准备同步程序
+      - name: 检查 Notion 授权
         if: steps.activation.outputs.enabled == 'true'
-        id: prepare
         env:
+          SERVICE_CONFIG: ${{ secrets.DIDA_CONFIG }}
           NOTIONHUB_RUN_TOKEN: ${{ secrets.NOTIONHUB_RUN_TOKEN }}
           GITHUB_REPOSITORY_NAME: ${{ github.repository }}
         run: |
-          PAYLOAD=$(jq -cn --arg service "dida" --arg repository "$GITHUB_REPOSITORY_NAME" --arg workflow_file "dida.yml" --arg config_version "14" '{service: $service, repository: $repository, workflowFile: $workflow_file, configVersion: $config_version}')
-          TIMESTAMP=$(date +%s)
-          NONCE=$(openssl rand -hex 16)
-          BODY_SHA256=$(printf '%s' "$PAYLOAD" | openssl dgst -sha256 -r | awk '{print $1}')
-          SIGNING_PAYLOAD=$(printf 'POST\n/v1/github/runner/prepare\n%s\n%s\n%s' "$TIMESTAMP" "$NONCE" "$BODY_SHA256")
-          SIGNATURE=$(printf '%s' "$SIGNING_PAYLOAD" | openssl dgst -sha256 -hmac "$NOTIONHUB_RUN_TOKEN" -r | awk '{print $1}')
-          echo "::add-mask::$SIGNATURE"
-          HTTP_RESPONSE=$(curl -sS -X POST "https://i.notionhub.app/v1/github/runner/prepare"             -H "Authorization: Bearer $NOTIONHUB_RUN_TOKEN"             -H "Content-Type: application/json"             -H "X-NotionHub-Timestamp: $TIMESTAMP"             -H "X-NotionHub-Nonce: $NONCE"             -H "X-NotionHub-Signature: $SIGNATURE"             --data "$PAYLOAD"             -w "\n%{http_code}")
-          HTTP_BODY=$(printf '%s' "$HTTP_RESPONSE" | sed '$d')
-          HTTP_STATUS=$(printf '%s' "$HTTP_RESPONSE" | tail -n 1)
-          if [ "$HTTP_STATUS" != "200" ]; then
-            REASON=$(printf '%s' "$HTTP_BODY" | jq -r '.reason // empty' 2>/dev/null || true)
-            MESSAGE=$(printf '%s' "$HTTP_BODY" | jq -r '.message // "准备同步配置失败"' 2>/dev/null || echo "准备同步配置失败")
-            if [ "$REASON" = "service_not_enabled" ]; then
-              echo "ready=false" >> "$GITHUB_OUTPUT"
-              echo "redispatched=false" >> "$GITHUB_OUTPUT"
-              echo "::warning title=滴答清单尚未启用::$MESSAGE"
-              exit 0
+          NOTION_TOKEN=$(printf '%s' "$SERVICE_CONFIG" | jq -r '.DIDA_NOTION_TOKEN // empty')
+          EXPIRES_AT=$(printf '%s' "$SERVICE_CONFIG" | jq -r '.DIDA_NOTION_DATA // "{}" | fromjson? | .expires_at // empty')
+          NEED_REFRESH=false
+          NOW=$(date +%s)
+          if [ -n "$EXPIRES_AT" ] && [ "$EXPIRES_AT" != "null" ]; then
+            EXPIRY=$(date -d "$EXPIRES_AT" +%s 2>/dev/null || printf '%s' "$EXPIRES_AT" | cut -d. -f1)
+            if [ -n "$EXPIRY" ] && [ "$EXPIRY" -le "$((NOW + 300))" ] 2>/dev/null; then NEED_REFRESH=true; fi
+          fi
+          if [ "$NEED_REFRESH" = "false" ] && [ -n "$NOTION_TOKEN" ]; then
+            STATUS=$(curl -sS -o /dev/null -w '%{http_code}' https://api.notion.com/v1/users/me               -H "Authorization: Bearer $NOTION_TOKEN" -H 'Notion-Version: 2025-09-03')
+            if [ "$STATUS" = "401" ]; then NEED_REFRESH=true; fi
+          fi
+          if [ "$NEED_REFRESH" = "true" ]; then
+            if [ -z "$NOTIONHUB_RUN_TOKEN" ]; then
+              echo "::error title=Notion 授权已过期::请回到插件重新授权 Notion。"
+              exit 1
             fi
-            echo "::error title=准备同步配置失败::$MESSAGE"
-            exit 1
-          fi
-          RESPONSE="$HTTP_BODY"
-          echo "ready=$(echo "$RESPONSE" | jq -r '.ready // true')" >> "$GITHUB_OUTPUT"
-          echo "redispatched=$(echo "$RESPONSE" | jq -r '.redispatched // false')" >> "$GITHUB_OUTPUT"
-          REPO=$(echo "$RESPONSE" | jq -r '.repo // empty')
-          REF=$(echo "$RESPONSE" | jq -r '.ref // empty')
-          TOKEN=$(echo "$RESPONSE" | jq -r '.token // empty')
-          SERVICE_CONFIG=$(echo "$RESPONSE" | jq -r '.serviceConfig // empty')
-          PREPARED_PAYLOAD=$(echo "$RESPONSE" | jq -c '.actionPayload // {}')
-          if [ -n "$REPO" ]; then echo "repo=$REPO" >> "$GITHUB_OUTPUT"; fi
-          if [ -n "$REF" ]; then echo "ref=$REF" >> "$GITHUB_OUTPUT"; fi
-          if [ -n "$TOKEN" ]; then
-            echo "::add-mask::$TOKEN"
-            echo "token=$TOKEN" >> "$GITHUB_OUTPUT"
-          fi
-          if [ -n "$SERVICE_CONFIG" ]; then
-            echo "::add-mask::$SERVICE_CONFIG"
+            PAYLOAD=$(jq -cn --arg service "dida" --arg repository "$GITHUB_REPOSITORY_NAME" '{service:$service,repository:$repository}')
+            TIMESTAMP=$(date +%s)
+            NONCE=$(openssl rand -hex 16)
+            BODY_SHA256=$(printf '%s' "$PAYLOAD" | openssl dgst -sha256 -r | awk '{print $1}')
+            SIGNING_PAYLOAD=$(printf 'POST\n/v1/github/runner/refresh-config\n%s\n%s\n%s' "$TIMESTAMP" "$NONCE" "$BODY_SHA256")
+            SIGNATURE=$(printf '%s' "$SIGNING_PAYLOAD" | openssl dgst -sha256 -hmac "$NOTIONHUB_RUN_TOKEN" -r | awk '{print $1}')
+            RESPONSE=$(curl -fsSL -X POST "https://i.notionhub.app/v1/github/runner/refresh-config"               -H "Authorization: Bearer $NOTIONHUB_RUN_TOKEN" -H 'Content-Type: application/json'               -H "X-NotionHub-Timestamp: $TIMESTAMP" -H "X-NotionHub-Nonce: $NONCE" -H "X-NotionHub-Signature: $SIGNATURE"               --data "$PAYLOAD")
+            REFRESHED_CONFIG=$(printf '%s' "$RESPONSE" | jq -r '.serviceConfig // empty')
+            if [ -z "$REFRESHED_CONFIG" ]; then
+              MESSAGE=$(printf '%s' "$RESPONSE" | jq -r '.message // "Notion 授权刷新失败"')
+              echo "::error title=Notion 授权刷新失败::$MESSAGE"
+              exit 1
+            fi
+            echo "::add-mask::$REFRESHED_CONFIG"
             {
-              echo "service_config<<NOTIONHUB_EOF"
-              echo "$SERVICE_CONFIG"
+              echo "DIDA_CONFIG<<NOTIONHUB_EOF"
+              echo "$REFRESHED_CONFIG"
               echo "NOTIONHUB_EOF"
-            } >> "$GITHUB_OUTPUT"
+            } >> "$GITHUB_ENV"
+            echo "::notice title=Notion 授权已更新::本次同步将使用刷新后的授权。"
           fi
-          {
-            echo "action_payload<<NOTIONHUB_EOF"
-            echo "$PREPARED_PAYLOAD"
-            echo "NOTIONHUB_EOF"
-          } >> "$GITHUB_OUTPUT"
-          echo "::notice title=运行器已就绪::同步程序配置检查完成。"
-
-      - name: 完成工作流自动更新
-        if: steps.activation.outputs.enabled == 'true' && steps.prepare.outputs.redispatched == 'true'
-        run: echo "::notice title=工作流已更新::新版本已重新触发，本次旧配置运行结束。"
 
       - name: 获取同步程序
-        if: steps.activation.outputs.enabled == 'true' && steps.prepare.outputs.ready == 'true' && steps.prepare.outputs.redispatched != 'true'
+        if: steps.activation.outputs.enabled == 'true'
         uses: actions/checkout@v5
         with:
-          repository: ${{ steps.prepare.outputs.repo }}
-          ref: ${{ steps.prepare.outputs.ref }}
-          token: ${{ steps.prepare.outputs.token }}
+          repository: malinkang/notionhub-private-runner
+          ref: runner
+          ssh-key: ${{ secrets.NOTIONHUB_RUNNER_SSH_KEY }}
+          persist-credentials: false
           path: runner
 
       - name: 配置 Python 环境
-        if: steps.activation.outputs.enabled == 'true' && steps.prepare.outputs.ready == 'true' && steps.prepare.outputs.redispatched != 'true'
+        if: steps.activation.outputs.enabled == 'true'
         uses: actions/setup-python@v6
         with:
           python-version: '3.11'
 
       - name: 安装运行依赖
-        if: steps.activation.outputs.enabled == 'true' && steps.prepare.outputs.ready == 'true' && steps.prepare.outputs.redispatched != 'true'
+        if: steps.activation.outputs.enabled == 'true'
         run: |
           python -m pip install --quiet --disable-pip-version-check --upgrade pip
           if [ -f runner/requirements.txt ]; then pip install --quiet --disable-pip-version-check -r runner/requirements.txt; fi
@@ -151,58 +138,45 @@ jobs:
 
       - name: 同步 滴答清单
         id: sync
-        if: steps.activation.outputs.enabled == 'true' && steps.prepare.outputs.ready == 'true' && steps.prepare.outputs.redispatched != 'true'
+        if: steps.activation.outputs.enabled == 'true'
         env:
           PYTHONUNBUFFERED: '1'
           TZ: Asia/Shanghai
           NOTIONHUB_SERVICE: dida
+          NOTIONHUB_CONFIG_VERSION: '15'
           RAW_ACTION_PAYLOAD: ${{ github.event.inputs.payload || '{}' }}
-          PREPARED_ACTION_PAYLOAD: ${{ steps.prepare.outputs.action_payload || '{}' }}
           INPUT_SYNC_MODE: ${{ github.event.inputs.sync_mode || github.event.inputs.syncMode || '' }}
           SUPPORTS_FULL_SYNC: 'false'
           INPUT_REPAIR_AFTER_SYNC: ${{ github.event.inputs.repair_after_sync || '' }}
-          SYNC_PLAN: ${{ secrets.SYNC_PLAN || 'lifetime' }}
-          ENTITLEMENT_PLAN: ${{ secrets.ENTITLEMENT_PLAN || 'lifetime' }}
-          DIDA_CONFIG: ${{ steps.prepare.outputs.service_config || secrets.DIDA_CONFIG }}
+          SYNC_PLAN: lifetime
+          ENTITLEMENT_PLAN: lifetime
         run: |
-          REQUESTED_SYNC_MODE=$(jq -nr --arg prepared "$PREPARED_ACTION_PAYLOAD" --arg raw "$RAW_ACTION_PAYLOAD" --arg sync_mode "$INPUT_SYNC_MODE" '($prepared | fromjson? // {}) as $prepared_payload | ($raw | fromjson? // {}) as $raw_payload | ($prepared_payload + $raw_payload) as $payload | ($payload.syncMode // $payload.sync_mode // "incremental") as $payload_mode | if $sync_mode == "full" or $sync_mode == "incremental" then $sync_mode else $payload_mode end')
+          REQUESTED_SYNC_MODE=$(jq -nr --arg raw "$RAW_ACTION_PAYLOAD" --arg sync_mode "$INPUT_SYNC_MODE" '($raw | fromjson? // {}) as $payload | ($payload.syncMode // $payload.sync_mode // "incremental") as $payload_mode | if $sync_mode == "full" or $sync_mode == "incremental" then $sync_mode else $payload_mode end')
           if [ "$REQUESTED_SYNC_MODE" = "full" ] && [ "$SUPPORTS_FULL_SYNC" != "true" ]; then
             echo "::error title=全量更新不可用::滴答清单 暂不支持全量更新，请改用普通同步。"
             exit 1
           fi
-          ACTION_PAYLOAD=$(jq -cn --arg prepared "$PREPARED_ACTION_PAYLOAD" --arg raw "$RAW_ACTION_PAYLOAD" --arg sync_mode "$INPUT_SYNC_MODE" '($prepared | fromjson? // {}) as $prepared_payload | ($raw | fromjson? // {}) as $raw_payload | ($prepared_payload + $raw_payload) as $payload | ($payload.syncMode // $payload.sync_mode // "incremental") as $payload_mode | (if $sync_mode == "full" or $sync_mode == "incremental" then $sync_mode else $payload_mode end) as $mode | $payload + {syncMode: $mode, sync_mode: $mode}')
+          ACTION_PAYLOAD=$(jq -cn --arg raw "$RAW_ACTION_PAYLOAD" --arg sync_mode "$INPUT_SYNC_MODE" '($raw | fromjson? // {}) as $payload | ($payload.syncMode // $payload.sync_mode // "incremental") as $payload_mode | (if $sync_mode == "full" or $sync_mode == "incremental" then $sync_mode else $payload_mode end) as $mode | $payload + {syncMode:$mode,sync_mode:$mode}')
           if [ "$INPUT_REPAIR_AFTER_SYNC" = "true" ] || [ "$INPUT_REPAIR_AFTER_SYNC" = "false" ]; then
-            ACTION_PAYLOAD=$(printf '%s' "$ACTION_PAYLOAD" | jq -c --arg repair_after_sync "$INPUT_REPAIR_AFTER_SYNC" '. + {repair_after_sync: ($repair_after_sync == "true"), runSafeRepairAfterSync: ($repair_after_sync == "true")}')
+            ACTION_PAYLOAD=$(printf '%s' "$ACTION_PAYLOAD" | jq -c --arg value "$INPUT_REPAIR_AFTER_SYNC" '. + {repair_after_sync:($value == "true"),runSafeRepairAfterSync:($value == "true")}')
           fi
           export NOTIONHUB_ACTION_PAYLOAD="$ACTION_PAYLOAD"
           cd runner
           python - <<'PY'
           import json, os
-          raw_config = os.environ.get('DIDA_CONFIG', '{}')
-          try:
-              parsed_config = json.loads(raw_config)
-          except Exception:
-              parsed_config = raw_config
-          values = parsed_config.values() if isinstance(parsed_config, dict) else [parsed_config]
+          raw = os.environ.get('DIDA_CONFIG', '{}')
+          try: values = json.loads(raw).values()
+          except Exception: values = [raw]
           for value in values:
-              escaped = str(value).replace(chr(37), '%25').replace(chr(13), '%0D').replace(chr(10), '%0A')
-              if escaped:
-                  print(f'::add-mask::{escaped}')
+              escaped = str(value).replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
+              if escaped: print(f'::add-mask::{escaped}')
           PY
           echo "::notice title=滴答清单同步开始::正在读取数据并写入 Notion。"
-          set +e
           python -m notionhub_runner sync dida
-          SYNC_EXIT=$?
-          set -e
-          if [ "$SYNC_EXIT" -eq 0 ]; then
-            echo "::notice title=滴答清单同步成功::所有同步步骤均已完成。"
-          else
-            echo "::error title=滴答清单同步失败::同步程序退出码为 $SYNC_EXIT，请展开失败步骤查看日志。"
-          fi
-          exit "$SYNC_EXIT"
+          echo "::notice title=滴答清单同步成功::所有同步步骤均已完成。"
 
       - name: 查看补充日志
-        if: always() && steps.activation.outputs.enabled == 'true' && steps.prepare.outputs.ready == 'true' && steps.prepare.outputs.redispatched != 'true'
+        if: always() && steps.activation.outputs.enabled == 'true'
         run: |
           FOUND_LOG=0
           while IFS= read -r -d '' LOG_FILE; do
@@ -217,56 +191,26 @@ jobs:
         if: always()
         env:
           SYNC_OUTCOME: ${{ steps.sync.outcome }}
-          REDISPATCHED: ${{ steps.prepare.outputs.redispatched }}
           EVENT_NAME: ${{ github.event_name }}
           RAW_ACTION_PAYLOAD: ${{ github.event.inputs.payload || '{}' }}
-          PREPARED_ACTION_PAYLOAD: ${{ steps.prepare.outputs.action_payload || '{}' }}
           INPUT_SYNC_MODE: ${{ github.event.inputs.sync_mode || github.event.inputs.syncMode || '' }}
-          SUPPORTS_FULL_SYNC: 'false'
-          NOTIONHUB_RUN_TOKEN: ${{ secrets.NOTIONHUB_RUN_TOKEN }}
         run: |
-          ACTION_PAYLOAD=$(jq -cn --arg prepared "$PREPARED_ACTION_PAYLOAD" --arg raw "$RAW_ACTION_PAYLOAD" --arg sync_mode "$INPUT_SYNC_MODE" '($prepared | fromjson? // {}) as $prepared_payload | ($raw | fromjson? // {}) as $raw_payload | ($prepared_payload + $raw_payload) as $payload | ($payload.syncMode // $payload.sync_mode // "incremental") as $payload_mode | (if $sync_mode == "full" or $sync_mode == "incremental" then $sync_mode else $payload_mode end) as $mode | $payload + {syncMode: $mode, sync_mode: $mode}')
-          if [ "$REDISPATCHED" = "true" ]; then
-            RESULT="已更新工作流并重新触发"
-          else
-            case "$SYNC_OUTCOME" in
-              success)
-                if [ "${NOTIONHUB_REPAIR_WARNING:-}" = "true" ]; then RESULT="同步成功，修复有警告"; else RESULT="同步成功"; fi
-                ;;
-              failure) RESULT="同步失败" ;;
-              cancelled) RESULT="已取消" ;;
-              skipped) RESULT="已跳过" ;;
-              *) RESULT="未执行" ;;
-            esac
-          fi
+          case "$SYNC_OUTCOME" in
+            success) RESULT="同步成功" ;;
+            failure) RESULT="同步失败" ;;
+            cancelled) RESULT="已取消" ;;
+            skipped) RESULT="已跳过" ;;
+            *) RESULT="未执行" ;;
+          esac
           if [ "$EVENT_NAME" = "schedule" ]; then TRIGGER="定时运行"; else TRIGGER="手动运行"; fi
-          SYNC_MODE=$(printf '%s' "$ACTION_PAYLOAD" | jq -r '.syncMode // "incremental"' 2>/dev/null || echo "incremental")
+          SYNC_MODE=$(jq -nr --arg raw "$RAW_ACTION_PAYLOAD" --arg input "$INPUT_SYNC_MODE" '($raw | fromjson? // {}) as $payload | if $input == "full" or $input == "incremental" then $input else ($payload.syncMode // $payload.sync_mode // "incremental") end')
           if [ "$SYNC_MODE" = "full" ]; then MODE_LABEL="全量更新"; else MODE_LABEL="增量同步"; fi
-          if [ "$REDISPATCHED" != "true" ] && [ -n "$NOTIONHUB_RUN_TOKEN" ]; then
-            case "$SYNC_OUTCOME" in
-              success)
-                if [ "${NOTIONHUB_REPAIR_WARNING:-}" = "true" ]; then REPORT_STATUS="warning"; else REPORT_STATUS="success"; fi
-                ;;
-              failure) REPORT_STATUS="failure" ;;
-              cancelled) REPORT_STATUS="cancelled" ;;
-              *) REPORT_STATUS="" ;;
-            esac
-            SUMMARY_JSON=$(printf '%s' "${NOTIONHUB_REPAIR_STATS:-}" | jq -c . 2>/dev/null || echo '{}')
-            FAILURE_CLASS=""
-            if [ "$REPORT_STATUS" = "failure" ]; then FAILURE_CLASS="${NOTIONHUB_FAILURE_CLASS:-platform}"; fi
-            REPORT_MESSAGE="$RESULT"
-            if [ "$REPORT_STATUS" = "warning" ]; then REPORT_MESSAGE="${NOTIONHUB_REPAIR_WARNING_MESSAGE:-同步成功，修复有警告}"; fi
-            if [ -n "$REPORT_STATUS" ]; then
-            curl -fsSL -X POST "https://i.notionhub.app/v1/internal/sync-runs/report"               -H "Authorization: Bearer $NOTIONHUB_RUN_TOKEN"               -H "Content-Type: application/json"               --data "$(jq -cn --arg service "dida" --arg repository "${{ github.repository }}" --arg github_run_id "${{ github.run_id }}" --arg status "$REPORT_STATUS" --arg message "$REPORT_MESSAGE" --arg failure_class "$FAILURE_CLASS" --arg summary "$SUMMARY_JSON" '{service:$service,repository:$repository,githubRunId:$github_run_id,status:$status,message:$message,failureClass:(if $failure_class == "" then null else $failure_class end),summary:($summary | fromjson? // {})}')"               >/dev/null || echo "::warning title=运行状态更新失败::同步已结束，但运行状态没有写回 NotionHub。"
-            fi
-          fi
           {
             echo "## 滴答清单同步"
             echo ""
             echo "| 项目 | 内容 |"
             echo "| --- | --- |"
             echo "| 结果 | $RESULT |"
-            if [ "${NOTIONHUB_REPAIR_WARNING:-}" = "true" ] && [ -n "${NOTIONHUB_REPAIR_WARNING_MESSAGE:-}" ]; then echo "| 修复提醒 | $NOTIONHUB_REPAIR_WARNING_MESSAGE |"; fi
             echo "| 模式 | $MODE_LABEL |"
             echo "| 触发方式 | $TRIGGER |"
             echo "| 运行记录 | [#${{ github.run_number }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) |"

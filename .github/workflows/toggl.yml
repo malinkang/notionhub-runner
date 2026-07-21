@@ -1,4 +1,4 @@
-# NotionHub generated workflow v23
+# NotionHub generated workflow v25
 name: Toggl
 
 on:
@@ -35,18 +35,19 @@ on:
   schedule:
     - cron: '0 */3 * * *'
 
-concurrency:
-  group: notionhub-Toggl-${{ github.ref_name }}
-  cancel-in-progress: false
-
 permissions:
   contents: read
 
 jobs:
   sync:
     name: 同步 Toggl
+    concurrency:
+      group: notionhub-toggl-sync-${{ github.ref_name }}
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     timeout-minutes: 120
+    outputs:
+      enabled: ${{ steps.activation.outputs.enabled }}
     env:
       TOGGL_CONFIG: ${{ secrets.TOGGL_CONFIG }}
     steps:
@@ -145,7 +146,7 @@ jobs:
           PYTHONUNBUFFERED: '1'
           TZ: Asia/Shanghai
           NOTIONHUB_SERVICE: toggl
-          NOTIONHUB_CONFIG_VERSION: '17'
+          NOTIONHUB_CONFIG_VERSION: '18'
           RAW_ACTION_PAYLOAD: ${{ github.event.inputs.payload || '{}' }}
           INPUT_SYNC_MODE: ${{ github.event.inputs.sync_mode || github.event.inputs.syncMode || '' }}
           SUPPORTS_FULL_SYNC: 'true'
@@ -218,3 +219,4 @@ jobs:
             echo "| 触发方式 | $TRIGGER |"
             echo "| 运行记录 | [#${{ github.run_number }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) |"
           } >> "$GITHUB_STEP_SUMMARY"
+

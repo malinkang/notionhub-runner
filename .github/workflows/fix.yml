@@ -1,4 +1,4 @@
-# NotionHub generated workflow v22
+# NotionHub generated workflow v23
 name: 修复数据
 
 on:
@@ -21,7 +21,7 @@ on:
         default: '{}'
 
 concurrency:
-  group: notionhub-${{ github.event.inputs.service }}-${{ github.ref }}
+  group: notionhub-fix-${{ github.event.inputs.service }}-${{ github.ref }}
   cancel-in-progress: false
 
 permissions:
@@ -37,7 +37,7 @@ jobs:
         id: validate
         env:
           SERVICE: ${{ github.event.inputs.service }}
-          ACTION_NAME: ${{ github.event.inputs.action || 'repair-notion-data' }}
+          RUNNER_SSH_KEY: ${{ secrets.NOTIONHUB_RUNNER_SSH_KEY }}
           WEREAD_CONFIG: ${{ secrets.WEREAD_CONFIG }}
           PODCAST_CONFIG: ${{ secrets.PODCAST_CONFIG }}
           DOUBAN_CONFIG: ${{ secrets.DOUBAN_CONFIG }}
@@ -66,63 +66,31 @@ jobs:
             echo "enabled=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          if [ -z "${{ secrets.NOTIONHUB_RUN_TOKEN }}" ]; then
-            echo "::error title=运行器配置缺失::缺少 NOTIONHUB_RUN_TOKEN，无法获取修复程序。"
+          if [ -z "$RUNNER_SSH_KEY" ]; then
+            echo "::error title=运行器配置缺失::缺少只读部署密钥，请在插件中重新连接 GitHub。"
             exit 1
           fi
           echo "enabled=true" >> "$GITHUB_OUTPUT"
-          echo "config_name=$CONFIG_NAME" >> "$GITHUB_OUTPUT"
-          echo "::notice title=修复配置验证通过::$SERVICE / $ACTION_NAME"
-
-      - name: 准备修复程序
-        if: steps.validate.outputs.enabled == 'true'
-        id: prepare
-        env:
-          NOTIONHUB_RUN_TOKEN: ${{ secrets.NOTIONHUB_RUN_TOKEN }}
-          GITHUB_REPOSITORY_NAME: ${{ github.repository }}
-          SERVICE: ${{ github.event.inputs.service }}
-        run: |
-          PAYLOAD=$(jq -cn --arg service "$SERVICE" --arg repository "$GITHUB_REPOSITORY_NAME" --arg workflow_file "fix.yml" --arg config_version "14" '{service: $service, repository: $repository, workflowFile: $workflow_file, configVersion: $config_version}')
-          TIMESTAMP=$(date +%s)
-          NONCE=$(openssl rand -hex 16)
-          BODY_SHA256=$(printf '%s' "$PAYLOAD" | openssl dgst -sha256 -r | awk '{print $1}')
-          SIGNING_PAYLOAD=$(printf 'POST\n/v1/github/runner/prepare\n%s\n%s\n%s' "$TIMESTAMP" "$NONCE" "$BODY_SHA256")
-          SIGNATURE=$(printf '%s' "$SIGNING_PAYLOAD" | openssl dgst -sha256 -hmac "$NOTIONHUB_RUN_TOKEN" -r | awk '{print $1}')
-          echo "::add-mask::$SIGNATURE"
-          RESPONSE=$(curl -fsSL -X POST "https://i.notionhub.app/v1/github/runner/prepare"             -H "Authorization: Bearer $NOTIONHUB_RUN_TOKEN"             -H "Content-Type: application/json"             -H "X-NotionHub-Timestamp: $TIMESTAMP"             -H "X-NotionHub-Nonce: $NONCE"             -H "X-NotionHub-Signature: $SIGNATURE"             --data "$PAYLOAD")
-          echo "redispatched=$(echo "$RESPONSE" | jq -r '.redispatched // false')" >> "$GITHUB_OUTPUT"
-          REPO=$(echo "$RESPONSE" | jq -r '.repo // empty')
-          REF=$(echo "$RESPONSE" | jq -r '.ref // empty')
-          TOKEN=$(echo "$RESPONSE" | jq -r '.token // empty')
-          if [ -n "$REPO" ]; then echo "repo=$REPO" >> "$GITHUB_OUTPUT"; fi
-          if [ -n "$REF" ]; then echo "ref=$REF" >> "$GITHUB_OUTPUT"; fi
-          if [ -n "$TOKEN" ]; then
-            echo "::add-mask::$TOKEN"
-            echo "token=$TOKEN" >> "$GITHUB_OUTPUT"
-          fi
-          echo "::notice title=修复程序已就绪::修复程序配置检查完成。"
-
-      - name: 完成工作流自动更新
-        if: steps.validate.outputs.enabled == 'true' && steps.prepare.outputs.redispatched == 'true'
-        run: echo "::notice title=工作流已更新::新版本已重新触发，本次旧配置运行结束。"
+          echo "::notice title=修复配置验证通过::$SERVICE / ${{ github.event.inputs.action || 'repair-notion-data' }}"
 
       - name: 获取修复程序
-        if: steps.validate.outputs.enabled == 'true' && steps.prepare.outputs.redispatched != 'true'
+        if: steps.validate.outputs.enabled == 'true'
         uses: actions/checkout@v5
         with:
-          repository: ${{ steps.prepare.outputs.repo }}
-          ref: ${{ steps.prepare.outputs.ref }}
-          token: ${{ steps.prepare.outputs.token }}
+          repository: malinkang/notionhub-private-runner
+          ref: runner
+          ssh-key: ${{ secrets.NOTIONHUB_RUNNER_SSH_KEY }}
+          persist-credentials: false
           path: runner
 
       - name: 配置 Python 环境
-        if: steps.validate.outputs.enabled == 'true' && steps.prepare.outputs.redispatched != 'true'
+        if: steps.validate.outputs.enabled == 'true'
         uses: actions/setup-python@v6
         with:
           python-version: '3.11'
 
       - name: 安装修复依赖
-        if: steps.validate.outputs.enabled == 'true' && steps.prepare.outputs.redispatched != 'true'
+        if: steps.validate.outputs.enabled == 'true'
         env:
           SERVICE: ${{ github.event.inputs.service }}
         run: |
@@ -133,10 +101,11 @@ jobs:
 
       - name: 修复数据
         id: fix
-        if: steps.validate.outputs.enabled == 'true' && steps.prepare.outputs.redispatched != 'true'
+        if: steps.validate.outputs.enabled == 'true'
         env:
           PYTHONUNBUFFERED: '1'
           TZ: Asia/Shanghai
+          NOTIONHUB_CONFIG_VERSION: '15'
           NOTIONHUB_ACTION_PAYLOAD: ${{ github.event.inputs.payload || '{}' }}
           NOTIONHUB_FIX_USER_TRIGGER: '1'
           SERVICE: ${{ github.event.inputs.service }}
@@ -166,65 +135,34 @@ jobs:
           export CONFIG_NAME
           python - <<'PY'
           import json, os
-          config_name = os.environ.get('CONFIG_NAME') or ''
-          raw_config = os.environ.get(config_name, '{}')
-          try:
-              parsed_config = json.loads(raw_config)
-          except Exception:
-              parsed_config = raw_config
-          values = parsed_config.values() if isinstance(parsed_config, dict) else [parsed_config]
+          raw = os.environ.get(os.environ.get('CONFIG_NAME', ''), '{}')
+          try: values = json.loads(raw).values()
+          except Exception: values = [raw]
           for value in values:
-              escaped = str(value).replace(chr(37), '%25').replace(chr(13), '%0D').replace(chr(10), '%0A')
-              if escaped:
-                  print(f'::add-mask::{escaped}')
+              escaped = str(value).replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
+              if escaped: print(f'::add-mask::{escaped}')
           PY
           echo "::notice title=修复开始::正在扫描 Notion 中已有数据并执行安全修复。"
-          set +e
           python -m notionhub_runner fix "$SERVICE" "$ACTION_NAME" --payload "$NOTIONHUB_ACTION_PAYLOAD"
-          FIX_EXIT=$?
-          set -e
-          if [ "$FIX_EXIT" -eq 0 ]; then
-            echo "::notice title=修复完成::安全修复已完成。"
-          else
-            echo "::error title=修复失败::修复程序退出码为 $FIX_EXIT，请展开失败步骤查看日志。"
-          fi
-          exit "$FIX_EXIT"
+          echo "::notice title=修复完成::安全修复已完成。"
 
       - name: 生成修复摘要
         if: always()
         env:
           FIX_OUTCOME: ${{ steps.fix.outcome }}
-          REDISPATCHED: ${{ steps.prepare.outputs.redispatched }}
           SERVICE: ${{ github.event.inputs.service }}
           ACTION_NAME: ${{ github.event.inputs.action || 'repair-notion-data' }}
           ACTION_PAYLOAD: ${{ github.event.inputs.payload || '{}' }}
-          NOTIONHUB_RUN_TOKEN: ${{ secrets.NOTIONHUB_RUN_TOKEN }}
         run: |
-          if [ "$REDISPATCHED" = "true" ]; then
-            RESULT="已更新工作流并重新触发"
-          else
-            case "$FIX_OUTCOME" in
-              success) RESULT="修复成功" ;;
-              failure) RESULT="修复失败" ;;
-              cancelled) RESULT="已取消" ;;
-              skipped) RESULT="已跳过" ;;
-              *) RESULT="未执行" ;;
-            esac
-          fi
+          case "$FIX_OUTCOME" in
+            success) RESULT="修复成功" ;;
+            failure) RESULT="修复失败" ;;
+            cancelled) RESULT="已取消" ;;
+            skipped) RESULT="已跳过" ;;
+            *) RESULT="未执行" ;;
+          esac
           DRY_RUN=$(printf '%s' "$ACTION_PAYLOAD" | jq -r '.dryRun // false' 2>/dev/null || echo "false")
           if [ "$DRY_RUN" = "true" ]; then MODE_LABEL="预览修复"; else MODE_LABEL="实际修复"; fi
-          if [ "$REDISPATCHED" != "true" ] && [ -n "$NOTIONHUB_RUN_TOKEN" ]; then
-            case "$FIX_OUTCOME" in
-              success) REPORT_STATUS="success" ;;
-              failure) REPORT_STATUS="failure" ;;
-              cancelled) REPORT_STATUS="cancelled" ;;
-              *) REPORT_STATUS="" ;;
-            esac
-            if [ -n "$REPORT_STATUS" ]; then
-              SUMMARY_JSON=$(printf '%s' "${NOTIONHUB_REPAIR_STATS:-}" | jq -c . 2>/dev/null || echo '{}')
-              curl -fsSL -X POST "https://i.notionhub.app/v1/internal/sync-runs/report"                 -H "Authorization: Bearer $NOTIONHUB_RUN_TOKEN"                 -H "Content-Type: application/json"                 --data "$(jq -cn --arg service "$SERVICE" --arg repository "${{ github.repository }}" --arg github_run_id "${{ github.run_id }}" --arg status "$REPORT_STATUS" --arg message "$RESULT" --arg summary "$SUMMARY_JSON" '{service:$service,repository:$repository,githubRunId:$github_run_id,status:$status,message:$message,summary:($summary | fromjson? // {})}')"                 >/dev/null || echo "::warning title=运行状态更新失败::修复已结束，但统计结果没有写回 NotionHub。"
-            fi
-          fi
           {
             echo "## NotionHub 数据修复"
             echo ""
@@ -234,6 +172,5 @@ jobs:
             echo "| 动作 | $ACTION_NAME |"
             echo "| 模式 | $MODE_LABEL |"
             echo "| 结果 | $RESULT |"
-            if [ "${NOTIONHUB_REPAIR_WARNING:-}" = "true" ] && [ -n "${NOTIONHUB_REPAIR_WARNING_MESSAGE:-}" ]; then echo "| 修复提醒 | $NOTIONHUB_REPAIR_WARNING_MESSAGE |"; fi
             echo "| 运行记录 | [#${{ github.run_number }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) |"
           } >> "$GITHUB_STEP_SUMMARY"

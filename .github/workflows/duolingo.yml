@@ -1,4 +1,4 @@
-# NotionHub generated workflow v26
+# NotionHub generated workflow v28
 name: 多邻国
 
 on:
@@ -38,12 +38,13 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: notionhub-duolingo-sync-${{ github.ref_name }}
+  cancel-in-progress: ${{ github.event_name == 'workflow_dispatch' }}
+
 jobs:
   sync:
     name: 同步 多邻国
-    concurrency:
-      group: notionhub-duolingo-sync-${{ github.ref_name }}
-      cancel-in-progress: false
     runs-on: ubuntu-latest
     timeout-minutes: 120
     outputs:
@@ -146,7 +147,7 @@ jobs:
           PYTHONUNBUFFERED: '1'
           TZ: Asia/Shanghai
           NOTIONHUB_SERVICE: duolingo
-          NOTIONHUB_CONFIG_VERSION: '20'
+          NOTIONHUB_CONFIG_VERSION: '22'
           RAW_ACTION_PAYLOAD: ${{ github.event.inputs.payload || '{}' }}
           INPUT_SYNC_MODE: ${{ github.event.inputs.sync_mode || github.event.inputs.syncMode || '' }}
           SUPPORTS_FULL_SYNC: 'true'

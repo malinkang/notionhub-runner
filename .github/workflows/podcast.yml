@@ -1,4 +1,4 @@
-# NotionHub generated workflow v26
+# NotionHub generated workflow v28
 name: 小宇宙
 
 on:
@@ -40,7 +40,7 @@ permissions:
 
 concurrency:
   group: notionhub-podcast-sync-${{ github.ref_name }}
-  cancel-in-progress: false
+  cancel-in-progress: ${{ github.event_name == 'workflow_dispatch' }}
 
 jobs:
   sync:
@@ -147,7 +147,7 @@ jobs:
           PYTHONUNBUFFERED: '1'
           TZ: Asia/Shanghai
           NOTIONHUB_SERVICE: podcast
-          NOTIONHUB_CONFIG_VERSION: '20'
+          NOTIONHUB_CONFIG_VERSION: '22'
           RAW_ACTION_PAYLOAD: ${{ github.event.inputs.payload || '{}' }}
           INPUT_SYNC_MODE: ${{ github.event.inputs.sync_mode || github.event.inputs.syncMode || '' }}
           SUPPORTS_FULL_SYNC: 'true'
@@ -303,7 +303,7 @@ jobs:
           PYTHONUNBUFFERED: '1'
           TZ: Asia/Shanghai
           NOTIONHUB_SERVICE: podcast
-          NOTIONHUB_CONFIG_VERSION: '20'
+          NOTIONHUB_CONFIG_VERSION: '22'
           RAW_ACTION_PAYLOAD: ${{ github.event.inputs.payload || '{}' }}
           INPUT_SYNC_MODE: ${{ github.event.inputs.sync_mode || github.event.inputs.syncMode || '' }}
           SYNC_PLAN: lifetime
@@ -353,9 +353,6 @@ jobs:
     needs: transcription
     if: needs.transcription.result == 'success'
     continue-on-error: true
-    concurrency:
-      group: notionhub-podcast-media-${{ github.ref_name }}
-      cancel-in-progress: false
     runs-on: ubuntu-latest
     timeout-minutes: 180
     env:
@@ -387,7 +384,7 @@ jobs:
         env:
           PYTHONUNBUFFERED: '1'
           TZ: Asia/Shanghai
-          NOTIONHUB_CONFIG_VERSION: '20'
+          NOTIONHUB_CONFIG_VERSION: '22'
           NOTIONHUB_MEDIA_MANIFEST: ${{ runner.temp }}/notionhub-media.json
         run: |
           cd runner

@@ -147,7 +147,7 @@ jobs:
           PYTHONUNBUFFERED: '1'
           TZ: Asia/Shanghai
           NOTIONHUB_SERVICE: forest
-          NOTIONHUB_CONFIG_VERSION: '22'
+          NOTIONHUB_CONFIG_VERSION: '23'
           RAW_ACTION_PAYLOAD: ${{ github.event.inputs.payload || '{}' }}
           INPUT_SYNC_MODE: ${{ github.event.inputs.sync_mode || github.event.inputs.syncMode || '' }}
           SUPPORTS_FULL_SYNC: 'true'
@@ -259,7 +259,7 @@ jobs:
         env:
           PYTHONUNBUFFERED: '1'
           TZ: Asia/Shanghai
-          NOTIONHUB_CONFIG_VERSION: '22'
+          NOTIONHUB_CONFIG_VERSION: '23'
           NOTIONHUB_MEDIA_MANIFEST: ${{ runner.temp }}/notionhub-media.json
         run: |
           cd runner

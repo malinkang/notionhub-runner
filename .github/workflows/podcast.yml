@@ -139,14 +139,14 @@ jobs:
           SERVICE_REQUIREMENTS=$(cd runner && python -m notionhub_runner requirements podcast)
           if [ -f "$SERVICE_REQUIREMENTS" ]; then pip install --quiet --disable-pip-version-check -r "$SERVICE_REQUIREMENTS"; fi
 
-      - name: 同步 小宇宙
+      - name: 同步播客数据
         id: sync
         if: steps.activation.outputs.enabled == 'true'
         env:
           PYTHONUNBUFFERED: '1'
           TZ: Asia/Shanghai
           NOTIONHUB_SERVICE: podcast
-          NOTIONHUB_CONFIG_VERSION: '18'
+          NOTIONHUB_CONFIG_VERSION: '19'
           RAW_ACTION_PAYLOAD: ${{ github.event.inputs.payload || '{}' }}
           INPUT_SYNC_MODE: ${{ github.event.inputs.sync_mode || github.event.inputs.syncMode || '' }}
           SUPPORTS_FULL_SYNC: 'true'
@@ -164,6 +164,7 @@ jobs:
           if [ "$INPUT_REPAIR_AFTER_SYNC" = "true" ] || [ "$INPUT_REPAIR_AFTER_SYNC" = "false" ]; then
             ACTION_PAYLOAD=$(printf '%s' "$ACTION_PAYLOAD" | jq -c --arg value "$INPUT_REPAIR_AFTER_SYNC" '. + {repair_after_sync:($value == "true"),runSafeRepairAfterSync:($value == "true")}')
           fi
+          echo "NOTIONHUB_ACTION_PAYLOAD=$ACTION_PAYLOAD" >> "$GITHUB_ENV"
           export NOTIONHUB_ACTION_PAYLOAD="$ACTION_PAYLOAD"
           cd runner
           python - <<'PY'
@@ -175,9 +176,27 @@ jobs:
               escaped = str(value).replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
               if escaped: print(f'::add-mask::{escaped}')
           PY
-          echo "::notice title=小宇宙同步开始::正在读取数据并写入 Notion。"
-          python -m notionhub_runner sync podcast
-          echo "::notice title=小宇宙同步成功::所有同步步骤均已完成。"
+          echo "::notice title=播客数据同步开始::正在读取数据并写入 Notion。"
+          python -m notionhub_runner sync podcast --stage data
+          echo "::notice title=播客数据同步成功::播客和单集数据已完成。"
+
+      - name: 处理语音转文字
+        id: transcription
+        if: steps.sync.outcome == 'success'
+        env:
+          PYTHONUNBUFFERED: '1'
+          TZ: Asia/Shanghai
+          NOTIONHUB_SERVICE: podcast
+          NOTIONHUB_CONFIG_VERSION: '19'
+          SYNC_PLAN: lifetime
+          ENTITLEMENT_PLAN: lifetime
+          NOTIONHUB_DEFER_MEDIA: 'true'
+        run: |
+          echo "::notice title=语音转文字开始::正在检查转写任务并将结果写入 Notion。"
+          cd runner
+          python -m notionhub_runner sync podcast --stage transcription
+          echo "::notice title=语音转文字完成::逐字稿和思维导图处理已完成。"
+
 
       - name: 查看补充日志
         if: always() && steps.activation.outputs.enabled == 'true'
@@ -195,10 +214,12 @@ jobs:
         if: always()
         env:
           SYNC_OUTCOME: ${{ steps.sync.outcome }}
+          TRANSCRIPTION_OUTCOME: ${{ steps.transcription.outcome }}
           EVENT_NAME: ${{ github.event_name }}
           RAW_ACTION_PAYLOAD: ${{ github.event.inputs.payload || '{}' }}
           INPUT_SYNC_MODE: ${{ github.event.inputs.sync_mode || github.event.inputs.syncMode || '' }}
         run: |
+          if [ "$SYNC_OUTCOME" = "success" ] && [ "$TRANSCRIPTION_OUTCOME" != "success" ]; then SYNC_OUTCOME="$TRANSCRIPTION_OUTCOME"; fi
           case "$SYNC_OUTCOME" in
             success) RESULT="同步成功" ;;
             failure) RESULT="同步失败" ;;
@@ -259,7 +280,7 @@ jobs:
         env:
           PYTHONUNBUFFERED: '1'
           TZ: Asia/Shanghai
-          NOTIONHUB_CONFIG_VERSION: '18'
+          NOTIONHUB_CONFIG_VERSION: '19'
           NOTIONHUB_MEDIA_MANIFEST: ${{ runner.temp }}/notionhub-media.json
         run: |
           cd runner

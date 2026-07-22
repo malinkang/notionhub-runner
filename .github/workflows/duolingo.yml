@@ -146,7 +146,7 @@ jobs:
           PYTHONUNBUFFERED: '1'
           TZ: Asia/Shanghai
           NOTIONHUB_SERVICE: duolingo
-          NOTIONHUB_CONFIG_VERSION: '18'
+          NOTIONHUB_CONFIG_VERSION: '19'
           RAW_ACTION_PAYLOAD: ${{ github.event.inputs.payload || '{}' }}
           INPUT_SYNC_MODE: ${{ github.event.inputs.sync_mode || github.event.inputs.syncMode || '' }}
           SUPPORTS_FULL_SYNC: 'true'
@@ -164,6 +164,7 @@ jobs:
           if [ "$INPUT_REPAIR_AFTER_SYNC" = "true" ] || [ "$INPUT_REPAIR_AFTER_SYNC" = "false" ]; then
             ACTION_PAYLOAD=$(printf '%s' "$ACTION_PAYLOAD" | jq -c --arg value "$INPUT_REPAIR_AFTER_SYNC" '. + {repair_after_sync:($value == "true"),runSafeRepairAfterSync:($value == "true")}')
           fi
+          echo "NOTIONHUB_ACTION_PAYLOAD=$ACTION_PAYLOAD" >> "$GITHUB_ENV"
           export NOTIONHUB_ACTION_PAYLOAD="$ACTION_PAYLOAD"
           cd runner
           python - <<'PY'
@@ -178,6 +179,7 @@ jobs:
           echo "::notice title=多邻国同步开始::正在读取数据并写入 Notion。"
           python -m notionhub_runner sync duolingo
           echo "::notice title=多邻国同步成功::所有同步步骤均已完成。"
+
 
       - name: 查看补充日志
         if: always() && steps.activation.outputs.enabled == 'true'

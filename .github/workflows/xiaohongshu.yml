@@ -16,14 +16,6 @@ on:
         options:
           - incremental
           - full
-      syncMode:
-        description: 同步模式（兼容旧版本）
-        required: false
-        default: incremental
-        type: choice
-        options:
-          - incremental
-          - full
       repair_after_sync:
         description: 全量更新后自动修复 Notion 数据
         required: false
@@ -121,7 +113,7 @@ jobs:
         uses: actions/checkout@v5
         with:
           repository: malinkang/notionhub-private-runner
-          ref: runner
+          ref: codex/initial-full-sync-validation
           ssh-key: ${{ secrets.NOTIONHUB_RUNNER_SSH_KEY }}
           persist-credentials: false
           path: runner
@@ -149,24 +141,40 @@ jobs:
           NOTIONHUB_SERVICE: xiaohongshu
           NOTIONHUB_CONFIG_VERSION: '24'
           RAW_ACTION_PAYLOAD: ${{ github.event.inputs.payload || '{}' }}
-          INPUT_SYNC_MODE: ${{ github.event.inputs.sync_mode || github.event.inputs.syncMode || '' }}
+          INPUT_SYNC_MODE: ${{ github.event.inputs.sync_mode || '' }}
           SUPPORTS_FULL_SYNC: 'true'
           INPUT_REPAIR_AFTER_SYNC: ${{ github.event.inputs.repair_after_sync || '' }}
           SYNC_PLAN: lifetime
           ENTITLEMENT_PLAN: lifetime
           NOTIONHUB_DEFER_FILES: 'true'
         run: |
-          REQUESTED_SYNC_MODE=$(jq -nr --arg raw "$RAW_ACTION_PAYLOAD" --arg sync_mode "$INPUT_SYNC_MODE" '($raw | fromjson? // {}) as $payload | ($payload.syncMode // $payload.sync_mode // "incremental") as $payload_mode | if $sync_mode == "full" or $sync_mode == "incremental" then $sync_mode else $payload_mode end')
-          if [ "$REQUESTED_SYNC_MODE" = "full" ] && [ "$SUPPORTS_FULL_SYNC" != "true" ]; then
+          REQUESTED_SYNC_MODE=$(jq -nr --arg raw "$RAW_ACTION_PAYLOAD" --arg input "$INPUT_SYNC_MODE" '($raw | fromjson? // {}) as $payload | ($payload.requestedSyncMode // $payload.syncMode // $payload.sync_mode // "") as $payload_mode | (if $payload_mode == "full" or $payload_mode == "incremental" then $payload_mode elif $input == "full" or $input == "incremental" then $input else "incremental" end)')
+          CONFIG_INITIAL_FULL_SYNC_REQUIRED=$(printf '%s' "$XIAOHONGSHU_CONFIG" | jq -r '(.XIAOHONGSHU_INITIAL_FULL_SYNC_REQUIRED // false) | tostring' 2>/dev/null || echo "false")
+          PAYLOAD_INITIAL_FULL_SYNC_REQUIRED=$(jq -nr --arg raw "$RAW_ACTION_PAYLOAD" '($raw | fromjson? // {}) | (.initialFullSyncForced // false) | tostring')
+          if [ "$CONFIG_INITIAL_FULL_SYNC_REQUIRED" = "true" ] || [ "$PAYLOAD_INITIAL_FULL_SYNC_REQUIRED" = "true" ]; then
+            EFFECTIVE_SYNC_MODE=full
+            INITIAL_FULL_SYNC_FORCED=true
+          else
+            EFFECTIVE_SYNC_MODE="$REQUESTED_SYNC_MODE"
+            INITIAL_FULL_SYNC_FORCED=false
+          fi
+          ACTION_PAYLOAD=$(jq -cn --arg raw "$RAW_ACTION_PAYLOAD" --arg requested "$REQUESTED_SYNC_MODE" --arg effective "$EFFECTIVE_SYNC_MODE" --arg forced "$INITIAL_FULL_SYNC_FORCED" '($raw | fromjson? // {}) + {requestedSyncMode:$requested,syncMode:$effective,sync_mode:$effective,effectiveSyncMode:$effective,initialFullSyncForced:($forced == "true")}')
+          if [ "$INITIAL_FULL_SYNC_FORCED" = "true" ]; then
+            ACTION_PAYLOAD=$(printf '%s' "$ACTION_PAYLOAD" | jq -c '. + {repair:true,repair_after_sync:true,runSafeRepairAfterSync:true}')
+          elif [ "$INPUT_REPAIR_AFTER_SYNC" = "true" ] || [ "$INPUT_REPAIR_AFTER_SYNC" = "false" ]; then
+            ACTION_PAYLOAD=$(printf '%s' "$ACTION_PAYLOAD" | jq -c --arg value "$INPUT_REPAIR_AFTER_SYNC" '. + {repair_after_sync:($value == "true"),runSafeRepairAfterSync:($value == "true")}')
+          fi
+          {
+            echo "NOTIONHUB_ACTION_PAYLOAD=$ACTION_PAYLOAD"
+            echo "NOTIONHUB_REQUESTED_SYNC_MODE=$REQUESTED_SYNC_MODE"
+            echo "NOTIONHUB_EFFECTIVE_SYNC_MODE=$EFFECTIVE_SYNC_MODE"
+            echo "NOTIONHUB_INITIAL_FULL_SYNC_FORCED=$INITIAL_FULL_SYNC_FORCED"
+          } >> "$GITHUB_ENV"
+          export NOTIONHUB_ACTION_PAYLOAD="$ACTION_PAYLOAD"
+          if [ "$EFFECTIVE_SYNC_MODE" = "full" ] && [ "$SUPPORTS_FULL_SYNC" != "true" ]; then
             echo "::error title=全量更新不可用::小红书 暂不支持全量更新，请改用普通同步。"
             exit 1
           fi
-          ACTION_PAYLOAD=$(jq -cn --arg raw "$RAW_ACTION_PAYLOAD" --arg sync_mode "$INPUT_SYNC_MODE" '($raw | fromjson? // {}) as $payload | ($payload.syncMode // $payload.sync_mode // "incremental") as $payload_mode | (if $sync_mode == "full" or $sync_mode == "incremental" then $sync_mode else $payload_mode end) as $mode | $payload + {syncMode:$mode,sync_mode:$mode}')
-          if [ "$INPUT_REPAIR_AFTER_SYNC" = "true" ] || [ "$INPUT_REPAIR_AFTER_SYNC" = "false" ]; then
-            ACTION_PAYLOAD=$(printf '%s' "$ACTION_PAYLOAD" | jq -c --arg value "$INPUT_REPAIR_AFTER_SYNC" '. + {repair_after_sync:($value == "true"),runSafeRepairAfterSync:($value == "true")}')
-          fi
-          echo "NOTIONHUB_ACTION_PAYLOAD=$ACTION_PAYLOAD" >> "$GITHUB_ENV"
-          export NOTIONHUB_ACTION_PAYLOAD="$ACTION_PAYLOAD"
           cd runner
           python - <<'PY'
           import json, os
@@ -199,7 +207,7 @@ jobs:
           SYNC_OUTCOME: ${{ steps.sync.outcome }}
           EVENT_NAME: ${{ github.event_name }}
           RAW_ACTION_PAYLOAD: ${{ github.event.inputs.payload || '{}' }}
-          INPUT_SYNC_MODE: ${{ github.event.inputs.sync_mode || github.event.inputs.syncMode || '' }}
+          INPUT_SYNC_MODE: ${{ github.event.inputs.sync_mode || '' }}
         run: |
           case "$SYNC_OUTCOME" in
             success) RESULT="同步成功" ;;
@@ -209,7 +217,7 @@ jobs:
             *) RESULT="未执行" ;;
           esac
           if [ "$EVENT_NAME" = "schedule" ]; then TRIGGER="定时运行"; else TRIGGER="手动运行"; fi
-          SYNC_MODE=$(jq -nr --arg raw "$RAW_ACTION_PAYLOAD" --arg input "$INPUT_SYNC_MODE" '($raw | fromjson? // {}) as $payload | if $input == "full" or $input == "incremental" then $input else ($payload.syncMode // $payload.sync_mode // "incremental") end')
+          SYNC_MODE="${NOTIONHUB_EFFECTIVE_SYNC_MODE:-incremental}"
           if [ "$SYNC_MODE" = "full" ]; then MODE_LABEL="全量更新"; else MODE_LABEL="增量同步"; fi
           {
             echo "## 小红书同步"
@@ -221,6 +229,26 @@ jobs:
             echo "| 触发方式 | $TRIGGER |"
             echo "| 运行记录 | [#${{ github.run_number }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) |"
           } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: 确认首次全量同步完成
+        if: steps.sync.outcome == 'success'
+        env:
+          NOTIONHUB_RUN_TOKEN: ${{ secrets.NOTIONHUB_RUN_TOKEN }}
+          GITHUB_REPOSITORY_NAME: ${{ github.repository }}
+          GITHUB_RUN_IDENTIFIER: ${{ github.run_id }}
+        run: |
+          if [ "$NOTIONHUB_INITIAL_FULL_SYNC_FORCED" != "true" ]; then
+            echo "本次不是升级后的首次强制全量，无需更新状态。"
+            exit 0
+          fi
+          if [ -z "$NOTIONHUB_RUN_TOKEN" ]; then
+            echo "::error title=首次全量状态确认失败::缺少 NOTIONHUB_RUN_TOKEN，下次将继续全量同步。"
+            exit 1
+          fi
+          PAYLOAD=$(jq -cn --arg service "xiaohongshu" --arg repository "$GITHUB_REPOSITORY_NAME" --arg run_id "$GITHUB_RUN_IDENTIFIER" --arg requested "$NOTIONHUB_REQUESTED_SYNC_MODE" --arg effective "$NOTIONHUB_EFFECTIVE_SYNC_MODE" '{service:$service,repository:$repository,githubRunId:$run_id,status:"success",requestedMode:$requested,effectiveMode:$effective,initialFullSyncForced:true}')
+          curl -fsSL -X POST "https://i.notionhub.app/v1/internal/initial-full-sync/complete"             -H "Authorization: Bearer $NOTIONHUB_RUN_TOKEN"             -H 'Content-Type: application/json'             --data "$PAYLOAD" >/dev/null
+          echo "::notice title=首次全量已确认::后续同步将恢复使用用户选择的模式。"
+
 
 
   files:
@@ -250,7 +278,7 @@ jobs:
         uses: actions/checkout@v5
         with:
           repository: malinkang/notionhub-private-runner
-          ref: runner
+          ref: codex/initial-full-sync-validation
           ssh-key: ${{ secrets.NOTIONHUB_RUNNER_SSH_KEY }}
           persist-credentials: false
           path: runner

@@ -1,4 +1,4 @@
-# NotionHub generated workflow v25
+# NotionHub generated workflow v26
 name: Keep
 
 on:
@@ -146,7 +146,7 @@ jobs:
           PYTHONUNBUFFERED: '1'
           TZ: Asia/Shanghai
           NOTIONHUB_SERVICE: keep
-          NOTIONHUB_CONFIG_VERSION: '19'
+          NOTIONHUB_CONFIG_VERSION: '20'
           RAW_ACTION_PAYLOAD: ${{ github.event.inputs.payload || '{}' }}
           INPUT_SYNC_MODE: ${{ github.event.inputs.sync_mode || github.event.inputs.syncMode || '' }}
           SUPPORTS_FULL_SYNC: 'true'
@@ -179,7 +179,6 @@ jobs:
           echo "::notice title=Keep同步开始::正在读取数据并写入 Notion。"
           python -m notionhub_runner sync keep
           echo "::notice title=Keep同步成功::所有同步步骤均已完成。"
-
 
       - name: 查看补充日志
         if: always() && steps.activation.outputs.enabled == 'true'
@@ -222,6 +221,7 @@ jobs:
             echo "| 运行记录 | [#${{ github.run_number }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) |"
           } >> "$GITHUB_STEP_SUMMARY"
 
+
   media:
     name: 下载上传 Keep 媒体
     needs: sync
@@ -261,7 +261,7 @@ jobs:
         env:
           PYTHONUNBUFFERED: '1'
           TZ: Asia/Shanghai
-          NOTIONHUB_CONFIG_VERSION: '19'
+          NOTIONHUB_CONFIG_VERSION: '20'
           NOTIONHUB_MEDIA_MANIFEST: ${{ runner.temp }}/notionhub-media.json
         run: |
           cd runner

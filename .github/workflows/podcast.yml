@@ -1,4 +1,4 @@
-# NotionHub generated workflow v25
+# NotionHub generated workflow v26
 name: 小宇宙
 
 on:
@@ -38,12 +38,13 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: notionhub-podcast-sync-${{ github.ref_name }}
+  cancel-in-progress: false
+
 jobs:
   sync:
-    name: 同步 小宇宙
-    concurrency:
-      group: notionhub-podcast-sync-${{ github.ref_name }}
-      cancel-in-progress: false
+    name: 同步播客数据
     runs-on: ubuntu-latest
     timeout-minutes: 120
     outputs:
@@ -146,7 +147,7 @@ jobs:
           PYTHONUNBUFFERED: '1'
           TZ: Asia/Shanghai
           NOTIONHUB_SERVICE: podcast
-          NOTIONHUB_CONFIG_VERSION: '19'
+          NOTIONHUB_CONFIG_VERSION: '20'
           RAW_ACTION_PAYLOAD: ${{ github.event.inputs.payload || '{}' }}
           INPUT_SYNC_MODE: ${{ github.event.inputs.sync_mode || github.event.inputs.syncMode || '' }}
           SUPPORTS_FULL_SYNC: 'true'
@@ -180,24 +181,6 @@ jobs:
           python -m notionhub_runner sync podcast --stage data
           echo "::notice title=播客数据同步成功::播客和单集数据已完成。"
 
-      - name: 处理语音转文字
-        id: transcription
-        if: steps.sync.outcome == 'success'
-        env:
-          PYTHONUNBUFFERED: '1'
-          TZ: Asia/Shanghai
-          NOTIONHUB_SERVICE: podcast
-          NOTIONHUB_CONFIG_VERSION: '19'
-          SYNC_PLAN: lifetime
-          ENTITLEMENT_PLAN: lifetime
-          NOTIONHUB_DEFER_MEDIA: 'true'
-        run: |
-          echo "::notice title=语音转文字开始::正在检查转写任务并将结果写入 Notion。"
-          cd runner
-          python -m notionhub_runner sync podcast --stage transcription
-          echo "::notice title=语音转文字完成::逐字稿和思维导图处理已完成。"
-
-
       - name: 查看补充日志
         if: always() && steps.activation.outputs.enabled == 'true'
         run: |
@@ -214,12 +197,10 @@ jobs:
         if: always()
         env:
           SYNC_OUTCOME: ${{ steps.sync.outcome }}
-          TRANSCRIPTION_OUTCOME: ${{ steps.transcription.outcome }}
           EVENT_NAME: ${{ github.event_name }}
           RAW_ACTION_PAYLOAD: ${{ github.event.inputs.payload || '{}' }}
           INPUT_SYNC_MODE: ${{ github.event.inputs.sync_mode || github.event.inputs.syncMode || '' }}
         run: |
-          if [ "$SYNC_OUTCOME" = "success" ] && [ "$TRANSCRIPTION_OUTCOME" != "success" ]; then SYNC_OUTCOME="$TRANSCRIPTION_OUTCOME"; fi
           case "$SYNC_OUTCOME" in
             success) RESULT="同步成功" ;;
             failure) RESULT="同步失败" ;;
@@ -241,10 +222,136 @@ jobs:
             echo "| 运行记录 | [#${{ github.run_number }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) |"
           } >> "$GITHUB_STEP_SUMMARY"
 
-  media:
-    name: 下载上传 小宇宙 媒体
+  transcription:
+    name: 处理语音转文字
     needs: sync
     if: needs.sync.result == 'success' && needs.sync.outputs.enabled == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      PODCAST_CONFIG: ${{ secrets.PODCAST_CONFIG }}
+    steps:
+      - name: 检查 Notion 授权
+        env:
+          SERVICE_CONFIG: ${{ secrets.PODCAST_CONFIG }}
+          NOTIONHUB_RUN_TOKEN: ${{ secrets.NOTIONHUB_RUN_TOKEN }}
+          GITHUB_REPOSITORY_NAME: ${{ github.repository }}
+        run: |
+          NOTION_TOKEN=$(printf '%s' "$SERVICE_CONFIG" | jq -r '.PODCAST_NOTION_TOKEN // empty')
+          EXPIRES_AT=$(printf '%s' "$SERVICE_CONFIG" | jq -r '.PODCAST_NOTION_DATA // "{}" | fromjson? | .expires_at // empty')
+          NEED_REFRESH=false
+          NOW=$(date +%s)
+          if [ -n "$EXPIRES_AT" ] && [ "$EXPIRES_AT" != "null" ]; then
+            EXPIRY=$(date -d "$EXPIRES_AT" +%s 2>/dev/null || printf '%s' "$EXPIRES_AT" | cut -d. -f1)
+            if [ -n "$EXPIRY" ] && [ "$EXPIRY" -le "$((NOW + 300))" ] 2>/dev/null; then NEED_REFRESH=true; fi
+          fi
+          if [ "$NEED_REFRESH" = "false" ] && [ -n "$NOTION_TOKEN" ]; then
+            STATUS=$(curl -sS -o /dev/null -w '%{http_code}' https://api.notion.com/v1/users/me               -H "Authorization: Bearer $NOTION_TOKEN" -H 'Notion-Version: 2025-09-03')
+            if [ "$STATUS" = "401" ]; then NEED_REFRESH=true; fi
+          fi
+          if [ "$NEED_REFRESH" = "true" ]; then
+            if [ -z "$NOTIONHUB_RUN_TOKEN" ]; then
+              echo "::error title=Notion 授权已过期::请回到插件重新授权 Notion。"
+              exit 1
+            fi
+            PAYLOAD=$(jq -cn --arg service "podcast" --arg repository "$GITHUB_REPOSITORY_NAME" '{service:$service,repository:$repository}')
+            TIMESTAMP=$(date +%s)
+            NONCE=$(openssl rand -hex 16)
+            BODY_SHA256=$(printf '%s' "$PAYLOAD" | openssl dgst -sha256 -r | awk '{print $1}')
+            SIGNING_PAYLOAD=$(printf 'POST\n/v1/github/runner/refresh-config\n%s\n%s\n%s' "$TIMESTAMP" "$NONCE" "$BODY_SHA256")
+            SIGNATURE=$(printf '%s' "$SIGNING_PAYLOAD" | openssl dgst -sha256 -hmac "$NOTIONHUB_RUN_TOKEN" -r | awk '{print $1}')
+            RESPONSE=$(curl -fsSL -X POST "https://i.notionhub.app/v1/github/runner/refresh-config"               -H "Authorization: Bearer $NOTIONHUB_RUN_TOKEN" -H 'Content-Type: application/json'               -H "X-NotionHub-Timestamp: $TIMESTAMP" -H "X-NotionHub-Nonce: $NONCE" -H "X-NotionHub-Signature: $SIGNATURE"               --data "$PAYLOAD")
+            REFRESHED_CONFIG=$(printf '%s' "$RESPONSE" | jq -r '.serviceConfig // empty')
+            if [ -z "$REFRESHED_CONFIG" ]; then
+              MESSAGE=$(printf '%s' "$RESPONSE" | jq -r '.message // "Notion 授权刷新失败"')
+              echo "::error title=Notion 授权刷新失败::$MESSAGE"
+              exit 1
+            fi
+            echo "::add-mask::$REFRESHED_CONFIG"
+            {
+              echo "PODCAST_CONFIG<<NOTIONHUB_EOF"
+              echo "$REFRESHED_CONFIG"
+              echo "NOTIONHUB_EOF"
+            } >> "$GITHUB_ENV"
+            echo "::notice title=Notion 授权已更新::转写将使用刷新后的授权。"
+          fi
+
+      - name: 获取转写程序
+        uses: actions/checkout@v5
+        with:
+          repository: malinkang/notionhub-private-runner
+          ref: runner
+          ssh-key: ${{ secrets.NOTIONHUB_RUNNER_SSH_KEY }}
+          persist-credentials: false
+          path: runner
+
+      - name: 配置 Python 环境
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+
+      - name: 安装转写依赖
+        run: |
+          python -m pip install --quiet --disable-pip-version-check --upgrade pip
+          if [ -f runner/requirements.txt ]; then pip install --quiet --disable-pip-version-check -r runner/requirements.txt; fi
+          SERVICE_REQUIREMENTS=$(cd runner && python -m notionhub_runner requirements podcast)
+          if [ -f "$SERVICE_REQUIREMENTS" ]; then pip install --quiet --disable-pip-version-check -r "$SERVICE_REQUIREMENTS"; fi
+
+      - name: 处理语音转文字
+        id: transcription
+        env:
+          PYTHONUNBUFFERED: '1'
+          TZ: Asia/Shanghai
+          NOTIONHUB_SERVICE: podcast
+          NOTIONHUB_CONFIG_VERSION: '20'
+          RAW_ACTION_PAYLOAD: ${{ github.event.inputs.payload || '{}' }}
+          INPUT_SYNC_MODE: ${{ github.event.inputs.sync_mode || github.event.inputs.syncMode || '' }}
+          SYNC_PLAN: lifetime
+          ENTITLEMENT_PLAN: lifetime
+          NOTIONHUB_DEFER_MEDIA: 'true'
+        run: |
+          ACTION_PAYLOAD=$(jq -cn --arg raw "$RAW_ACTION_PAYLOAD" --arg sync_mode "$INPUT_SYNC_MODE" '($raw | fromjson? // {}) as $payload | ($payload.syncMode // $payload.sync_mode // "incremental") as $payload_mode | (if $sync_mode == "full" or $sync_mode == "incremental" then $sync_mode else $payload_mode end) as $mode | $payload + {syncMode:$mode,sync_mode:$mode}')
+          export NOTIONHUB_ACTION_PAYLOAD="$ACTION_PAYLOAD"
+          cd runner
+          python - <<'PY'
+          import json, os
+          raw = os.environ.get('PODCAST_CONFIG', '{}')
+          try: values = json.loads(raw).values()
+          except Exception: values = [raw]
+          for value in values:
+              escaped = str(value).replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
+              if escaped: print(f'::add-mask::{escaped}')
+          PY
+          echo "::notice title=语音转文字开始::正在检查转写任务并将结果写入 Notion。"
+          python -m notionhub_runner sync podcast --stage transcription
+          echo "::notice title=语音转文字完成::逐字稿和思维导图处理已完成。"
+
+      - name: 生成转写摘要
+        if: always()
+        env:
+          TRANSCRIPTION_OUTCOME: ${{ steps.transcription.outcome }}
+        run: |
+          case "$TRANSCRIPTION_OUTCOME" in
+            success) RESULT="转写成功" ;;
+            failure) RESULT="转写失败" ;;
+            cancelled) RESULT="已取消" ;;
+            skipped) RESULT="已跳过" ;;
+            *) RESULT="未执行" ;;
+          esac
+          {
+            echo "## 小宇宙语音转文字"
+            echo ""
+            echo "| 项目 | 内容 |"
+            echo "| --- | --- |"
+            echo "| 结果 | $RESULT |"
+            echo "| 运行记录 | [#${{ github.run_number }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+
+  media:
+    name: 处理播客媒体资源
+    needs: transcription
+    if: needs.transcription.result == 'success'
     continue-on-error: true
     concurrency:
       group: notionhub-podcast-media-${{ github.ref_name }}
@@ -280,7 +387,7 @@ jobs:
         env:
           PYTHONUNBUFFERED: '1'
           TZ: Asia/Shanghai
-          NOTIONHUB_CONFIG_VERSION: '19'
+          NOTIONHUB_CONFIG_VERSION: '20'
           NOTIONHUB_MEDIA_MANIFEST: ${{ runner.temp }}/notionhub-media.json
         run: |
           cd runner

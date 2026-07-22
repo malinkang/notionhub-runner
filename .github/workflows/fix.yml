@@ -105,7 +105,7 @@ jobs:
         env:
           PYTHONUNBUFFERED: '1'
           TZ: Asia/Shanghai
-          NOTIONHUB_CONFIG_VERSION: '23'
+          NOTIONHUB_CONFIG_VERSION: '24'
           NOTIONHUB_ACTION_PAYLOAD: ${{ github.event.inputs.payload || '{}' }}
           NOTIONHUB_FIX_USER_TRIGGER: '1'
           SERVICE: ${{ github.event.inputs.service }}

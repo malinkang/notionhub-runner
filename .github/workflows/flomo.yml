@@ -1,4 +1,4 @@
-# NotionHub generated workflow v28
+# NotionHub generated workflow v29
 name: Flomo
 
 on:
@@ -145,14 +145,14 @@ jobs:
           PYTHONUNBUFFERED: '1'
           TZ: Asia/Shanghai
           NOTIONHUB_SERVICE: flomo
-          NOTIONHUB_CONFIG_VERSION: '23'
+          NOTIONHUB_CONFIG_VERSION: '24'
           RAW_ACTION_PAYLOAD: ${{ github.event.inputs.payload || '{}' }}
           INPUT_SYNC_MODE: ${{ github.event.inputs.sync_mode || github.event.inputs.syncMode || '' }}
           SUPPORTS_FULL_SYNC: 'false'
           INPUT_REPAIR_AFTER_SYNC: ${{ github.event.inputs.repair_after_sync || '' }}
           SYNC_PLAN: lifetime
           ENTITLEMENT_PLAN: lifetime
-          NOTIONHUB_DEFER_MEDIA: 'true'
+          NOTIONHUB_DEFER_FILES: 'true'
         run: |
           REQUESTED_SYNC_MODE=$(jq -nr --arg raw "$RAW_ACTION_PAYLOAD" --arg sync_mode "$INPUT_SYNC_MODE" '($raw | fromjson? // {}) as $payload | ($payload.syncMode // $payload.sync_mode // "incremental") as $payload_mode | if $sync_mode == "full" or $sync_mode == "incremental" then $sync_mode else $payload_mode end')
           if [ "$REQUESTED_SYNC_MODE" = "full" ] && [ "$SUPPORTS_FULL_SYNC" != "true" ]; then

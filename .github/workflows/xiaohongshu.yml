@@ -1,4 +1,4 @@
-# NotionHub generated workflow v28
+# NotionHub generated workflow v29
 name: 小红书
 
 on:
@@ -147,14 +147,14 @@ jobs:
           PYTHONUNBUFFERED: '1'
           TZ: Asia/Shanghai
           NOTIONHUB_SERVICE: xiaohongshu
-          NOTIONHUB_CONFIG_VERSION: '23'
+          NOTIONHUB_CONFIG_VERSION: '24'
           RAW_ACTION_PAYLOAD: ${{ github.event.inputs.payload || '{}' }}
           INPUT_SYNC_MODE: ${{ github.event.inputs.sync_mode || github.event.inputs.syncMode || '' }}
           SUPPORTS_FULL_SYNC: 'true'
           INPUT_REPAIR_AFTER_SYNC: ${{ github.event.inputs.repair_after_sync || '' }}
           SYNC_PLAN: lifetime
           ENTITLEMENT_PLAN: lifetime
-          NOTIONHUB_DEFER_MEDIA: 'true'
+          NOTIONHUB_DEFER_FILES: 'true'
         run: |
           REQUESTED_SYNC_MODE=$(jq -nr --arg raw "$RAW_ACTION_PAYLOAD" --arg sync_mode "$INPUT_SYNC_MODE" '($raw | fromjson? // {}) as $payload | ($payload.syncMode // $payload.sync_mode // "incremental") as $payload_mode | if $sync_mode == "full" or $sync_mode == "incremental" then $sync_mode else $payload_mode end')
           if [ "$REQUESTED_SYNC_MODE" = "full" ] && [ "$SUPPORTS_FULL_SYNC" != "true" ]; then
@@ -223,8 +223,8 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
 
-  media:
-    name: 下载上传 小红书 媒体
+  files:
+    name: 上传 小红书 大文件
     needs: sync
     if: needs.sync.result == 'success' && needs.sync.outputs.enabled == 'true'
     continue-on-error: true
@@ -233,7 +233,20 @@ jobs:
     env:
       XIAOHONGSHU_CONFIG: ${{ secrets.XIAOHONGSHU_CONFIG }}
     steps:
-      - name: 获取媒体处理程序
+      - name: 检查大文件上传设置
+        id: eligibility
+        env:
+          SERVICE_CONFIG: ${{ secrets.XIAOHONGSHU_CONFIG }}
+        run: |
+          ENABLED=false
+          ENABLED=true
+          echo "enabled=$ENABLED" >> "$GITHUB_OUTPUT"
+          if [ "$ENABLED" != "true" ]; then
+            echo "::notice title=大文件上传已跳过::用户没有开启或选择 小红书 大文件上传范围。"
+          fi
+
+      - name: 获取大文件处理程序
+        if: steps.eligibility.outputs.enabled == 'true'
         uses: actions/checkout@v5
         with:
           repository: malinkang/notionhub-private-runner
@@ -243,68 +256,43 @@ jobs:
           path: runner
 
       - name: 配置 Python 环境
+        if: steps.eligibility.outputs.enabled == 'true'
         uses: actions/setup-python@v6
         with:
           python-version: '3.11'
 
-      - name: 安装媒体处理依赖
+      - name: 安装大文件处理依赖
+        if: steps.eligibility.outputs.enabled == 'true'
         run: |
           python -m pip install --quiet --disable-pip-version-check --upgrade pip
           if [ -f runner/requirements.txt ]; then pip install --quiet --disable-pip-version-check -r runner/requirements.txt; fi
           SERVICE_REQUIREMENTS=$(cd runner && python -m notionhub_runner requirements xiaohongshu)
           if [ -f "$SERVICE_REQUIREMENTS" ]; then pip install --quiet --disable-pip-version-check -r "$SERVICE_REQUIREMENTS"; fi
 
-      - name: 扫描媒体任务
-        id: discover
-        env:
-          PYTHONUNBUFFERED: '1'
-          TZ: Asia/Shanghai
-          NOTIONHUB_CONFIG_VERSION: '23'
-          NOTIONHUB_MEDIA_MANIFEST: ${{ runner.temp }}/notionhub-media.json
-        run: |
-          cd runner
-          echo "::group::扫描媒体任务"
-          python -m notionhub_runner media discover xiaohongshu
-          echo "::endgroup::"
-
-      - name: 上传图片
-        id: images
-        if: steps.discover.outcome == 'success'
-        continue-on-error: true
-        env:
-          PYTHONUNBUFFERED: '1'
-          TZ: Asia/Shanghai
-          NOTIONHUB_MEDIA_MANIFEST: ${{ runner.temp }}/notionhub-media.json
-        run: |
-          cd runner
-          echo "::group::上传图片"
-          python -m notionhub_runner media images xiaohongshu
-          echo "::endgroup::"
-
       - name: 上传大文件
         id: files
-        if: always() && steps.discover.outcome == 'success'
+        if: steps.eligibility.outputs.enabled == 'true'
         continue-on-error: true
         env:
           PYTHONUNBUFFERED: '1'
           TZ: Asia/Shanghai
-          NOTIONHUB_MEDIA_MANIFEST: ${{ runner.temp }}/notionhub-media.json
+          NOTIONHUB_CONFIG_VERSION: '24'
         run: |
           cd runner
           echo "::group::上传大文件"
           python -m notionhub_runner media files xiaohongshu
           echo "::endgroup::"
 
-      - name: 汇总资源处理结果
+      - name: 汇总大文件处理结果
         if: always()
         env:
-          DISCOVER_OUTCOME: ${{ steps.discover.outcome }}
-          IMAGE_OUTCOME: ${{ steps.images.outcome }}
           FILE_OUTCOME: ${{ steps.files.outcome }}
         run: |
-          if [ "$DISCOVER_OUTCOME" != "success" ] || [ "$IMAGE_OUTCOME" = "failure" ] || [ "$FILE_OUTCOME" = "failure" ]; then
-            echo "::warning title=部分资源处理失败::数据同步已经完成，失败的图片或文件会在下次同步后自动重试。"
+          if [ "$FILE_OUTCOME" = "failure" ]; then
+            echo "::warning title=部分大文件处理失败::数据和图片同步已经完成，失败的大文件会在下次同步后自动重试。"
             exit 0
           fi
-          echo "::notice title=资源处理完成::图片和已开启的大文件均已处理。"
+          if [ "$FILE_OUTCOME" = "success" ]; then
+            echo "::notice title=大文件处理完成::已开启的大文件均已处理。"
+          fi
 

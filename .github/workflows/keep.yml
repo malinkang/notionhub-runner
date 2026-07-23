@@ -232,7 +232,7 @@ jobs:
     needs: [prepare, sync_streams]
     if: always() && needs.prepare.outputs.enabled == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 360
+    timeout-minutes: 120
     env:
       KEEP_CONFIG: ${{ secrets.KEEP_CONFIG }}
     steps:
@@ -344,3 +344,4 @@ jobs:
             echo "::error title=Keep同步失败::至少一个分类同步失败，后续分类和媒体处理已停止。"
             exit 1
           fi
+

@@ -38,7 +38,7 @@ jobs:
   sync:
     name: 同步 Forest
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 180
     outputs:
       enabled: ${{ steps.activation.outputs.enabled }}
     env:

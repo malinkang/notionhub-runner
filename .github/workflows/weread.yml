@@ -42,7 +42,6 @@ jobs:
     timeout-minutes: 30
     outputs:
       enabled: ${{ steps.activation.outputs.enabled }}
-      plan: ${{ steps.authorize.outputs.plan }}
       continuation_ready: ${{ steps.progress.outputs.ready }}
     env:
       WEREAD_CONFIG: ${{ secrets.WEREAD_CONFIG }}
@@ -1179,10 +1178,21 @@ jobs:
       - name: 判断是否需要结算
         id: finish_auth
         run: |
+          SERVICE_PLAN=$(printf '%s' "$WEREAD_CONFIG" | jq -r '.WEREAD_SYNC_PLAN // "lifetime"')
           NEED_AUTH=false
-          if [ "${{ needs.prepare.outputs.plan }}" = "trial" ] && [ "${{ steps.aggregate.outputs.status }}" != "skipped" ]; then NEED_AUTH=true; fi
-          if [ "${{ steps.aggregate.outputs.status }}" = "success" ] && [ "${{ steps.aggregate.outputs.initial_forced }}" = "true" ]; then NEED_AUTH=true; fi
+          SETTLE_TRIAL=false
+          COMPLETE_INITIAL=false
+          if [ "$SERVICE_PLAN" = "trial" ] && [ "${{ steps.aggregate.outputs.status }}" != "skipped" ]; then
+            NEED_AUTH=true
+            SETTLE_TRIAL=true
+          fi
+          if [ "$SERVICE_PLAN" = "lifetime" ] && [ "${{ steps.aggregate.outputs.status }}" = "success" ] && [ "${{ steps.aggregate.outputs.initial_forced }}" = "true" ]; then
+            NEED_AUTH=true
+            COMPLETE_INITIAL=true
+          fi
           echo "enabled=$NEED_AUTH" >> "$GITHUB_OUTPUT"
+          echo "settle_trial=$SETTLE_TRIAL" >> "$GITHUB_OUTPUT"
+          echo "complete_initial=$COMPLETE_INITIAL" >> "$GITHUB_OUTPUT"
 
       - name: 验证权限并获取运行程序
         id: authorize
@@ -1316,7 +1326,7 @@ jobs:
           echo "plan=$PLAN" >> "$GITHUB_OUTPUT"
 
       - name: 结算免费体验
-        if: steps.finish_auth.outputs.enabled == 'true' && needs.prepare.outputs.plan == 'trial' && steps.authorize.outcome == 'success'
+        if: steps.finish_auth.outputs.settle_trial == 'true' && steps.authorize.outcome == 'success'
         run: |
           if [ "${{ steps.aggregate.outputs.status }}" = "success" ]; then STATUS=success; else STATUS=failure; fi
           cd runner
@@ -1324,7 +1334,7 @@ jobs:
           curl --retry 3 --retry-all-errors -fsSL -X POST "$NOTIONHUB_API_BASE/internal/trial-runs/$NOTIONHUB_POLICY_ID/report"             -H "Authorization: Bearer $NOTIONHUB_REPORT_TOKEN" -H 'Content-Type: application/json' --data-binary "@$RUNNER_TEMP/notionhub-settlement.json" >/dev/null
 
       - name: 确认首次全量同步完成
-        if: steps.aggregate.outputs.status == 'success' && steps.aggregate.outputs.initial_forced == 'true' && needs.prepare.outputs.plan == 'lifetime' && steps.authorize.outcome == 'success'
+        if: steps.finish_auth.outputs.complete_initial == 'true' && steps.authorize.outcome == 'success'
         run: |
           PAYLOAD=$(jq -cn --arg service "weread" --arg repository "${{ github.repository }}" --arg run_id "${{ github.run_id }}" --arg requested "${{ steps.aggregate.outputs.requested_mode }}" --arg effective "${{ steps.aggregate.outputs.effective_mode }}" '{service:$service,repository:$repository,githubRunId:$run_id,status:"success",requestedMode:$requested,effectiveMode:$effective,initialFullSyncForced:true}')
           curl -fsSL -X POST "$NOTIONHUB_API_BASE/internal/initial-full-sync/complete"             -H "Authorization: Bearer $NOTIONHUB_RUN_ACCESS_TOKEN" -H 'Content-Type: application/json' --data "$PAYLOAD" >/dev/null

@@ -43,7 +43,6 @@ jobs:
     outputs:
       enabled: ${{ steps.activation.outputs.enabled }}
       continuation_ready: ${{ steps.progress.outputs.ready }}
-      policy_id: ${{ steps.authorize.outputs.policy_id }}
     env:
       WEREAD_CONFIG: ${{ secrets.WEREAD_CONFIG }}
       NOTIONHUB_API_BASE: https://i.notionhub.app/v1
@@ -175,7 +174,7 @@ jobs:
           metadata = json.load(open(sys.argv[1], encoding='utf-8'))
           for value in metadata.get('serviceConfig', {}).values():
               escaped = str(value).replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
-              if escaped:
+              if len(escaped) >= 8:
                   print(f'::add-mask::{escaped}')
           PY
           ACTUAL_SIZE=$(wc -c < "$RUNTIME_ARCHIVE" | tr -d ' ')
@@ -205,7 +204,6 @@ jobs:
             echo "$SERVICE_CONFIG"
             echo 'NOTIONHUB_CONFIG_EOF'
           } >> "$GITHUB_ENV"
-          echo "policy_id=$POLICY_ID" >> "$GITHUB_OUTPUT"
           echo "plan=$PLAN" >> "$GITHUB_OUTPUT"
 
       - name: 配置 Python 环境
@@ -275,7 +273,7 @@ jobs:
           except Exception: values = [raw]
           for value in values:
               escaped = str(value).replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
-              if escaped: print(f'::add-mask::{escaped}')
+              if len(escaped) >= 8: print(f'::add-mask::{escaped}')
           PY
           python -m notionhub_runner sync weread --stream books
 
@@ -317,7 +315,7 @@ jobs:
   reading_time:
     name: 同步阅读时长
     needs: books
-    if: always() && needs.books.result == 'success' && needs.books.outputs.enabled == 'true' && needs.books.outputs.continuation_ready == 'true' && needs.books.outputs.policy_id != ''
+    if: always() && needs.books.result == 'success' && needs.books.outputs.enabled == 'true' && needs.books.outputs.continuation_ready == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 120
     env:
@@ -346,7 +344,7 @@ jobs:
             exit 1
           fi
           echo "::add-mask::$OIDC_TOKEN"
-          CONTINUATION_ID="${{ needs.books.outputs.policy_id }}"
+          CONTINUATION_ID="$(cat "$SYNC_POLICY_CONTINUATION_PATH")"
           if [ -z "$CONTINUATION_ID" ]; then
             echo "::error title=运行授权续接失败::同步进度中缺少续接标识。"
             exit 1
@@ -435,7 +433,7 @@ jobs:
           metadata = json.load(open(sys.argv[1], encoding='utf-8'))
           for value in metadata.get('serviceConfig', {}).values():
               escaped = str(value).replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
-              if escaped:
+              if len(escaped) >= 8:
                   print(f'::add-mask::{escaped}')
           PY
           ACTUAL_SIZE=$(wc -c < "$RUNTIME_ARCHIVE" | tr -d ' ')
@@ -465,7 +463,6 @@ jobs:
             echo "$SERVICE_CONFIG"
             echo 'NOTIONHUB_CONFIG_EOF'
           } >> "$GITHUB_ENV"
-          echo "policy_id=$POLICY_ID" >> "$GITHUB_OUTPUT"
           echo "plan=$PLAN" >> "$GITHUB_OUTPUT"
 
       - name: 配置 Python 环境
@@ -535,7 +532,7 @@ jobs:
           except Exception: values = [raw]
           for value in values:
               escaped = str(value).replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
-              if escaped: print(f'::add-mask::{escaped}')
+              if len(escaped) >= 8: print(f'::add-mask::{escaped}')
           PY
           python -m notionhub_runner sync weread --stream reading_time
 

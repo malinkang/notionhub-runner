@@ -170,7 +170,7 @@ jobs:
           metadata = json.load(open(sys.argv[1], encoding='utf-8'))
           for value in metadata.get('serviceConfig', {}).values():
               escaped = str(value).replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
-              if escaped:
+              if len(escaped) >= 8:
                   print(f'::add-mask::{escaped}')
           PY
           ACTUAL_SIZE=$(wc -c < "$RUNTIME_ARCHIVE" | tr -d ' ')
@@ -200,7 +200,6 @@ jobs:
             echo "$SERVICE_CONFIG"
             echo 'NOTIONHUB_CONFIG_EOF'
           } >> "$GITHUB_ENV"
-          echo "policy_id=$POLICY_ID" >> "$GITHUB_OUTPUT"
           echo "plan=$PLAN" >> "$GITHUB_OUTPUT"
 
       - name: 配置 Python 环境
@@ -270,7 +269,7 @@ jobs:
           except Exception: values = [raw]
           for value in values:
               escaped = str(value).replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
-              if escaped: print(f'::add-mask::{escaped}')
+              if len(escaped) >= 8: print(f'::add-mask::{escaped}')
           PY
           python -m notionhub_runner sync podcast
 

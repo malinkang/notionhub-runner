@@ -1,4 +1,4 @@
-# NotionHub generated workflow v31
+# NotionHub generated workflow v33
 name: 小宇宙
 
 on:
@@ -44,7 +44,7 @@ jobs:
       PODCAST_CONFIG: ${{ secrets.PODCAST_CONFIG }}
       NOTIONHUB_API_BASE: https://i.notionhub.app/v1
       NOTIONHUB_SERVICE: podcast
-      NOTIONHUB_CONFIG_VERSION: '26'
+      NOTIONHUB_CONFIG_VERSION: '27'
       SYNC_POLICY_STATE_PATH: ${{ github.workspace }}/notionhub-state.json
       SYNC_POLICY_REPORT_PATH: ${{ github.workspace }}/notionhub-service-report.json
     steps:
@@ -76,7 +76,7 @@ jobs:
           echo "enabled=true" >> "$GITHUB_OUTPUT"
           echo "plan=$PLAN" >> "$GITHUB_OUTPUT"
 
-      - name: 获取短期运行授权
+      - name: 验证权限并获取运行程序
         id: authorize
         if: steps.activation.outputs.enabled == 'true'
         run: |
@@ -86,8 +86,13 @@ jobs:
             exit 1
           fi
           echo "::add-mask::$OIDC_TOKEN"
-          AUTH_RESPONSE="$RUNNER_TEMP/notionhub-authorize.json"
-          HTTP_STATUS=$(curl -sS -o "$AUTH_RESPONSE" -w '%{http_code}' -X POST "$NOTIONHUB_API_BASE/github/runner/authorize-run"             -H "Authorization: Bearer $OIDC_TOKEN" -H 'Content-Type: application/json'             --data '{"service":"podcast","purpose":"sync"}')
+          RUNTIME_PAYLOAD='{"service":"podcast","purpose":"sync"}'
+          RUNTIME_RESPONSE="$RUNNER_TEMP/notionhub-runtime-bundle.bin"
+          RUNTIME_METADATA="$RUNNER_TEMP/notionhub-runtime-metadata.json"
+          RUNTIME_ARCHIVE="$RUNNER_TEMP/notionhub-runner.tar.gz"
+          cleanup_runtime_files() { rm -f "$RUNTIME_RESPONSE" "$RUNTIME_METADATA" "$RUNTIME_ARCHIVE"; }
+          trap cleanup_runtime_files EXIT
+          HTTP_STATUS=$(curl -sS -o "$RUNTIME_RESPONSE" -w '%{http_code}' -X POST "$NOTIONHUB_API_BASE/github/runner/runtime-bundle"             -H "Authorization: Bearer $OIDC_TOKEN" -H 'Content-Type: application/json' --data "$RUNTIME_PAYLOAD")
           if [ "$HTTP_STATUS" = "418" ]; then
             echo "免费体验次数已用完，请购买激活码。"
             echo "获取激活码：https://www.notionhub.app/docs/get-activation-code.html"
@@ -102,30 +107,88 @@ jobs:
             exit 1
           fi
           if [ "$HTTP_STATUS" -lt 200 ] || [ "$HTTP_STATUS" -ge 300 ]; then
-            MESSAGE=$(jq -r '.message // "运行授权失败"' "$AUTH_RESPONSE")
-            echo "::error title=运行授权失败::$MESSAGE"
+            MESSAGE=$(jq -r '.message // "运行准备失败"' "$RUNTIME_RESPONSE" 2>/dev/null || echo "运行准备失败")
+            echo "::error title=运行准备失败::$MESSAGE"
             exit 1
           fi
-          ACCESS_TOKEN=$(jq -r '.data.accessToken // empty' "$AUTH_RESPONSE")
-          BUNDLE_TOKEN=$(jq -r '.data.bundleToken // empty' "$AUTH_RESPONSE")
-          REPORT_TOKEN=$(jq -r '.data.reportToken // empty' "$AUTH_RESPONSE")
-          BUNDLE_URL=$(jq -r '.data.bundleUrl // empty' "$AUTH_RESPONSE")
-          POLICY_ID=$(jq -r '.data.context.id // empty' "$AUTH_RESPONSE")
-          PLAN=$(jq -r '.data.context.plan // empty' "$AUTH_RESPONSE")
-          POLICY_JSON=$(jq -c '.data.context.policy // {}' "$AUTH_RESPONSE")
-          POLICY_SIGNATURE=$(jq -r '.data.policySignature // empty' "$AUTH_RESPONSE")
-          for VALUE in "$ACCESS_TOKEN" "$BUNDLE_TOKEN" "$REPORT_TOKEN" "$POLICY_ID" "$POLICY_SIGNATURE"; do
-            if [ -n "$VALUE" ]; then echo "::add-mask::$VALUE"; fi
-          done
-          if [ -z "$ACCESS_TOKEN" ] || [ -z "$BUNDLE_TOKEN" ] || [ -z "$REPORT_TOKEN" ] || [ -z "$BUNDLE_URL" ] || [ -z "$POLICY_ID" ] || [ -z "$POLICY_SIGNATURE" ]; then
-            echo "::error title=运行授权失败::授权响应缺少短期运行字段。"
+          chmod 600 "$RUNTIME_RESPONSE"
+          python3 - "$RUNTIME_RESPONSE" "$RUNTIME_METADATA" "$RUNTIME_ARCHIVE" "podcast" <<'PY'
+          import json
+          import os
+          import re
+          import sys
+
+          source, metadata_path, archive_path, expected_service = sys.argv[1:]
+          raw = open(source, 'rb').read()
+          magic = b'NHRB1\n'
+          if not raw.startswith(magic) or len(raw) < len(magic) + 8:
+              raise SystemExit('运行程序响应格式无效。')
+          length_bytes = raw[len(magic):len(magic) + 8]
+          if not re.fullmatch(rb'[0-9a-fA-F]{8}', length_bytes):
+              raise SystemExit('运行配置长度无效。')
+          metadata_length = int(length_bytes, 16)
+          if metadata_length <= 0 or metadata_length > 1024 * 1024:
+              raise SystemExit('运行配置超过大小限制。')
+          metadata_start = len(magic) + 8
+          metadata_end = metadata_start + metadata_length
+          if metadata_end >= len(raw):
+              raise SystemExit('运行程序响应不完整。')
+          try:
+              metadata = json.loads(raw[metadata_start:metadata_end].decode('utf-8'))
+          except Exception:
+              raise SystemExit('运行配置格式无效。')
+          archive = raw[metadata_end:]
+          if metadata.get('schemaVersion') != 1:
+              raise SystemExit('运行配置版本不受支持。')
+          if metadata.get('context', {}).get('service') != expected_service:
+              raise SystemExit('运行配置与当前服务不匹配。')
+          expected_size = metadata.get('bundle', {}).get('size')
+          if not isinstance(expected_size, int) or expected_size != len(archive) or not archive or len(archive) > 64 * 1024 * 1024:
+              raise SystemExit('运行程序大小校验失败。')
+          for path, data in ((metadata_path, json.dumps(metadata, ensure_ascii=False, separators=(',', ':')).encode()), (archive_path, archive)):
+              with open(path, 'wb') as handle:
+                  handle.write(data)
+              os.chmod(path, 0o600)
+          PY
+          ACCESS_TOKEN=$(jq -r '.accessToken // empty' "$RUNTIME_METADATA")
+          REPORT_TOKEN=$(jq -r '.reportToken // empty' "$RUNTIME_METADATA")
+          POLICY_ID=$(jq -r '.context.id // empty' "$RUNTIME_METADATA")
+          PLAN=$(jq -r '.context.plan // empty' "$RUNTIME_METADATA")
+          POLICY_JSON=$(jq -c '.policy // {}' "$RUNTIME_METADATA")
+          POLICY_SIGNATURE=$(jq -r '.policySignature // empty' "$RUNTIME_METADATA")
+          SERVICE_CONFIG=$(jq -c '.serviceConfig // empty' "$RUNTIME_METADATA")
+          EXPECTED_SIZE=$(jq -r '.bundle.size // empty' "$RUNTIME_METADATA")
+          EXPECTED_SHA256=$(jq -r '.bundle.sha256 // empty' "$RUNTIME_METADATA")
+          if [ -z "$ACCESS_TOKEN" ] || [ -z "$REPORT_TOKEN" ] || [ -z "$POLICY_ID" ] || [ -z "$PLAN" ] || [ -z "$POLICY_SIGNATURE" ] || [ -z "$SERVICE_CONFIG" ] || [ -z "$EXPECTED_SIZE" ] || [ -z "$EXPECTED_SHA256" ]; then
+            echo "::error title=运行准备失败::运行配置缺少必要字段。"
             exit 1
           fi
+          for VALUE in "$ACCESS_TOKEN" "$REPORT_TOKEN" "$POLICY_SIGNATURE" "$SERVICE_CONFIG"; do echo "::add-mask::$VALUE"; done
+          python3 - "$RUNTIME_METADATA" <<'PY'
+          import json
+          import sys
+          metadata = json.load(open(sys.argv[1], encoding='utf-8'))
+          for value in metadata.get('serviceConfig', {}).values():
+              escaped = str(value).replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
+              if escaped:
+                  print(f'::add-mask::{escaped}')
+          PY
+          ACTUAL_SIZE=$(wc -c < "$RUNTIME_ARCHIVE" | tr -d ' ')
+          ACTUAL_SHA256=$(sha256sum "$RUNTIME_ARCHIVE" | awk '{print $1}')
+          if [ "$ACTUAL_SIZE" != "$EXPECTED_SIZE" ] || [ "$ACTUAL_SHA256" != "$EXPECTED_SHA256" ]; then
+            echo "::error title=运行程序校验失败::下载内容的大小或 SHA-256 不匹配。"
+            exit 1
+          fi
+          if tar -tzf "$RUNTIME_ARCHIVE" | grep -Eq '(^/|(^|/)\.\.(/|$))'; then
+            echo "::error title=运行程序校验失败::运行程序包含不安全路径。"
+            exit 1
+          fi
+          tar -xzf "$RUNTIME_ARCHIVE"
+          test -f runner/requirements.txt
+          test -d runner/notionhub_runner
           {
             echo "NOTIONHUB_RUN_ACCESS_TOKEN=$ACCESS_TOKEN"
-            echo "NOTIONHUB_BUNDLE_TOKEN=$BUNDLE_TOKEN"
             echo "NOTIONHUB_REPORT_TOKEN=$REPORT_TOKEN"
-            echo "NOTIONHUB_BUNDLE_URL=$BUNDLE_URL"
             echo "NOTIONHUB_POLICY_ID=$POLICY_ID"
             echo "SYNC_RUN_ID=$POLICY_ID"
             echo "SYNC_PLAN=$PLAN"
@@ -133,51 +196,22 @@ jobs:
             echo "SYNC_POLICY_JSON=$POLICY_JSON"
             echo "SYNC_POLICY_SIGNATURE=$POLICY_SIGNATURE"
             echo "SYNC_POLICY_SIGNING_KEY=$ACCESS_TOKEN"
+            echo 'PODCAST_CONFIG<<NOTIONHUB_CONFIG_EOF'
+            echo "$SERVICE_CONFIG"
+            echo 'NOTIONHUB_CONFIG_EOF'
           } >> "$GITHUB_ENV"
-
-      - name: 刷新服务配置
-        id: refresh
-        if: steps.authorize.outcome == 'success'
-        run: |
-          REFRESH_RESPONSE="$RUNNER_TEMP/notionhub-refresh.json"
-          HTTP_STATUS=$(curl -sS -o "$REFRESH_RESPONSE" -w '%{http_code}' -X POST "$NOTIONHUB_API_BASE/internal/services/podcast/refresh-config"             -H "Authorization: Bearer $NOTIONHUB_RUN_ACCESS_TOKEN" -H 'Content-Type: application/json' --data '{}')
-          if [ "$HTTP_STATUS" -lt 200 ] || [ "$HTTP_STATUS" -ge 300 ]; then
-            MESSAGE=$(jq -r '.message // "服务配置刷新失败"' "$REFRESH_RESPONSE")
-            echo "::error title=服务配置刷新失败::$MESSAGE"
-            exit 1
-          fi
-          REFRESHED_CONFIG=$(jq -c '.data.serviceConfig // empty' "$REFRESH_RESPONSE")
-          if [ -z "$REFRESHED_CONFIG" ]; then
-            echo "::error title=服务配置刷新失败::Worker 未返回服务配置。"
-            exit 1
-          fi
-          echo "::add-mask::$REFRESHED_CONFIG"
-          echo 'PODCAST_CONFIG<<NOTIONHUB_CONFIG_EOF' >> "$GITHUB_ENV"
-          echo "$REFRESHED_CONFIG" >> "$GITHUB_ENV"
-          echo 'NOTIONHUB_CONFIG_EOF' >> "$GITHUB_ENV"
-
-      - name: 获取服务运行程序
-        id: bundle
-        if: steps.refresh.outcome == 'success'
-        run: |
-          curl -fsSL "$NOTIONHUB_BUNDLE_URL" -H "Authorization: Bearer $NOTIONHUB_BUNDLE_TOKEN" -o "$RUNNER_TEMP/notionhub-runner.tar.gz"
-          if tar -tzf "$RUNNER_TEMP/notionhub-runner.tar.gz" | grep -Eq '(^/|(^|/)\.\.(/|$))'; then
-            echo "::error title=运行程序校验失败::bundle 包含不安全路径。"
-            exit 1
-          fi
-          tar -xzf "$RUNNER_TEMP/notionhub-runner.tar.gz"
-          test -f runner/requirements.txt
-          test -d runner/notionhub_runner
+          echo "policy_id=$POLICY_ID" >> "$GITHUB_OUTPUT"
+          echo "plan=$PLAN" >> "$GITHUB_OUTPUT"
 
       - name: 配置 Python 环境
-        if: steps.bundle.outcome == 'success'
+        if: steps.authorize.outcome == 'success'
         uses: actions/setup-python@v6
         with:
           python-version: '3.11'
 
       - name: 安装运行依赖
         id: install
-        if: steps.bundle.outcome == 'success'
+        if: steps.authorize.outcome == 'success'
         run: |
           python -m pip install --quiet --disable-pip-version-check --upgrade pip
           if [ -f runner/requirements.txt ]; then pip install --quiet --disable-pip-version-check -r runner/requirements.txt; fi

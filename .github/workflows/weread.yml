@@ -42,13 +42,14 @@ jobs:
     timeout-minutes: 120
     outputs:
       enabled: ${{ steps.activation.outputs.enabled }}
-      policy_id: ${{ steps.authorize.outputs.policy_id }}
+      continuation_ready: ${{ steps.progress.outputs.ready }}
     env:
       WEREAD_CONFIG: ${{ secrets.WEREAD_CONFIG }}
       NOTIONHUB_API_BASE: https://i.notionhub.app/v1
       NOTIONHUB_SERVICE: weread
       NOTIONHUB_CONFIG_VERSION: '26'
       SYNC_POLICY_STATE_PATH: ${{ github.workspace }}/notionhub-state.json
+      SYNC_POLICY_CONTINUATION_PATH: ${{ github.workspace }}/notionhub-continuation-id
       SYNC_POLICY_REPORT_PATH: ${{ github.workspace }}/notionhub-service-report.json
     steps:
       - name: 验证运行配置
@@ -106,7 +107,6 @@ jobs:
             echo "::error title=运行授权失败::授权响应缺少短期运行字段。"
             exit 1
           fi
-          echo "policy_id=$POLICY_ID" >> "$GITHUB_OUTPUT"
           {
             echo "NOTIONHUB_RUN_ACCESS_TOKEN=$ACCESS_TOKEN"
             echo "NOTIONHUB_BUNDLE_TOKEN=$BUNDLE_TOKEN"
@@ -227,16 +227,21 @@ jobs:
           python -m notionhub_runner sync weread --stream books
 
       - name: 准备同步进度
+        id: progress
         if: always() && steps.authorize.outcome == 'success'
         run: |
           if [ ! -f "$SYNC_POLICY_STATE_PATH" ]; then printf '{}' > "$SYNC_POLICY_STATE_PATH"; fi
+          printf '%s' "$NOTIONHUB_POLICY_ID" > "$SYNC_POLICY_CONTINUATION_PATH"
+          echo "ready=true" >> "$GITHUB_OUTPUT"
 
       - name: 保存同步进度
         if: always() && steps.authorize.outcome == 'success'
         uses: actions/upload-artifact@v4
         with:
           name: notionhub-weread-state-${{ github.run_id }}-${{ github.run_attempt }}
-          path: ${{ env.SYNC_POLICY_STATE_PATH }}
+          path: |
+            ${{ env.SYNC_POLICY_STATE_PATH }}
+            ${{ env.SYNC_POLICY_CONTINUATION_PATH }}
           if-no-files-found: error
           retention-days: 1
 
@@ -248,7 +253,7 @@ jobs:
   reading_time:
     name: 同步阅读时长
     needs: books
-    if: always() && needs.books.outputs.enabled == 'true' && needs.books.outputs.policy_id != ''
+    if: always() && needs.books.outputs.enabled == 'true' && needs.books.outputs.continuation_ready == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 120
     env:
@@ -257,8 +262,16 @@ jobs:
       NOTIONHUB_SERVICE: weread
       NOTIONHUB_CONFIG_VERSION: '26'
       SYNC_POLICY_STATE_PATH: ${{ github.workspace }}/notionhub-state.json
+      SYNC_POLICY_CONTINUATION_PATH: ${{ github.workspace }}/notionhub-continuation-id
       SYNC_POLICY_REPORT_PATH: ${{ github.workspace }}/notionhub-service-report.json
     steps:
+      - name: 恢复书籍同步进度
+        id: restore
+        uses: actions/download-artifact@v4
+        with:
+          name: notionhub-weread-state-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ github.workspace }}
+
       - name: 续接短期运行授权
         id: authorize
         run: |
@@ -268,7 +281,11 @@ jobs:
             exit 1
           fi
           echo "::add-mask::$OIDC_TOKEN"
-          CONTINUATION_ID="${{ needs.books.outputs.policy_id }}"
+          CONTINUATION_ID=$(cat "$SYNC_POLICY_CONTINUATION_PATH")
+          if [ -z "$CONTINUATION_ID" ]; then
+            echo "::error title=运行授权续接失败::同步进度中缺少续接标识。"
+            exit 1
+          fi
           AUTH_PAYLOAD=$(jq -cn --arg service "weread" --arg policy_id "$CONTINUATION_ID" '{service:$service,purpose:"sync",policyId:$policy_id}')
           AUTH_RESPONSE="$RUNNER_TEMP/notionhub-authorize.json"
           HTTP_STATUS=$(curl -sS -o "$AUTH_RESPONSE" -w '%{http_code}' -X POST "$NOTIONHUB_API_BASE/github/runner/authorize-run"             -H "Authorization: Bearer $OIDC_TOKEN" -H 'Content-Type: application/json' --data "$AUTH_PAYLOAD")
@@ -339,13 +356,6 @@ jobs:
           tar -xzf "$RUNNER_TEMP/notionhub-runner.tar.gz"
           test -f runner/requirements.txt
           test -d runner/notionhub_runner
-
-      - name: 恢复书籍同步进度
-        if: steps.bundle.outcome == 'success'
-        uses: actions/download-artifact@v4
-        with:
-          name: notionhub-weread-state-${{ github.run_id }}-${{ github.run_attempt }}
-          path: ${{ github.workspace }}
 
       - name: 配置 Python 环境
         if: steps.bundle.outcome == 'success'

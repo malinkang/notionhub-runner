@@ -78,7 +78,7 @@ jobs:
         uses: actions/checkout@v5
         with:
           repository: malinkang/notionhub-private-runner
-          ref: codex/initial-full-sync-validation
+          ref: runner
           ssh-key: ${{ secrets.NOTIONHUB_RUNNER_SSH_KEY }}
           persist-credentials: false
           path: runner

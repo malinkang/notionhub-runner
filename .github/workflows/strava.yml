@@ -1,4 +1,4 @@
-# NotionHub generated workflow v29
+# NotionHub generated workflow v31
 name: Strava
 
 on:
@@ -29,103 +29,137 @@ on:
 
 permissions:
   contents: read
+  id-token: write
 
 concurrency:
   group: notionhub-strava-sync-${{ github.ref_name }}
-  cancel-in-progress: ${{ github.event_name == 'workflow_dispatch' }}
+  cancel-in-progress: true
 
 jobs:
   sync:
     name: 同步 Strava
     runs-on: ubuntu-latest
     timeout-minutes: 120
-    outputs:
-      enabled: ${{ steps.activation.outputs.enabled }}
     env:
       STRAVA_CONFIG: ${{ secrets.STRAVA_CONFIG }}
+      NOTIONHUB_API_BASE: https://i.notionhub.app/v1
+      NOTIONHUB_SERVICE: strava
+      NOTIONHUB_CONFIG_VERSION: '25'
+      SYNC_POLICY_STATE_PATH: ${{ runner.temp }}/notionhub-state.json
+      SYNC_POLICY_REPORT_PATH: ${{ runner.temp }}/notionhub-service-report.json
     steps:
       - name: 验证运行配置
         id: activation
         env:
           SERVICE_CONFIG: ${{ secrets.STRAVA_CONFIG }}
-          RUNNER_SSH_KEY: ${{ secrets.NOTIONHUB_RUNNER_SSH_KEY }}
         run: |
           if [ -z "$SERVICE_CONFIG" ]; then
-            echo "::warning title=Strava尚未配置::请先在插件中完成配置并保存。"
+            echo "::notice title=Strava尚未配置::请先在插件中完成配置并保存。"
             echo "enabled=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          if [ -z "$RUNNER_SSH_KEY" ]; then
-            echo "::error title=运行器配置缺失::缺少只读部署密钥，请在插件中重新连接 GitHub。"
+          PLAN=$(printf '%s' "$SERVICE_CONFIG" | jq -r '.STRAVA_SYNC_PLAN // "lifetime"')
+          REMAINING=$(printf '%s' "$SERVICE_CONFIG" | jq -r '.STRAVA_TRIAL_RUNS_REMAINING // 1')
+          if [ "$PLAN" = "trial" ] && { ! [[ "$REMAINING" =~ ^[0-9]+$ ]] || [ "$REMAINING" -le 0 ]; }; then
+            echo "::error title=免费同步次数已用完::请回到 NotionHub 激活 Strava 后继续同步。"
             exit 1
           fi
           echo "enabled=true" >> "$GITHUB_OUTPUT"
-          echo "::notice title=Strava::运行配置验证通过。"
+          echo "plan=$PLAN" >> "$GITHUB_OUTPUT"
 
-      - name: 检查 Notion 授权
+      - name: 获取短期运行授权
+        id: authorize
         if: steps.activation.outputs.enabled == 'true'
-        env:
-          SERVICE_CONFIG: ${{ secrets.STRAVA_CONFIG }}
-          NOTIONHUB_RUN_TOKEN: ${{ secrets.NOTIONHUB_RUN_TOKEN }}
-          GITHUB_REPOSITORY_NAME: ${{ github.repository }}
         run: |
-          NOTION_TOKEN=$(printf '%s' "$SERVICE_CONFIG" | jq -r '.STRAVA_NOTION_TOKEN // empty')
-          EXPIRES_AT=$(printf '%s' "$SERVICE_CONFIG" | jq -r '.STRAVA_NOTION_DATA // "{}" | fromjson? | .expires_at // empty')
-          NEED_REFRESH=false
-          NOW=$(date +%s)
-          if [ -n "$EXPIRES_AT" ] && [ "$EXPIRES_AT" != "null" ]; then
-            EXPIRY=$(date -d "$EXPIRES_AT" +%s 2>/dev/null || printf '%s' "$EXPIRES_AT" | cut -d. -f1)
-            if [ -n "$EXPIRY" ] && [ "$EXPIRY" -le "$((NOW + 300))" ] 2>/dev/null; then NEED_REFRESH=true; fi
+          OIDC_TOKEN=$(curl -fsSL -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=https%3A%2F%2Fi.notionhub.app" | jq -r '.value // empty')
+          if [ -z "$OIDC_TOKEN" ]; then
+            echo "::error title=GitHub 身份验证失败::未能获取本次运行的 OIDC token。"
+            exit 1
           fi
-          if [ "$NEED_REFRESH" = "false" ] && [ -n "$NOTION_TOKEN" ]; then
-            STATUS=$(curl -sS -o /dev/null -w '%{http_code}' https://api.notion.com/v1/users/me               -H "Authorization: Bearer $NOTION_TOKEN" -H 'Notion-Version: 2025-09-03')
-            if [ "$STATUS" = "401" ]; then NEED_REFRESH=true; fi
+          echo "::add-mask::$OIDC_TOKEN"
+          AUTH_RESPONSE="$RUNNER_TEMP/notionhub-authorize.json"
+          HTTP_STATUS=$(curl -sS -o "$AUTH_RESPONSE" -w '%{http_code}' -X POST "$NOTIONHUB_API_BASE/github/runner/authorize-run"             -H "Authorization: Bearer $OIDC_TOKEN" -H 'Content-Type: application/json'             --data '{"service":"strava","purpose":"sync"}')
+          if [ "$HTTP_STATUS" = "418" ]; then
+            echo "::error title=免费同步次数已用完::请回到 NotionHub 激活 Strava 后继续同步。"
+            exit 1
           fi
-          if [ "$NEED_REFRESH" = "true" ]; then
-            if [ -z "$NOTIONHUB_RUN_TOKEN" ]; then
-              echo "::error title=Notion 授权已过期::请回到插件重新授权 Notion。"
-              exit 1
-            fi
-            PAYLOAD=$(jq -cn --arg service "strava" --arg repository "$GITHUB_REPOSITORY_NAME" '{service:$service,repository:$repository}')
-            TIMESTAMP=$(date +%s)
-            NONCE=$(openssl rand -hex 16)
-            BODY_SHA256=$(printf '%s' "$PAYLOAD" | openssl dgst -sha256 -r | awk '{print $1}')
-            SIGNING_PAYLOAD=$(printf 'POST\n/v1/github/runner/refresh-config\n%s\n%s\n%s' "$TIMESTAMP" "$NONCE" "$BODY_SHA256")
-            SIGNATURE=$(printf '%s' "$SIGNING_PAYLOAD" | openssl dgst -sha256 -hmac "$NOTIONHUB_RUN_TOKEN" -r | awk '{print $1}')
-            RESPONSE=$(curl -fsSL -X POST "https://i.notionhub.app/v1/github/runner/refresh-config"               -H "Authorization: Bearer $NOTIONHUB_RUN_TOKEN" -H 'Content-Type: application/json'               -H "X-NotionHub-Timestamp: $TIMESTAMP" -H "X-NotionHub-Nonce: $NONCE" -H "X-NotionHub-Signature: $SIGNATURE"               --data "$PAYLOAD")
-            REFRESHED_CONFIG=$(printf '%s' "$RESPONSE" | jq -r '.serviceConfig // empty')
-            if [ -z "$REFRESHED_CONFIG" ]; then
-              MESSAGE=$(printf '%s' "$RESPONSE" | jq -r '.message // "Notion 授权刷新失败"')
-              echo "::error title=Notion 授权刷新失败::$MESSAGE"
-              exit 1
-            fi
-            echo "::add-mask::$REFRESHED_CONFIG"
-            {
-              echo "STRAVA_CONFIG<<NOTIONHUB_EOF"
-              echo "$REFRESHED_CONFIG"
-              echo "NOTIONHUB_EOF"
-            } >> "$GITHUB_ENV"
-            echo "::notice title=Notion 授权已更新::本次同步将使用刷新后的授权。"
+          if [ "$HTTP_STATUS" -lt 200 ] || [ "$HTTP_STATUS" -ge 300 ]; then
+            MESSAGE=$(jq -r '.message // "运行授权失败"' "$AUTH_RESPONSE")
+            echo "::error title=运行授权失败::$MESSAGE"
+            exit 1
           fi
+          ACCESS_TOKEN=$(jq -r '.data.accessToken // empty' "$AUTH_RESPONSE")
+          BUNDLE_TOKEN=$(jq -r '.data.bundleToken // empty' "$AUTH_RESPONSE")
+          REPORT_TOKEN=$(jq -r '.data.reportToken // empty' "$AUTH_RESPONSE")
+          BUNDLE_URL=$(jq -r '.data.bundleUrl // empty' "$AUTH_RESPONSE")
+          POLICY_ID=$(jq -r '.data.context.id // empty' "$AUTH_RESPONSE")
+          PLAN=$(jq -r '.data.context.plan // empty' "$AUTH_RESPONSE")
+          POLICY_JSON=$(jq -c '.data.context.policy // {}' "$AUTH_RESPONSE")
+          POLICY_SIGNATURE=$(jq -r '.data.policySignature // empty' "$AUTH_RESPONSE")
+          for VALUE in "$ACCESS_TOKEN" "$BUNDLE_TOKEN" "$REPORT_TOKEN" "$POLICY_ID" "$POLICY_SIGNATURE"; do
+            if [ -n "$VALUE" ]; then echo "::add-mask::$VALUE"; fi
+          done
+          if [ -z "$ACCESS_TOKEN" ] || [ -z "$BUNDLE_TOKEN" ] || [ -z "$REPORT_TOKEN" ] || [ -z "$BUNDLE_URL" ] || [ -z "$POLICY_ID" ] || [ -z "$POLICY_SIGNATURE" ]; then
+            echo "::error title=运行授权失败::授权响应缺少短期运行字段。"
+            exit 1
+          fi
+          {
+            echo "NOTIONHUB_RUN_ACCESS_TOKEN=$ACCESS_TOKEN"
+            echo "NOTIONHUB_BUNDLE_TOKEN=$BUNDLE_TOKEN"
+            echo "NOTIONHUB_REPORT_TOKEN=$REPORT_TOKEN"
+            echo "NOTIONHUB_BUNDLE_URL=$BUNDLE_URL"
+            echo "NOTIONHUB_POLICY_ID=$POLICY_ID"
+            echo "SYNC_RUN_ID=$POLICY_ID"
+            echo "SYNC_PLAN=$PLAN"
+            echo "ENTITLEMENT_PLAN=$PLAN"
+            echo "SYNC_POLICY_JSON=$POLICY_JSON"
+            echo "SYNC_POLICY_SIGNATURE=$POLICY_SIGNATURE"
+            echo "SYNC_POLICY_SIGNING_KEY=$ACCESS_TOKEN"
+          } >> "$GITHUB_ENV"
 
-      - name: 获取同步程序
-        if: steps.activation.outputs.enabled == 'true'
-        uses: actions/checkout@v5
-        with:
-          repository: malinkang/notionhub-private-runner
-          ref: runner
-          ssh-key: ${{ secrets.NOTIONHUB_RUNNER_SSH_KEY }}
-          persist-credentials: false
-          path: runner
+      - name: 刷新服务配置
+        id: refresh
+        if: steps.authorize.outcome == 'success'
+        run: |
+          REFRESH_RESPONSE="$RUNNER_TEMP/notionhub-refresh.json"
+          HTTP_STATUS=$(curl -sS -o "$REFRESH_RESPONSE" -w '%{http_code}' -X POST "$NOTIONHUB_API_BASE/internal/services/strava/refresh-config"             -H "Authorization: Bearer $NOTIONHUB_RUN_ACCESS_TOKEN" -H 'Content-Type: application/json' --data '{}')
+          if [ "$HTTP_STATUS" -lt 200 ] || [ "$HTTP_STATUS" -ge 300 ]; then
+            MESSAGE=$(jq -r '.message // "服务配置刷新失败"' "$REFRESH_RESPONSE")
+            echo "::error title=服务配置刷新失败::$MESSAGE"
+            exit 1
+          fi
+          REFRESHED_CONFIG=$(jq -c '.data.serviceConfig // empty' "$REFRESH_RESPONSE")
+          if [ -z "$REFRESHED_CONFIG" ]; then
+            echo "::error title=服务配置刷新失败::Worker 未返回服务配置。"
+            exit 1
+          fi
+          echo "::add-mask::$REFRESHED_CONFIG"
+          echo 'STRAVA_CONFIG<<NOTIONHUB_CONFIG_EOF' >> "$GITHUB_ENV"
+          echo "$REFRESHED_CONFIG" >> "$GITHUB_ENV"
+          echo 'NOTIONHUB_CONFIG_EOF' >> "$GITHUB_ENV"
+
+      - name: 获取服务运行程序
+        id: bundle
+        if: steps.refresh.outcome == 'success'
+        run: |
+          curl -fsSL "$NOTIONHUB_BUNDLE_URL" -H "Authorization: Bearer $NOTIONHUB_BUNDLE_TOKEN" -o "$RUNNER_TEMP/notionhub-runner.tar.gz"
+          if tar -tzf "$RUNNER_TEMP/notionhub-runner.tar.gz" | grep -Eq '(^/|(^|/)\.\.(/|$))'; then
+            echo "::error title=运行程序校验失败::bundle 包含不安全路径。"
+            exit 1
+          fi
+          tar -xzf "$RUNNER_TEMP/notionhub-runner.tar.gz"
+          test -f runner/requirements.txt
+          test -d runner/notionhub_runner
 
       - name: 配置 Python 环境
-        if: steps.activation.outputs.enabled == 'true'
+        if: steps.bundle.outcome == 'success'
         uses: actions/setup-python@v6
         with:
           python-version: '3.11'
 
       - name: 安装运行依赖
-        if: steps.activation.outputs.enabled == 'true'
+        id: install
+        if: steps.bundle.outcome == 'success'
         run: |
           python -m pip install --quiet --disable-pip-version-check --upgrade pip
           if [ -f runner/requirements.txt ]; then pip install --quiet --disable-pip-version-check -r runner/requirements.txt; fi
@@ -134,18 +168,15 @@ jobs:
 
       - name: 同步 Strava
         id: sync
-        if: steps.activation.outputs.enabled == 'true'
+        if: steps.install.outcome == 'success'
+        continue-on-error: true
         env:
           PYTHONUNBUFFERED: '1'
           TZ: Asia/Shanghai
-          NOTIONHUB_SERVICE: strava
-          NOTIONHUB_CONFIG_VERSION: '24'
           RAW_ACTION_PAYLOAD: ${{ github.event.inputs.payload || '{}' }}
           INPUT_SYNC_MODE: ${{ github.event.inputs.sync_mode || '' }}
           SUPPORTS_FULL_SYNC: 'true'
           INPUT_REPAIR_AFTER_SYNC: ${{ github.event.inputs.repair_after_sync || '' }}
-          SYNC_PLAN: lifetime
-          ENTITLEMENT_PLAN: lifetime
           NOTIONHUB_DEFER_FILES: 'true'
         run: |
           REQUESTED_SYNC_MODE=$(jq -nr --arg raw "$RAW_ACTION_PAYLOAD" --arg input "$INPUT_SYNC_MODE" '($raw | fromjson? // {}) as $payload | ($payload.requestedSyncMode // $payload.syncMode // $payload.sync_mode // "") as $payload_mode | (if $payload_mode == "full" or $payload_mode == "incremental" then $payload_mode elif $input == "full" or $input == "incremental" then $input else "incremental" end)')
@@ -171,6 +202,10 @@ jobs:
             echo "NOTIONHUB_INITIAL_FULL_SYNC_FORCED=$INITIAL_FULL_SYNC_FORCED"
           } >> "$GITHUB_ENV"
           export NOTIONHUB_ACTION_PAYLOAD="$ACTION_PAYLOAD"
+          if [ "$SYNC_PLAN" = "trial" ] && [ "$EFFECTIVE_SYNC_MODE" = "full" ]; then
+            echo "::error title=免费体验不支持全量更新::请激活后再执行全量更新。"
+            exit 1
+          fi
           if [ "$EFFECTIVE_SYNC_MODE" = "full" ] && [ "$SUPPORTS_FULL_SYNC" != "true" ]; then
             echo "::error title=全量更新不可用::Strava 暂不支持全量更新，请改用普通同步。"
             exit 1
@@ -185,40 +220,39 @@ jobs:
               escaped = str(value).replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
               if escaped: print(f'::add-mask::{escaped}')
           PY
-          echo "::notice title=Strava同步开始::正在读取数据并写入 Notion。"
           python -m notionhub_runner sync strava
-          echo "::notice title=Strava同步成功::所有同步步骤均已完成。"
 
-      - name: 查看补充日志
-        if: always() && steps.activation.outputs.enabled == 'true'
+      - name: 确认首次全量同步完成
+        if: steps.sync.outcome == 'success'
         run: |
-          FOUND_LOG=0
-          while IFS= read -r -d '' LOG_FILE; do
-            FOUND_LOG=1
-            echo "::group::$LOG_FILE"
-            cat "$LOG_FILE"
-            echo "::endgroup::"
-          done < <(find runner/scripts -type f -path '*/log/*.log' -print0)
-          if [ "$FOUND_LOG" -eq 0 ]; then echo "脚本已直接输出实时日志，没有额外日志文件。"; fi
+          if [ "$NOTIONHUB_INITIAL_FULL_SYNC_FORCED" != "true" ]; then exit 0; fi
+          PAYLOAD=$(jq -cn --arg service "strava" --arg repository "${{ github.repository }}" --arg run_id "${{ github.run_id }}" --arg requested "$NOTIONHUB_REQUESTED_SYNC_MODE" --arg effective "$NOTIONHUB_EFFECTIVE_SYNC_MODE" '{service:$service,repository:$repository,githubRunId:$run_id,status:"success",requestedMode:$requested,effectiveMode:$effective,initialFullSyncForced:true}')
+          curl -fsSL -X POST "$NOTIONHUB_API_BASE/internal/initial-full-sync/complete"             -H "Authorization: Bearer $NOTIONHUB_RUN_ACCESS_TOKEN" -H 'Content-Type: application/json' --data "$PAYLOAD" >/dev/null
+
+      - name: 上报运行结果
+        id: settle
+        if: always() && steps.authorize.outcome == 'success'
+        run: |
+          if [ "${{ steps.sync.outcome }}" = "success" ]; then STATUS=success; else STATUS=failure; fi
+          SETTLEMENT_REPORT="$RUNNER_TEMP/notionhub-settlement.json"
+          if [ -d runner/notionhub_runner ]; then
+            (cd runner && python -m notionhub_runner report strava --status "$STATUS" --output "$SETTLEMENT_REPORT" --failure-class "${NOTIONHUB_FAILURE_CLASS:-platform}")
+          else
+            jq -cn --arg service "strava" --arg status "$STATUS" '{service:$service,status:$status,primaryItemsCreated:0,primaryItemsUpdated:0,effectiveWrites:0,failureClass:"platform"}' > "$SETTLEMENT_REPORT"
+          fi
+          curl -fsSL -X POST "$NOTIONHUB_API_BASE/internal/trial-runs/$NOTIONHUB_POLICY_ID/report"             -H "Authorization: Bearer $NOTIONHUB_REPORT_TOKEN" -H 'Content-Type: application/json' --data-binary "@$SETTLEMENT_REPORT" >/dev/null
 
       - name: 生成运行摘要
         if: always()
-        env:
-          SYNC_OUTCOME: ${{ steps.sync.outcome }}
-          EVENT_NAME: ${{ github.event_name }}
-          RAW_ACTION_PAYLOAD: ${{ github.event.inputs.payload || '{}' }}
-          INPUT_SYNC_MODE: ${{ github.event.inputs.sync_mode || '' }}
         run: |
-          case "$SYNC_OUTCOME" in
+          case "${{ steps.sync.outcome }}" in
             success) RESULT="同步成功" ;;
             failure) RESULT="同步失败" ;;
             cancelled) RESULT="已取消" ;;
-            skipped) RESULT="已跳过" ;;
             *) RESULT="未执行" ;;
           esac
-          if [ "$EVENT_NAME" = "schedule" ]; then TRIGGER="定时运行"; else TRIGGER="手动运行"; fi
-          SYNC_MODE="${NOTIONHUB_EFFECTIVE_SYNC_MODE:-incremental}"
-          if [ "$SYNC_MODE" = "full" ]; then MODE_LABEL="全量更新"; else MODE_LABEL="增量同步"; fi
+          if [ "${{ github.event_name }}" = "schedule" ]; then TRIGGER="定时运行"; else TRIGGER="手动运行"; fi
+          if [ "$NOTIONHUB_EFFECTIVE_SYNC_MODE" = "full" ]; then MODE_LABEL="全量更新"; else MODE_LABEL="增量同步"; fi
           {
             echo "## Strava同步"
             echo ""
@@ -230,24 +264,7 @@ jobs:
             echo "| 运行记录 | [#${{ github.run_number }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) |"
           } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: 确认首次全量同步完成
-        if: steps.sync.outcome == 'success'
-        env:
-          NOTIONHUB_RUN_TOKEN: ${{ secrets.NOTIONHUB_RUN_TOKEN }}
-          GITHUB_REPOSITORY_NAME: ${{ github.repository }}
-          GITHUB_RUN_IDENTIFIER: ${{ github.run_id }}
+      - name: 确认同步成功
+        if: always() && steps.activation.outputs.enabled == 'true'
         run: |
-          if [ "$NOTIONHUB_INITIAL_FULL_SYNC_FORCED" != "true" ]; then
-            echo "本次不是升级后的首次强制全量，无需更新状态。"
-            exit 0
-          fi
-          if [ -z "$NOTIONHUB_RUN_TOKEN" ]; then
-            echo "::error title=首次全量状态确认失败::缺少 NOTIONHUB_RUN_TOKEN，下次将继续全量同步。"
-            exit 1
-          fi
-          PAYLOAD=$(jq -cn --arg service "strava" --arg repository "$GITHUB_REPOSITORY_NAME" --arg run_id "$GITHUB_RUN_IDENTIFIER" --arg requested "$NOTIONHUB_REQUESTED_SYNC_MODE" --arg effective "$NOTIONHUB_EFFECTIVE_SYNC_MODE" '{service:$service,repository:$repository,githubRunId:$run_id,status:"success",requestedMode:$requested,effectiveMode:$effective,initialFullSyncForced:true}')
-          curl -fsSL -X POST "https://i.notionhub.app/v1/internal/initial-full-sync/complete"             -H "Authorization: Bearer $NOTIONHUB_RUN_TOKEN"             -H 'Content-Type: application/json'             --data "$PAYLOAD" >/dev/null
-          echo "::notice title=首次全量已确认::后续同步将恢复使用用户选择的模式。"
-
-
-
+          if [ "${{ steps.sync.outcome }}" != "success" ]; then exit 1; fi

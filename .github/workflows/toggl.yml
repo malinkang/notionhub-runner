@@ -1,4 +1,4 @@
-# NotionHub generated workflow v36
+# NotionHub generated workflow v37
 name: Toggl
 
 on:
@@ -16,10 +16,6 @@ on:
         options:
           - incremental
           - full
-      repair_after_sync:
-        description: 全量更新后自动修复 Notion 数据
-        required: false
-        default: 'false'
       payload:
         description: 同步参数 JSON
         required: false
@@ -47,7 +43,7 @@ jobs:
       TOGGL_CONFIG: ${{ secrets.TOGGL_CONFIG }}
       NOTIONHUB_API_BASE: https://i.notionhub.app/v1
       NOTIONHUB_SERVICE: toggl
-      NOTIONHUB_CONFIG_VERSION: '29'
+      NOTIONHUB_CONFIG_VERSION: '30'
       SYNC_POLICY_STATE_PATH: ${{ github.workspace }}/notionhub-state.json
       SYNC_POLICY_CONTINUATION_PATH: ${{ github.workspace }}/notionhub-continuation-id
       SYNC_POLICY_REPORT_PATH: ${{ github.workspace }}/notionhub-service-report.json
@@ -212,7 +208,6 @@ jobs:
         env:
           RAW_ACTION_PAYLOAD: ${{ github.event.inputs.payload || '{}' }}
           INPUT_SYNC_MODE: ${{ github.event.inputs.sync_mode || '' }}
-          INPUT_REPAIR_AFTER_SYNC: ${{ github.event.inputs.repair_after_sync || '' }}
         run: |
           REQUESTED_SYNC_MODE=$(jq -nr --arg raw "$RAW_ACTION_PAYLOAD" --arg input "$INPUT_SYNC_MODE" '($raw | fromjson? // {}) as $payload | ($payload.requestedSyncMode // $payload.syncMode // $payload.sync_mode // "") as $payload_mode | (if $payload_mode == "full" or $payload_mode == "incremental" then $payload_mode elif $input == "full" or $input == "incremental" then $input else "incremental" end)')
           CONFIG_INITIAL_FULL_SYNC_REQUIRED=$(printf '%s' "$TOGGL_CONFIG" | jq -r '(.TOGGL_INITIAL_FULL_SYNC_REQUIRED // false) | tostring' 2>/dev/null || echo "false")
@@ -224,12 +219,7 @@ jobs:
             EFFECTIVE_SYNC_MODE="$REQUESTED_SYNC_MODE"
             INITIAL_FULL_SYNC_FORCED=false
           fi
-          ACTION_PAYLOAD=$(jq -cn --arg raw "$RAW_ACTION_PAYLOAD" --arg requested "$REQUESTED_SYNC_MODE" --arg effective "$EFFECTIVE_SYNC_MODE" --arg forced "$INITIAL_FULL_SYNC_FORCED" '($raw | fromjson? // {}) + {requestedSyncMode:$requested,syncMode:$effective,sync_mode:$effective,effectiveSyncMode:$effective,initialFullSyncForced:($forced == "true")}')
-          if [ "$INITIAL_FULL_SYNC_FORCED" = "true" ]; then
-            ACTION_PAYLOAD=$(printf '%s' "$ACTION_PAYLOAD" | jq -c '. + {repair:true,repair_after_sync:true,runSafeRepairAfterSync:true}')
-          elif [ "$INPUT_REPAIR_AFTER_SYNC" = "true" ] || [ "$INPUT_REPAIR_AFTER_SYNC" = "false" ]; then
-            ACTION_PAYLOAD=$(printf '%s' "$ACTION_PAYLOAD" | jq -c --arg value "$INPUT_REPAIR_AFTER_SYNC" '. + {repair_after_sync:($value == "true"),runSafeRepairAfterSync:($value == "true")}')
-          fi
+          ACTION_PAYLOAD=$(jq -cn --arg raw "$RAW_ACTION_PAYLOAD" --arg requested "$REQUESTED_SYNC_MODE" --arg effective "$EFFECTIVE_SYNC_MODE" --arg forced "$INITIAL_FULL_SYNC_FORCED" '($raw | fromjson? // {}) | del(.repair_after_sync, .run_safe_repair_after_sync) + {requestedSyncMode:$requested,syncMode:$effective,sync_mode:$effective,effectiveSyncMode:$effective,initialFullSyncForced:($forced == "true"),repair:false,runSafeRepairAfterSync:false}')
           {
             echo "NOTIONHUB_ACTION_PAYLOAD=$ACTION_PAYLOAD"
             echo "NOTIONHUB_REQUESTED_SYNC_MODE=$REQUESTED_SYNC_MODE"
@@ -292,7 +282,6 @@ jobs:
           RAW_ACTION_PAYLOAD: ${{ github.event.inputs.payload || '{}' }}
           INPUT_SYNC_MODE: ${{ github.event.inputs.sync_mode || '' }}
           SUPPORTS_FULL_SYNC: 'true'
-          INPUT_REPAIR_AFTER_SYNC: ${{ github.event.inputs.repair_after_sync || '' }}
           NOTIONHUB_DEFER_FILES: 'true'
         run: |
           REQUESTED_SYNC_MODE=$(jq -nr --arg raw "$RAW_ACTION_PAYLOAD" --arg input "$INPUT_SYNC_MODE" '($raw | fromjson? // {}) as $payload | ($payload.requestedSyncMode // $payload.syncMode // $payload.sync_mode // "") as $payload_mode | (if $payload_mode == "full" or $payload_mode == "incremental" then $payload_mode elif $input == "full" or $input == "incremental" then $input else "incremental" end)')
@@ -305,12 +294,7 @@ jobs:
             EFFECTIVE_SYNC_MODE="$REQUESTED_SYNC_MODE"
             INITIAL_FULL_SYNC_FORCED=false
           fi
-          ACTION_PAYLOAD=$(jq -cn --arg raw "$RAW_ACTION_PAYLOAD" --arg requested "$REQUESTED_SYNC_MODE" --arg effective "$EFFECTIVE_SYNC_MODE" --arg forced "$INITIAL_FULL_SYNC_FORCED" '($raw | fromjson? // {}) + {requestedSyncMode:$requested,syncMode:$effective,sync_mode:$effective,effectiveSyncMode:$effective,initialFullSyncForced:($forced == "true")}')
-          if [ "$INITIAL_FULL_SYNC_FORCED" = "true" ]; then
-            ACTION_PAYLOAD=$(printf '%s' "$ACTION_PAYLOAD" | jq -c '. + {repair:true,repair_after_sync:true,runSafeRepairAfterSync:true}')
-          elif [ "$INPUT_REPAIR_AFTER_SYNC" = "true" ] || [ "$INPUT_REPAIR_AFTER_SYNC" = "false" ]; then
-            ACTION_PAYLOAD=$(printf '%s' "$ACTION_PAYLOAD" | jq -c --arg value "$INPUT_REPAIR_AFTER_SYNC" '. + {repair_after_sync:($value == "true"),runSafeRepairAfterSync:($value == "true")}')
-          fi
+          ACTION_PAYLOAD=$(jq -cn --arg raw "$RAW_ACTION_PAYLOAD" --arg requested "$REQUESTED_SYNC_MODE" --arg effective "$EFFECTIVE_SYNC_MODE" --arg forced "$INITIAL_FULL_SYNC_FORCED" '($raw | fromjson? // {}) | del(.repair_after_sync, .run_safe_repair_after_sync) + {requestedSyncMode:$requested,syncMode:$effective,sync_mode:$effective,effectiveSyncMode:$effective,initialFullSyncForced:($forced == "true"),repair:false,runSafeRepairAfterSync:false}')
           {
             echo "NOTIONHUB_ACTION_PAYLOAD=$ACTION_PAYLOAD"
             echo "NOTIONHUB_REQUESTED_SYNC_MODE=$REQUESTED_SYNC_MODE"
@@ -376,7 +360,7 @@ jobs:
       TOGGL_CONFIG: ${{ secrets.TOGGL_CONFIG }}
       NOTIONHUB_API_BASE: https://i.notionhub.app/v1
       NOTIONHUB_SERVICE: toggl
-      NOTIONHUB_CONFIG_VERSION: '29'
+      NOTIONHUB_CONFIG_VERSION: '30'
       SYNC_POLICY_STATE_PATH: ${{ github.workspace }}/notionhub-state.json
       SYNC_POLICY_CONTINUATION_PATH: ${{ github.workspace }}/notionhub-continuation-id
       SYNC_POLICY_REPORT_PATH: ${{ github.workspace }}/notionhub-service-report.json
@@ -566,7 +550,6 @@ jobs:
           RAW_ACTION_PAYLOAD: ${{ github.event.inputs.payload || '{}' }}
           INPUT_SYNC_MODE: ${{ github.event.inputs.sync_mode || '' }}
           SUPPORTS_FULL_SYNC: 'true'
-          INPUT_REPAIR_AFTER_SYNC: ${{ github.event.inputs.repair_after_sync || '' }}
           NOTIONHUB_DEFER_FILES: 'true'
         run: |
           REQUESTED_SYNC_MODE=$(jq -nr --arg raw "$RAW_ACTION_PAYLOAD" --arg input "$INPUT_SYNC_MODE" '($raw | fromjson? // {}) as $payload | ($payload.requestedSyncMode // $payload.syncMode // $payload.sync_mode // "") as $payload_mode | (if $payload_mode == "full" or $payload_mode == "incremental" then $payload_mode elif $input == "full" or $input == "incremental" then $input else "incremental" end)')
@@ -579,12 +562,7 @@ jobs:
             EFFECTIVE_SYNC_MODE="$REQUESTED_SYNC_MODE"
             INITIAL_FULL_SYNC_FORCED=false
           fi
-          ACTION_PAYLOAD=$(jq -cn --arg raw "$RAW_ACTION_PAYLOAD" --arg requested "$REQUESTED_SYNC_MODE" --arg effective "$EFFECTIVE_SYNC_MODE" --arg forced "$INITIAL_FULL_SYNC_FORCED" '($raw | fromjson? // {}) + {requestedSyncMode:$requested,syncMode:$effective,sync_mode:$effective,effectiveSyncMode:$effective,initialFullSyncForced:($forced == "true")}')
-          if [ "$INITIAL_FULL_SYNC_FORCED" = "true" ]; then
-            ACTION_PAYLOAD=$(printf '%s' "$ACTION_PAYLOAD" | jq -c '. + {repair:true,repair_after_sync:true,runSafeRepairAfterSync:true}')
-          elif [ "$INPUT_REPAIR_AFTER_SYNC" = "true" ] || [ "$INPUT_REPAIR_AFTER_SYNC" = "false" ]; then
-            ACTION_PAYLOAD=$(printf '%s' "$ACTION_PAYLOAD" | jq -c --arg value "$INPUT_REPAIR_AFTER_SYNC" '. + {repair_after_sync:($value == "true"),runSafeRepairAfterSync:($value == "true")}')
-          fi
+          ACTION_PAYLOAD=$(jq -cn --arg raw "$RAW_ACTION_PAYLOAD" --arg requested "$REQUESTED_SYNC_MODE" --arg effective "$EFFECTIVE_SYNC_MODE" --arg forced "$INITIAL_FULL_SYNC_FORCED" '($raw | fromjson? // {}) | del(.repair_after_sync, .run_safe_repair_after_sync) + {requestedSyncMode:$requested,syncMode:$effective,sync_mode:$effective,effectiveSyncMode:$effective,initialFullSyncForced:($forced == "true"),repair:false,runSafeRepairAfterSync:false}')
           {
             echo "NOTIONHUB_ACTION_PAYLOAD=$ACTION_PAYLOAD"
             echo "NOTIONHUB_REQUESTED_SYNC_MODE=$REQUESTED_SYNC_MODE"

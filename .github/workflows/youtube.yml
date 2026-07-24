@@ -44,9 +44,9 @@ jobs:
       YOUTUBE_CONFIG: ${{ secrets.YOUTUBE_CONFIG }}
       NOTIONHUB_API_BASE: https://i.notionhub.app/v1
       NOTIONHUB_SERVICE: youtube
-      NOTIONHUB_CONFIG_VERSION: '25'
-      SYNC_POLICY_STATE_PATH: ${{ runner.temp }}/notionhub-state.json
-      SYNC_POLICY_REPORT_PATH: ${{ runner.temp }}/notionhub-service-report.json
+      NOTIONHUB_CONFIG_VERSION: '26'
+      SYNC_POLICY_STATE_PATH: ${{ github.workspace }}/notionhub-state.json
+      SYNC_POLICY_REPORT_PATH: ${{ github.workspace }}/notionhub-service-report.json
     steps:
       - name: 验证运行配置
         id: activation

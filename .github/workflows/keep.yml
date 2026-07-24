@@ -61,7 +61,16 @@ jobs:
           PLAN=$(printf '%s' "$SERVICE_CONFIG" | jq -r '.KEEP_SYNC_PLAN // "lifetime"')
           REMAINING=$(printf '%s' "$SERVICE_CONFIG" | jq -r '.KEEP_TRIAL_RUNS_REMAINING // 1')
           if [ "$PLAN" = "trial" ] && { ! [[ "$REMAINING" =~ ^[0-9]+$ ]] || [ "$REMAINING" -le 0 ]; }; then
-            echo "::error title=免费同步次数已经用完::免费同步次数已经用完，请付费解锁。"
+            echo "免费体验次数已用完，请购买激活码。"
+            echo "获取激活码：https://www.notionhub.app/docs/get-activation-code.html"
+            {
+              echo "## 免费体验次数已用完"
+              echo ""
+              echo "请购买激活码并在 NotionHub 插件中完成激活后重新同步。"
+              echo ""
+              echo "[查看如何获取激活码](https://www.notionhub.app/docs/get-activation-code.html)"
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "::error title=免费体验次数已用完::免费体验次数已用完，请购买激活码并在 NotionHub 插件中完成激活后重新同步。%0A%0A获取激活码：https://www.notionhub.app/docs/get-activation-code.html"
             exit 1
           fi
           echo "enabled=true" >> "$GITHUB_OUTPUT"
@@ -80,7 +89,16 @@ jobs:
           AUTH_RESPONSE="$RUNNER_TEMP/notionhub-authorize.json"
           HTTP_STATUS=$(curl -sS -o "$AUTH_RESPONSE" -w '%{http_code}' -X POST "$NOTIONHUB_API_BASE/github/runner/authorize-run"             -H "Authorization: Bearer $OIDC_TOKEN" -H 'Content-Type: application/json'             --data '{"service":"keep","purpose":"sync"}')
           if [ "$HTTP_STATUS" = "418" ]; then
-            echo "::error title=免费同步次数已经用完::免费同步次数已经用完，请付费解锁。"
+            echo "免费体验次数已用完，请购买激活码。"
+            echo "获取激活码：https://www.notionhub.app/docs/get-activation-code.html"
+            {
+              echo "## 免费体验次数已用完"
+              echo ""
+              echo "请购买激活码并在 NotionHub 插件中完成激活后重新同步。"
+              echo ""
+              echo "[查看如何获取激活码](https://www.notionhub.app/docs/get-activation-code.html)"
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "::error title=免费体验次数已用完::免费体验次数已用完，请购买激活码并在 NotionHub 插件中完成激活后重新同步。%0A%0A获取激活码：https://www.notionhub.app/docs/get-activation-code.html"
             exit 1
           fi
           if [ "$HTTP_STATUS" -lt 200 ] || [ "$HTTP_STATUS" -ge 300 ]; then
@@ -243,7 +261,7 @@ jobs:
           curl -fsSL -X POST "$NOTIONHUB_API_BASE/internal/trial-runs/$NOTIONHUB_POLICY_ID/report"             -H "Authorization: Bearer $NOTIONHUB_REPORT_TOKEN" -H 'Content-Type: application/json' --data-binary "@$SETTLEMENT_REPORT" >/dev/null
 
       - name: 生成运行摘要
-        if: always()
+        if: always() && steps.authorize.outcome == 'success'
         run: |
           case "${{ steps.sync.outcome }}" in
             success) RESULT="同步成功" ;;

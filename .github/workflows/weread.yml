@@ -65,7 +65,7 @@ jobs:
           PLAN=$(printf '%s' "$SERVICE_CONFIG" | jq -r '.WEREAD_SYNC_PLAN // "lifetime"')
           REMAINING=$(printf '%s' "$SERVICE_CONFIG" | jq -r '.WEREAD_TRIAL_RUNS_REMAINING // 1')
           if [ "$PLAN" = "trial" ] && { ! [[ "$REMAINING" =~ ^[0-9]+$ ]] || [ "$REMAINING" -le 0 ]; }; then
-            echo "::error title=免费同步次数已用完::请回到 NotionHub 激活 微信读书 后继续同步。"
+            echo "::error title=免费同步次数已经用完::免费同步次数已经用完，请付费解锁。"
             exit 1
           fi
           echo "enabled=true" >> "$GITHUB_OUTPUT"
@@ -84,7 +84,7 @@ jobs:
           AUTH_RESPONSE="$RUNNER_TEMP/notionhub-authorize.json"
           HTTP_STATUS=$(curl -sS -o "$AUTH_RESPONSE" -w '%{http_code}' -X POST "$NOTIONHUB_API_BASE/github/runner/authorize-run"             -H "Authorization: Bearer $OIDC_TOKEN" -H 'Content-Type: application/json'             --data '{"service":"weread","purpose":"sync"}')
           if [ "$HTTP_STATUS" = "418" ]; then
-            echo "::error title=免费同步次数已用完::请回到 NotionHub 激活 微信读书 后继续同步。"
+            echo "::error title=免费同步次数已经用完::免费同步次数已经用完，请付费解锁。"
             exit 1
           fi
           if [ "$HTTP_STATUS" -lt 200 ] || [ "$HTTP_STATUS" -ge 300 ]; then
@@ -246,7 +246,7 @@ jobs:
           retention-days: 1
 
       - name: 确认书籍同步成功
-        if: always() && steps.activation.outputs.enabled == 'true'
+        if: always() && steps.activation.outputs.enabled == 'true' && steps.authorize.outcome == 'success'
         run: |
           if [ "${{ steps.sync.outcome }}" != "success" ]; then exit 1; fi
 
@@ -473,6 +473,6 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: 确认同步成功
-        if: always()
+        if: always() && steps.authorize.outcome == 'success'
         run: |
           if [ "${{ needs.books.result }}" != "success" ] || [ "${{ steps.sync.outcome }}" != "success" ] || [ "${{ steps.finalize.outcome }}" != "success" ]; then exit 1; fi

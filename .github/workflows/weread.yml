@@ -1,4 +1,4 @@
-# NotionHub generated workflow v35
+# NotionHub generated workflow v36
 name: 微信读书
 
 on:
@@ -36,20 +36,21 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  prepare:
-    name: 准备同步
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
+  books:
+    name: 同步书籍
+
     outputs:
       enabled: ${{ steps.activation.outputs.enabled }}
-      continuation_ready: ${{ steps.progress.outputs.ready }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
     env:
       WEREAD_CONFIG: ${{ secrets.WEREAD_CONFIG }}
       NOTIONHUB_API_BASE: https://i.notionhub.app/v1
       NOTIONHUB_SERVICE: weread
-      NOTIONHUB_CONFIG_VERSION: '28'
+      NOTIONHUB_CONFIG_VERSION: '29'
       SYNC_POLICY_STATE_PATH: ${{ github.workspace }}/notionhub-state.json
       SYNC_POLICY_CONTINUATION_PATH: ${{ github.workspace }}/notionhub-continuation-id
+      SYNC_POLICY_REPORT_PATH: ${{ github.workspace }}/notionhub-service-report.json
       NOTIONHUB_RUN_META_PATH: ${{ github.workspace }}/notionhub-run-meta.json
     steps:
       - name: 验证运行配置
@@ -250,45 +251,10 @@ jobs:
           PY
           printf '%s' "$NOTIONHUB_POLICY_ID" > "$SYNC_POLICY_CONTINUATION_PATH"
           jq -cn             --arg requested "$NOTIONHUB_REQUESTED_SYNC_MODE"             --arg effective "$NOTIONHUB_EFFECTIVE_SYNC_MODE"             --argjson initialFullSyncForced "${NOTIONHUB_INITIAL_FULL_SYNC_FORCED:-false}"             '{requestedMode:$requested,effectiveMode:$effective,initialFullSyncForced:$initialFullSyncForced}'             > "$NOTIONHUB_RUN_META_PATH"
-          echo "ready=true" >> "$GITHUB_OUTPUT"
-
-      - name: 保存准备结果
-        if: steps.progress.outcome == 'success'
-        uses: actions/upload-artifact@v4
-        with:
-          name: notionhub-weread-00-prepare-${{ github.run_id }}-${{ github.run_attempt }}
-          path: |
-            ${{ env.SYNC_POLICY_STATE_PATH }}
-            ${{ env.SYNC_POLICY_CONTINUATION_PATH }}
-            ${{ env.NOTIONHUB_RUN_META_PATH }}
-          if-no-files-found: error
-          retention-days: 1
-
-  books:
-    name: 同步书籍
-    needs: prepare
-    if: needs.prepare.outputs.enabled == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 120
-    env:
-      WEREAD_CONFIG: ${{ secrets.WEREAD_CONFIG }}
-      NOTIONHUB_API_BASE: https://i.notionhub.app/v1
-      NOTIONHUB_SERVICE: weread
-      NOTIONHUB_CONFIG_VERSION: '28'
-      SYNC_POLICY_STATE_PATH: ${{ github.workspace }}/notionhub-state.json
-      SYNC_POLICY_CONTINUATION_PATH: ${{ github.workspace }}/notionhub-continuation-id
-      SYNC_POLICY_REPORT_PATH: ${{ github.workspace }}/notionhub-service-report.json
-      NOTIONHUB_RUN_META_PATH: ${{ github.workspace }}/notionhub-run-meta.json
-    steps:
-      - name: 恢复上一阶段进度
-        id: restore
-        uses: actions/download-artifact@v4
-        with:
-          name: notionhub-weread-00-prepare-${{ github.run_id }}-${{ github.run_attempt }}
-          path: ${{ github.workspace }}
 
       - name: 检查同步书籍配置
         id: job_config
+        if: steps.progress.outcome == 'success'
         run: |
           SERVICE_CONFIG='${{ secrets.WEREAD_CONFIG }}'
           PLAN=$(printf '%s' "$SERVICE_CONFIG" | jq -r '.WEREAD_SYNC_PLAN // "lifetime"')
@@ -300,137 +266,6 @@ jobs:
           if [ "$JOB_ENABLED" != "true" ]; then
             echo "::notice title=同步书籍已跳过::$SKIP_REASON"
           fi
-
-      - name: 验证权限并获取运行程序
-        id: authorize
-        if: steps.job_config.outputs.enabled == 'true'
-        run: |
-          OIDC_TOKEN=$(curl -fsSL -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=https%3A%2F%2Fi.notionhub.app" | jq -r '.value // empty')
-          if [ -z "$OIDC_TOKEN" ]; then
-            echo "::error title=GitHub 身份验证失败::未能获取本次运行的 OIDC token。"
-            exit 1
-          fi
-          echo "::add-mask::$OIDC_TOKEN"
-          CONTINUATION_ID="$(cat "$SYNC_POLICY_CONTINUATION_PATH")"
-          if [ -z "$CONTINUATION_ID" ]; then
-            echo "::error title=运行授权续接失败::同步进度中缺少续接标识。"
-            exit 1
-          fi
-          RUNTIME_PAYLOAD=$(jq -cn --arg service "weread" --arg continuation "$CONTINUATION_ID" '{service:$service,purpose:"sync",continuationPolicyId:$continuation}')
-          RUNTIME_RESPONSE="$RUNNER_TEMP/notionhub-runtime-bundle.bin"
-          RUNTIME_METADATA="$RUNNER_TEMP/notionhub-runtime-metadata.json"
-          RUNTIME_ARCHIVE="$RUNNER_TEMP/notionhub-runner.tar.gz"
-          cleanup_runtime_files() { rm -f "$RUNTIME_RESPONSE" "$RUNTIME_METADATA" "$RUNTIME_ARCHIVE"; }
-          trap cleanup_runtime_files EXIT
-          HTTP_STATUS=$(curl -sS -o "$RUNTIME_RESPONSE" -w '%{http_code}' -X POST "$NOTIONHUB_API_BASE/github/runner/runtime-bundle"             -H "Authorization: Bearer $OIDC_TOKEN" -H 'Content-Type: application/json' --data "$RUNTIME_PAYLOAD")
-          if [ "$HTTP_STATUS" = "418" ]; then
-            echo "免费体验次数已用完，请购买激活码。"
-            echo "获取激活码：https://www.notionhub.app/docs/get-activation-code.html"
-            {
-              echo "## 免费体验次数已用完"
-              echo ""
-              echo "请购买激活码并在 NotionHub 插件中完成激活后重新同步。"
-              echo ""
-              echo "[查看如何获取激活码](https://www.notionhub.app/docs/get-activation-code.html)"
-            } >> "$GITHUB_STEP_SUMMARY"
-            echo "::error title=免费体验次数已用完::免费体验次数已用完，请购买激活码并在 NotionHub 插件中完成激活后重新同步。%0A%0A获取激活码：https://www.notionhub.app/docs/get-activation-code.html"
-            exit 1
-          fi
-          if [ "$HTTP_STATUS" -lt 200 ] || [ "$HTTP_STATUS" -ge 300 ]; then
-            MESSAGE=$(jq -r '.message // "运行准备失败"' "$RUNTIME_RESPONSE" 2>/dev/null || echo "运行准备失败")
-            echo "::error title=运行准备失败::$MESSAGE"
-            exit 1
-          fi
-          chmod 600 "$RUNTIME_RESPONSE"
-          python3 - "$RUNTIME_RESPONSE" "$RUNTIME_METADATA" "$RUNTIME_ARCHIVE" "weread" <<'PY'
-          import json
-          import os
-          import re
-          import sys
-
-          source, metadata_path, archive_path, expected_service = sys.argv[1:]
-          raw = open(source, 'rb').read()
-          magic = b'NHRB1\n'
-          if not raw.startswith(magic) or len(raw) < len(magic) + 8:
-              raise SystemExit('运行程序响应格式无效。')
-          length_bytes = raw[len(magic):len(magic) + 8]
-          if not re.fullmatch(rb'[0-9a-fA-F]{8}', length_bytes):
-              raise SystemExit('运行配置长度无效。')
-          metadata_length = int(length_bytes, 16)
-          if metadata_length <= 0 or metadata_length > 1024 * 1024:
-              raise SystemExit('运行配置超过大小限制。')
-          metadata_start = len(magic) + 8
-          metadata_end = metadata_start + metadata_length
-          if metadata_end >= len(raw):
-              raise SystemExit('运行程序响应不完整。')
-          try:
-              metadata = json.loads(raw[metadata_start:metadata_end].decode('utf-8'))
-          except Exception:
-              raise SystemExit('运行配置格式无效。')
-          archive = raw[metadata_end:]
-          if metadata.get('schemaVersion') != 1:
-              raise SystemExit('运行配置版本不受支持。')
-          if metadata.get('context', {}).get('service') != expected_service:
-              raise SystemExit('运行配置与当前服务不匹配。')
-          expected_size = metadata.get('bundle', {}).get('size')
-          if not isinstance(expected_size, int) or expected_size != len(archive) or not archive or len(archive) > 64 * 1024 * 1024:
-              raise SystemExit('运行程序大小校验失败。')
-          for path, data in ((metadata_path, json.dumps(metadata, ensure_ascii=False, separators=(',', ':')).encode()), (archive_path, archive)):
-              with open(path, 'wb') as handle:
-                  handle.write(data)
-              os.chmod(path, 0o600)
-          PY
-          ACCESS_TOKEN=$(jq -r '.accessToken // empty' "$RUNTIME_METADATA")
-          REPORT_TOKEN=$(jq -r '.reportToken // empty' "$RUNTIME_METADATA")
-          POLICY_ID=$(jq -r '.context.id // empty' "$RUNTIME_METADATA")
-          PLAN=$(jq -r '.context.plan // empty' "$RUNTIME_METADATA")
-          POLICY_JSON=$(jq -c '.policy // {}' "$RUNTIME_METADATA")
-          POLICY_SIGNATURE=$(jq -r '.policySignature // empty' "$RUNTIME_METADATA")
-          SERVICE_CONFIG=$(jq -c '.serviceConfig // empty' "$RUNTIME_METADATA")
-          EXPECTED_SIZE=$(jq -r '.bundle.size // empty' "$RUNTIME_METADATA")
-          EXPECTED_SHA256=$(jq -r '.bundle.sha256 // empty' "$RUNTIME_METADATA")
-          if [ -z "$ACCESS_TOKEN" ] || [ -z "$REPORT_TOKEN" ] || [ -z "$POLICY_ID" ] || [ -z "$PLAN" ] || [ -z "$POLICY_SIGNATURE" ] || [ -z "$SERVICE_CONFIG" ] || [ -z "$EXPECTED_SIZE" ] || [ -z "$EXPECTED_SHA256" ]; then
-            echo "::error title=运行准备失败::运行配置缺少必要字段。"
-            exit 1
-          fi
-          for VALUE in "$ACCESS_TOKEN" "$REPORT_TOKEN" "$POLICY_SIGNATURE" "$SERVICE_CONFIG"; do echo "::add-mask::$VALUE"; done
-          python3 - "$RUNTIME_METADATA" <<'PY'
-          import json
-          import sys
-          metadata = json.load(open(sys.argv[1], encoding='utf-8'))
-          for value in metadata.get('serviceConfig', {}).values():
-              escaped = str(value).replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
-              if len(escaped) >= 8:
-                  print(f'::add-mask::{escaped}')
-          PY
-          ACTUAL_SIZE=$(wc -c < "$RUNTIME_ARCHIVE" | tr -d ' ')
-          ACTUAL_SHA256=$(sha256sum "$RUNTIME_ARCHIVE" | awk '{print $1}')
-          if [ "$ACTUAL_SIZE" != "$EXPECTED_SIZE" ] || [ "$ACTUAL_SHA256" != "$EXPECTED_SHA256" ]; then
-            echo "::error title=运行程序校验失败::下载内容的大小或 SHA-256 不匹配。"
-            exit 1
-          fi
-          if tar -tzf "$RUNTIME_ARCHIVE" | grep -Eq '(^/|(^|/)\.\.(/|$))'; then
-            echo "::error title=运行程序校验失败::运行程序包含不安全路径。"
-            exit 1
-          fi
-          tar -xzf "$RUNTIME_ARCHIVE"
-          test -f runner/requirements.txt
-          test -d runner/notionhub_runner
-          {
-            echo "NOTIONHUB_RUN_ACCESS_TOKEN=$ACCESS_TOKEN"
-            echo "NOTIONHUB_REPORT_TOKEN=$REPORT_TOKEN"
-            echo "NOTIONHUB_POLICY_ID=$POLICY_ID"
-            echo "SYNC_RUN_ID=$POLICY_ID"
-            echo "SYNC_PLAN=$PLAN"
-            echo "ENTITLEMENT_PLAN=$PLAN"
-            echo "SYNC_POLICY_JSON=$POLICY_JSON"
-            echo "SYNC_POLICY_SIGNATURE=$POLICY_SIGNATURE"
-            echo "SYNC_POLICY_SIGNING_KEY=$ACCESS_TOKEN"
-            echo 'WEREAD_CONFIG<<NOTIONHUB_CONFIG_EOF'
-            echo "$SERVICE_CONFIG"
-            echo 'NOTIONHUB_CONFIG_EOF'
-          } >> "$GITHUB_ENV"
-          echo "plan=$PLAN" >> "$GITHUB_OUTPUT"
 
       - name: 配置 Python 环境
         if: steps.job_config.outputs.enabled == 'true' && steps.authorize.outcome == 'success'
@@ -495,9 +330,9 @@ jobs:
           python -m notionhub_runner sync weread --job books
 
       - name: 记录同步书籍结果
-        if: always()
+        if: always() && steps.activation.outputs.enabled == 'true'
         run: |
-          if [ "${{ steps.restore.outcome }}" != "success" ] || [ "${{ steps.job_config.outcome }}" != "success" ]; then
+          if [ "${{ steps.progress.outcome }}" != "success" ] || [ "${{ steps.job_config.outcome }}" != "success" ]; then
             if [ "false" = "true" ]; then STATUS=warning; else STATUS=failure; fi
           elif [ "${{ steps.job_config.outputs.enabled }}" != "true" ]; then
             STATUS=skipped
@@ -513,7 +348,7 @@ jobs:
           jq -cn             --arg jobKey "books"             --arg label "同步书籍"             --arg status "$STATUS"             --arg failureClass "${NOTIONHUB_FAILURE_CLASS:-}"             --argjson stageIndex 1             --argjson required true             '{stageIndex:$stageIndex,jobKey:$jobKey,label:$label,status:$status,required:$required,failureClass:(if ($failureClass | length) > 0 then $failureClass else null end)}'             > "${{ github.workspace }}/notionhub-stage-01.json"
 
       - name: 保存同步书籍进度
-        if: always()
+        if: always() && steps.activation.outputs.enabled == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: notionhub-weread-01-books-${{ github.run_id }}-${{ github.run_attempt }}
@@ -526,22 +361,22 @@ jobs:
           retention-days: 1
 
       - name: 确认同步书籍成功
-        if: always() && steps.job_config.outputs.enabled == 'true'
+        if: always() && steps.activation.outputs.enabled == 'true' && steps.job_config.outputs.enabled == 'true'
         run: |
           if [ "${{ steps.sync.outcome }}" != "success" ]; then exit 1; fi
 
 
   reading_time:
     name: 同步阅读时长
-    needs: [prepare, books]
-    if: needs.prepare.outputs.enabled == 'true' && needs.books.result == 'success'
+    needs: books
+    if: needs.books.outputs.enabled == 'true' && needs.books.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 120
     env:
       WEREAD_CONFIG: ${{ secrets.WEREAD_CONFIG }}
       NOTIONHUB_API_BASE: https://i.notionhub.app/v1
       NOTIONHUB_SERVICE: weread
-      NOTIONHUB_CONFIG_VERSION: '28'
+      NOTIONHUB_CONFIG_VERSION: '29'
       SYNC_POLICY_STATE_PATH: ${{ github.workspace }}/notionhub-state.json
       SYNC_POLICY_CONTINUATION_PATH: ${{ github.workspace }}/notionhub-continuation-id
       SYNC_POLICY_REPORT_PATH: ${{ github.workspace }}/notionhub-service-report.json
@@ -549,6 +384,7 @@ jobs:
     steps:
       - name: 恢复上一阶段进度
         id: restore
+        if: needs.books.outputs.enabled == 'true' && needs.books.result == 'success'
         uses: actions/download-artifact@v4
         with:
           name: notionhub-weread-01-books-${{ github.run_id }}-${{ github.run_attempt }}
@@ -556,6 +392,7 @@ jobs:
 
       - name: 检查同步阅读时长配置
         id: job_config
+        if: needs.books.outputs.enabled == 'true' && needs.books.result == 'success' && steps.restore.outcome == 'success'
         run: |
           SERVICE_CONFIG='${{ secrets.WEREAD_CONFIG }}'
           PLAN=$(printf '%s' "$SERVICE_CONFIG" | jq -r '.WEREAD_SYNC_PLAN // "lifetime"')
@@ -762,7 +599,7 @@ jobs:
           python -m notionhub_runner sync weread --job reading_time
 
       - name: 记录同步阅读时长结果
-        if: always()
+        if: always() && needs.books.outputs.enabled == 'true' && needs.books.result == 'success'
         run: |
           if [ "${{ steps.restore.outcome }}" != "success" ] || [ "${{ steps.job_config.outcome }}" != "success" ]; then
             if [ "false" = "true" ]; then STATUS=warning; else STATUS=failure; fi
@@ -780,7 +617,7 @@ jobs:
           jq -cn             --arg jobKey "reading_time"             --arg label "同步阅读时长"             --arg status "$STATUS"             --arg failureClass "${NOTIONHUB_FAILURE_CLASS:-}"             --argjson stageIndex 2             --argjson required true             '{stageIndex:$stageIndex,jobKey:$jobKey,label:$label,status:$status,required:$required,failureClass:(if ($failureClass | length) > 0 then $failureClass else null end)}'             > "${{ github.workspace }}/notionhub-stage-02.json"
 
       - name: 保存同步阅读时长进度
-        if: always()
+        if: always() && needs.books.outputs.enabled == 'true' && needs.books.result == 'success'
         uses: actions/upload-artifact@v4
         with:
           name: notionhub-weread-02-reading_time-${{ github.run_id }}-${{ github.run_attempt }}
@@ -793,22 +630,22 @@ jobs:
           retention-days: 1
 
       - name: 确认同步阅读时长成功
-        if: always() && steps.job_config.outputs.enabled == 'true'
+        if: always() && needs.books.outputs.enabled == 'true' && needs.books.result == 'success' && steps.job_config.outputs.enabled == 'true'
         run: |
           if [ "${{ steps.sync.outcome }}" != "success" ]; then exit 1; fi
 
 
   finalize:
     name: 修复 Notion 数据
-    needs: [prepare, reading_time]
-    if: needs.prepare.outputs.enabled == 'true' && needs.reading_time.result == 'success'
+    needs: [books, reading_time]
+    if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 120
     env:
       WEREAD_CONFIG: ${{ secrets.WEREAD_CONFIG }}
       NOTIONHUB_API_BASE: https://i.notionhub.app/v1
       NOTIONHUB_SERVICE: weread
-      NOTIONHUB_CONFIG_VERSION: '28'
+      NOTIONHUB_CONFIG_VERSION: '29'
       SYNC_POLICY_STATE_PATH: ${{ github.workspace }}/notionhub-state.json
       SYNC_POLICY_CONTINUATION_PATH: ${{ github.workspace }}/notionhub-continuation-id
       SYNC_POLICY_REPORT_PATH: ${{ github.workspace }}/notionhub-service-report.json
@@ -816,6 +653,7 @@ jobs:
     steps:
       - name: 恢复上一阶段进度
         id: restore
+        if: needs.books.outputs.enabled == 'true' && needs.reading_time.result == 'success'
         continue-on-error: true
         uses: actions/download-artifact@v4
         with:
@@ -824,6 +662,7 @@ jobs:
 
       - name: 检查修复 Notion 数据配置
         id: job_config
+        if: needs.books.outputs.enabled == 'true' && needs.reading_time.result == 'success' && steps.restore.outcome == 'success'
         continue-on-error: true
         run: |
           SERVICE_CONFIG='${{ secrets.WEREAD_CONFIG }}'
@@ -841,7 +680,7 @@ jobs:
           fi
 
       - name: 验证权限并获取运行程序
-        id: authorize
+        id: stage_authorize
         continue-on-error: true
         if: steps.job_config.outputs.enabled == 'true'
         run: |
@@ -973,7 +812,7 @@ jobs:
           echo "plan=$PLAN" >> "$GITHUB_OUTPUT"
 
       - name: 配置 Python 环境
-        if: steps.job_config.outputs.enabled == 'true' && steps.authorize.outcome == 'success'
+        if: steps.job_config.outputs.enabled == 'true' && steps.stage_authorize.outcome == 'success'
         continue-on-error: true
         uses: actions/setup-python@v6
         with:
@@ -981,7 +820,7 @@ jobs:
 
       - name: 安装运行依赖
         id: install
-        if: steps.job_config.outputs.enabled == 'true' && steps.authorize.outcome == 'success'
+        if: steps.job_config.outputs.enabled == 'true' && steps.stage_authorize.outcome == 'success'
         continue-on-error: true
         run: |
           python -m pip install --quiet --disable-pip-version-check --upgrade pip
@@ -1037,7 +876,7 @@ jobs:
           python -m notionhub_runner sync weread --job finalize
 
       - name: 记录修复 Notion 数据结果
-        if: always()
+        if: always() && needs.books.outputs.enabled == 'true' && needs.reading_time.result == 'success'
         continue-on-error: true
         run: |
           if [ "${{ steps.restore.outcome }}" != "success" ] || [ "${{ steps.job_config.outcome }}" != "success" ]; then
@@ -1056,7 +895,7 @@ jobs:
           jq -cn             --arg jobKey "finalize"             --arg label "修复 Notion 数据"             --arg status "$STATUS"             --arg failureClass "${NOTIONHUB_FAILURE_CLASS:-}"             --argjson stageIndex 3             --argjson required false             '{stageIndex:$stageIndex,jobKey:$jobKey,label:$label,status:$status,required:$required,failureClass:(if ($failureClass | length) > 0 then $failureClass else null end)}'             > "${{ github.workspace }}/notionhub-stage-03.json"
 
       - name: 保存修复 Notion 数据进度
-        if: always()
+        if: always() && needs.books.outputs.enabled == 'true' && needs.reading_time.result == 'success'
         continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
@@ -1069,24 +908,8 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
-
-  finish:
-    name: 完成同步
-    needs: [prepare, books, reading_time, finalize]
-    if: always()
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    env:
-      WEREAD_CONFIG: ${{ secrets.WEREAD_CONFIG }}
-      NOTIONHUB_API_BASE: https://i.notionhub.app/v1
-      NOTIONHUB_SERVICE: weread
-      NOTIONHUB_CONFIG_VERSION: '28'
-      SYNC_POLICY_STATE_PATH: ${{ github.workspace }}/notionhub-state.json
-      SYNC_POLICY_CONTINUATION_PATH: ${{ github.workspace }}/notionhub-continuation-id
-      SYNC_POLICY_REPORT_PATH: ${{ github.workspace }}/notionhub-service-report.json
-    steps:
       - name: 下载全部阶段结果
-        if: needs.prepare.outputs.enabled == 'true'
+        if: always() && needs.books.outputs.enabled == 'true'
         continue-on-error: true
         uses: actions/download-artifact@v4
         with:
@@ -1095,8 +918,9 @@ jobs:
 
       - name: 汇总同步结果
         id: aggregate
+        if: always()
         env:
-          PREPARE_ENABLED: ${{ needs.prepare.outputs.enabled }}
+          WORKFLOW_ENABLED: ${{ needs.books.outputs.enabled }}
         run: |
           python3 - <<'PY'
           import json
@@ -1105,16 +929,21 @@ jobs:
           from pathlib import Path
 
           root = Path('notionhub-artifacts')
-          manifests = []
-          for path in root.rglob('notionhub-stage-*.json') if root.exists() else []:
+          paths = list(root.rglob('notionhub-stage-*.json')) if root.exists() else []
+          current = Path('notionhub-stage-03.json')
+          if current.exists():
+              paths.append(current)
+          manifest_by_key = {}
+          for path in paths:
               try:
                   value = json.loads(path.read_text(encoding='utf-8'))
               except Exception:
                   continue
               if isinstance(value, dict) and isinstance(value.get('stageIndex'), int):
-                  manifests.append((value, path))
+                  manifest_by_key[(value['stageIndex'], str(value.get('jobKey')))] = (value, path)
+          manifests = list(manifest_by_key.values())
           required = ["books","reading_time"]
-          enabled = os.environ.get('PREPARE_ENABLED') == 'true'
+          enabled = os.environ.get('WORKFLOW_ENABLED') == 'true'
           status_by_key = {str(item.get('jobKey')): str(item.get('status')) for item, _ in manifests}
           required_failures = [key for key in required if status_by_key.get(key) == 'failure']
           missing_required = [key for key in required if key not in status_by_key]
@@ -1133,11 +962,7 @@ jobs:
               'platform_authentication': 4,
               'notion_authentication': 5,
           }
-          failure_classes = [
-              str(item.get('failureClass'))
-              for item, _ in manifests
-              if item.get('failureClass')
-          ]
+          failure_classes = [str(item.get('failureClass')) for item, _ in manifests if item.get('failureClass')]
           failure_class = max(failure_classes, key=lambda value: failure_priority.get(value, 0), default='platform')
           stages = [item for item, _ in sorted(manifests, key=lambda pair: pair[0]['stageIndex'])]
           latest = max(manifests, key=lambda pair: pair[0]['stageIndex']) if manifests else None
@@ -1145,11 +970,14 @@ jobs:
               parent = latest[1].parent
               for name in ('notionhub-state.json', 'notionhub-continuation-id'):
                   source = parent / name
-                  if source.exists():
-                      shutil.copy2(source, Path(name))
-          run_meta = next(iter(root.rglob('notionhub-run-meta.json')), None) if root.exists() else None
+                  target = Path(name)
+                  if source.exists() and source.resolve() != target.resolve():
+                      shutil.copy2(source, target)
+          run_meta = Path('notionhub-run-meta.json')
+          if not run_meta.exists() and root.exists():
+              run_meta = next(iter(root.rglob('notionhub-run-meta.json')), run_meta)
           meta = {}
-          if run_meta:
+          if run_meta.exists():
               try:
                   meta = json.loads(run_meta.read_text(encoding='utf-8'))
               except Exception:
@@ -1177,6 +1005,7 @@ jobs:
 
       - name: 判断是否需要结算
         id: finish_auth
+        if: always()
         run: |
           SERVICE_PLAN=$(printf '%s' "$WEREAD_CONFIG" | jq -r '.WEREAD_SYNC_PLAN // "lifetime"')
           NEED_AUTH=false
@@ -1195,8 +1024,8 @@ jobs:
           echo "complete_initial=$COMPLETE_INITIAL" >> "$GITHUB_OUTPUT"
 
       - name: 验证权限并获取运行程序
-        id: authorize
-        if: steps.finish_auth.outputs.enabled == 'true'
+        id: finish_authorize
+        if: always() && steps.finish_auth.outputs.enabled == 'true'
         run: |
           OIDC_TOKEN=$(curl -fsSL -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=https%3A%2F%2Fi.notionhub.app" | jq -r '.value // empty')
           if [ -z "$OIDC_TOKEN" ]; then
@@ -1326,7 +1155,7 @@ jobs:
           echo "plan=$PLAN" >> "$GITHUB_OUTPUT"
 
       - name: 结算免费体验
-        if: steps.finish_auth.outputs.settle_trial == 'true' && steps.authorize.outcome == 'success'
+        if: always() && steps.finish_auth.outputs.settle_trial == 'true' && steps.finish_authorize.outcome == 'success'
         run: |
           if [ "${{ steps.aggregate.outputs.status }}" = "success" ]; then STATUS=success; else STATUS=failure; fi
           cd runner
@@ -1334,7 +1163,7 @@ jobs:
           curl --retry 3 --retry-all-errors -fsSL -X POST "$NOTIONHUB_API_BASE/internal/trial-runs/$NOTIONHUB_POLICY_ID/report"             -H "Authorization: Bearer $NOTIONHUB_REPORT_TOKEN" -H 'Content-Type: application/json' --data-binary "@$RUNNER_TEMP/notionhub-settlement.json" >/dev/null
 
       - name: 确认首次全量同步完成
-        if: steps.finish_auth.outputs.complete_initial == 'true' && steps.authorize.outcome == 'success'
+        if: always() && steps.finish_auth.outputs.complete_initial == 'true' && steps.finish_authorize.outcome == 'success'
         run: |
           PAYLOAD=$(jq -cn --arg service "weread" --arg repository "${{ github.repository }}" --arg run_id "${{ github.run_id }}" --arg requested "${{ steps.aggregate.outputs.requested_mode }}" --arg effective "${{ steps.aggregate.outputs.effective_mode }}" '{service:$service,repository:$repository,githubRunId:$run_id,status:"success",requestedMode:$requested,effectiveMode:$effective,initialFullSyncForced:true}')
           curl -fsSL -X POST "$NOTIONHUB_API_BASE/internal/initial-full-sync/complete"             -H "Authorization: Bearer $NOTIONHUB_RUN_ACCESS_TOKEN" -H 'Content-Type: application/json' --data "$PAYLOAD" >/dev/null
@@ -1378,3 +1207,4 @@ jobs:
         if: always()
         run: |
           if [ "${{ steps.aggregate.outputs.status }}" = "failure" ]; then exit 1; fi
+

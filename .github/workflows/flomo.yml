@@ -44,7 +44,7 @@ jobs:
       FLOMO_CONFIG: ${{ secrets.FLOMO_CONFIG }}
       NOTIONHUB_API_BASE: https://i.notionhub.app/v1
       NOTIONHUB_SERVICE: flomo
-      NOTIONHUB_CONFIG_VERSION: '27'
+      NOTIONHUB_CONFIG_VERSION: '28'
       SYNC_POLICY_STATE_PATH: ${{ github.workspace }}/notionhub-state.json
       SYNC_POLICY_REPORT_PATH: ${{ github.workspace }}/notionhub-service-report.json
     steps:
@@ -280,9 +280,9 @@ jobs:
           PAYLOAD=$(jq -cn --arg service "flomo" --arg repository "${{ github.repository }}" --arg run_id "${{ github.run_id }}" --arg requested "$NOTIONHUB_REQUESTED_SYNC_MODE" --arg effective "$NOTIONHUB_EFFECTIVE_SYNC_MODE" '{service:$service,repository:$repository,githubRunId:$run_id,status:"success",requestedMode:$requested,effectiveMode:$effective,initialFullSyncForced:true}')
           curl -fsSL -X POST "$NOTIONHUB_API_BASE/internal/initial-full-sync/complete"             -H "Authorization: Bearer $NOTIONHUB_RUN_ACCESS_TOKEN" -H 'Content-Type: application/json' --data "$PAYLOAD" >/dev/null
 
-      - name: 上报运行结果
+      - name: 结算免费体验
         id: settle
-        if: always() && steps.authorize.outcome == 'success'
+        if: always() && steps.authorize.outcome == 'success' && steps.authorize.outputs.plan == 'trial'
         run: |
           if [ "${{ steps.sync.outcome }}" = "success" ]; then STATUS=success; else STATUS=failure; fi
           SETTLEMENT_REPORT="$RUNNER_TEMP/notionhub-settlement.json"

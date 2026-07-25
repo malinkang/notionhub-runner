@@ -246,7 +246,7 @@ jobs:
         id: job_config
         if: steps.progress.outcome == 'success'
         run: |
-          SERVICE_CONFIG='${{ secrets.APPLEMUSIC_CONFIG }}'
+          SERVICE_CONFIG="$APPLEMUSIC_CONFIG"
           PLAN=$(printf '%s' "$SERVICE_CONFIG" | jq -r '.APPLEMUSIC_SYNC_PLAN // "lifetime"')
           JOB_ENABLED=true
           SKIP_REASON=""
@@ -380,7 +380,7 @@ jobs:
         if: needs.data.outputs.enabled == 'true' && needs.data.result == 'success' && steps.restore.outcome == 'success'
         continue-on-error: true
         run: |
-          SERVICE_CONFIG='${{ secrets.APPLEMUSIC_CONFIG }}'
+          SERVICE_CONFIG="$APPLEMUSIC_CONFIG"
           PLAN=$(printf '%s' "$SERVICE_CONFIG" | jq -r '.APPLEMUSIC_SYNC_PLAN // "lifetime"')
           JOB_ENABLED=true
           SKIP_REASON=""

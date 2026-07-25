@@ -246,7 +246,7 @@ jobs:
         id: job_config
         if: steps.progress.outcome == 'success'
         run: |
-          SERVICE_CONFIG='${{ secrets.KEEP_CONFIG }}'
+          SERVICE_CONFIG="$KEEP_CONFIG"
           PLAN=$(printf '%s' "$SERVICE_CONFIG" | jq -r '.KEEP_SYNC_PLAN // "lifetime"')
           JOB_ENABLED=true
           SKIP_REASON=""
@@ -382,7 +382,7 @@ jobs:
         id: job_config
         if: needs.workout.outputs.enabled == 'true' && needs.workout.result == 'success' && steps.restore.outcome == 'success'
         run: |
-          SERVICE_CONFIG='${{ secrets.KEEP_CONFIG }}'
+          SERVICE_CONFIG="$KEEP_CONFIG"
           PLAN=$(printf '%s' "$SERVICE_CONFIG" | jq -r '.KEEP_SYNC_PLAN // "lifetime"')
           JOB_ENABLED=true
           SKIP_REASON=""
@@ -649,7 +649,7 @@ jobs:
         id: job_config
         if: needs.workout.outputs.enabled == 'true' && needs.sleep.result == 'success' && steps.restore.outcome == 'success'
         run: |
-          SERVICE_CONFIG='${{ secrets.KEEP_CONFIG }}'
+          SERVICE_CONFIG="$KEEP_CONFIG"
           PLAN=$(printf '%s' "$SERVICE_CONFIG" | jq -r '.KEEP_SYNC_PLAN // "lifetime"')
           JOB_ENABLED=true
           SKIP_REASON=""
@@ -916,7 +916,7 @@ jobs:
         id: job_config
         if: needs.workout.outputs.enabled == 'true' && needs.heart_rate.result == 'success' && steps.restore.outcome == 'success'
         run: |
-          SERVICE_CONFIG='${{ secrets.KEEP_CONFIG }}'
+          SERVICE_CONFIG="$KEEP_CONFIG"
           PLAN=$(printf '%s' "$SERVICE_CONFIG" | jq -r '.KEEP_SYNC_PLAN // "lifetime"')
           JOB_ENABLED=true
           SKIP_REASON=""
@@ -1183,7 +1183,7 @@ jobs:
         id: job_config
         if: needs.workout.outputs.enabled == 'true' && needs.vo2max.result == 'success' && steps.restore.outcome == 'success'
         run: |
-          SERVICE_CONFIG='${{ secrets.KEEP_CONFIG }}'
+          SERVICE_CONFIG="$KEEP_CONFIG"
           PLAN=$(printf '%s' "$SERVICE_CONFIG" | jq -r '.KEEP_SYNC_PLAN // "lifetime"')
           JOB_ENABLED=true
           SKIP_REASON=""
@@ -1452,7 +1452,7 @@ jobs:
         if: needs.workout.outputs.enabled == 'true' && needs.blood_oxygen.result == 'success' && steps.restore.outcome == 'success'
         continue-on-error: true
         run: |
-          SERVICE_CONFIG='${{ secrets.KEEP_CONFIG }}'
+          SERVICE_CONFIG="$KEEP_CONFIG"
           PLAN=$(printf '%s' "$SERVICE_CONFIG" | jq -r '.KEEP_SYNC_PLAN // "lifetime"')
           JOB_ENABLED=true
           SKIP_REASON=""
@@ -1721,7 +1721,7 @@ jobs:
         if: needs.workout.outputs.enabled == 'true' && needs.workout_heatmap.result == 'success' && steps.restore.outcome == 'success'
         continue-on-error: true
         run: |
-          SERVICE_CONFIG='${{ secrets.KEEP_CONFIG }}'
+          SERVICE_CONFIG="$KEEP_CONFIG"
           PLAN=$(printf '%s' "$SERVICE_CONFIG" | jq -r '.KEEP_SYNC_PLAN // "lifetime"')
           JOB_ENABLED=true
           SKIP_REASON=""

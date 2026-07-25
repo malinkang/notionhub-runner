@@ -246,7 +246,7 @@ jobs:
         id: job_config
         if: steps.progress.outcome == 'success'
         run: |
-          SERVICE_CONFIG='${{ secrets.DIDA_CONFIG }}'
+          SERVICE_CONFIG="$DIDA_CONFIG"
           PLAN=$(printf '%s' "$SERVICE_CONFIG" | jq -r '.DIDA_SYNC_PLAN // "lifetime"')
           JOB_ENABLED=true
           SKIP_REASON=""
@@ -382,7 +382,7 @@ jobs:
         id: job_config
         if: needs.task.outputs.enabled == 'true' && needs.task.result == 'success' && steps.restore.outcome == 'success'
         run: |
-          SERVICE_CONFIG='${{ secrets.DIDA_CONFIG }}'
+          SERVICE_CONFIG="$DIDA_CONFIG"
           PLAN=$(printf '%s' "$SERVICE_CONFIG" | jq -r '.DIDA_SYNC_PLAN // "lifetime"')
           JOB_ENABLED=true
           SKIP_REASON=""
@@ -649,7 +649,7 @@ jobs:
         id: job_config
         if: needs.task.outputs.enabled == 'true' && needs.pomodoro.result == 'success' && steps.restore.outcome == 'success'
         run: |
-          SERVICE_CONFIG='${{ secrets.DIDA_CONFIG }}'
+          SERVICE_CONFIG="$DIDA_CONFIG"
           PLAN=$(printf '%s' "$SERVICE_CONFIG" | jq -r '.DIDA_SYNC_PLAN // "lifetime"')
           JOB_ENABLED=true
           SKIP_REASON=""
@@ -916,7 +916,7 @@ jobs:
         id: job_config
         if: needs.task.outputs.enabled == 'true' && needs.habit.result == 'success' && steps.restore.outcome == 'success'
         run: |
-          SERVICE_CONFIG='${{ secrets.DIDA_CONFIG }}'
+          SERVICE_CONFIG="$DIDA_CONFIG"
           PLAN=$(printf '%s' "$SERVICE_CONFIG" | jq -r '.DIDA_SYNC_PLAN // "lifetime"')
           JOB_ENABLED=true
           SKIP_REASON=""

@@ -246,7 +246,7 @@ jobs:
         id: job_config
         if: steps.progress.outcome == 'success'
         run: |
-          SERVICE_CONFIG='${{ secrets.BILIBILI_CONFIG }}'
+          SERVICE_CONFIG="$BILIBILI_CONFIG"
           PLAN=$(printf '%s' "$SERVICE_CONFIG" | jq -r '.BILIBILI_SYNC_PLAN // "lifetime"')
           JOB_ENABLED=true
           SKIP_REASON=""
@@ -380,7 +380,7 @@ jobs:
         if: needs.data.outputs.enabled == 'true' && needs.data.result == 'success' && steps.restore.outcome == 'success'
         continue-on-error: true
         run: |
-          SERVICE_CONFIG='${{ secrets.BILIBILI_CONFIG }}'
+          SERVICE_CONFIG="$BILIBILI_CONFIG"
           PLAN=$(printf '%s' "$SERVICE_CONFIG" | jq -r '.BILIBILI_SYNC_PLAN // "lifetime"')
           JOB_ENABLED=true
           SKIP_REASON=""
@@ -645,7 +645,7 @@ jobs:
         if: needs.data.outputs.enabled == 'true' && needs.heatmap.result == 'success' && steps.restore.outcome == 'success'
         continue-on-error: true
         run: |
-          SERVICE_CONFIG='${{ secrets.BILIBILI_CONFIG }}'
+          SERVICE_CONFIG="$BILIBILI_CONFIG"
           PLAN=$(printf '%s' "$SERVICE_CONFIG" | jq -r '.BILIBILI_SYNC_PLAN // "lifetime"')
           JOB_ENABLED=true
           SKIP_REASON=""

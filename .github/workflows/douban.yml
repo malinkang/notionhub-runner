@@ -246,7 +246,7 @@ jobs:
         id: job_config
         if: steps.progress.outcome == 'success'
         run: |
-          SERVICE_CONFIG='${{ secrets.DOUBAN_CONFIG }}'
+          SERVICE_CONFIG="$DOUBAN_CONFIG"
           PLAN=$(printf '%s' "$SERVICE_CONFIG" | jq -r '.DOUBAN_SYNC_PLAN // "lifetime"')
           JOB_ENABLED=true
           SKIP_REASON=""
@@ -382,7 +382,7 @@ jobs:
         id: job_config
         if: needs.movie.outputs.enabled == 'true' && needs.movie.result == 'success' && steps.restore.outcome == 'success'
         run: |
-          SERVICE_CONFIG='${{ secrets.DOUBAN_CONFIG }}'
+          SERVICE_CONFIG="$DOUBAN_CONFIG"
           PLAN=$(printf '%s' "$SERVICE_CONFIG" | jq -r '.DOUBAN_SYNC_PLAN // "lifetime"')
           JOB_ENABLED=true
           SKIP_REASON=""
@@ -649,7 +649,7 @@ jobs:
         id: job_config
         if: needs.movie.outputs.enabled == 'true' && needs.book.result == 'success' && steps.restore.outcome == 'success'
         run: |
-          SERVICE_CONFIG='${{ secrets.DOUBAN_CONFIG }}'
+          SERVICE_CONFIG="$DOUBAN_CONFIG"
           PLAN=$(printf '%s' "$SERVICE_CONFIG" | jq -r '.DOUBAN_SYNC_PLAN // "lifetime"')
           JOB_ENABLED=true
           SKIP_REASON=""
@@ -916,7 +916,7 @@ jobs:
         id: job_config
         if: needs.movie.outputs.enabled == 'true' && needs.music.result == 'success' && steps.restore.outcome == 'success'
         run: |
-          SERVICE_CONFIG='${{ secrets.DOUBAN_CONFIG }}'
+          SERVICE_CONFIG="$DOUBAN_CONFIG"
           PLAN=$(printf '%s' "$SERVICE_CONFIG" | jq -r '.DOUBAN_SYNC_PLAN // "lifetime"')
           JOB_ENABLED=true
           SKIP_REASON=""
@@ -1183,7 +1183,7 @@ jobs:
         id: job_config
         if: needs.movie.outputs.enabled == 'true' && needs.game.result == 'success' && steps.restore.outcome == 'success'
         run: |
-          SERVICE_CONFIG='${{ secrets.DOUBAN_CONFIG }}'
+          SERVICE_CONFIG="$DOUBAN_CONFIG"
           PLAN=$(printf '%s' "$SERVICE_CONFIG" | jq -r '.DOUBAN_SYNC_PLAN // "lifetime"')
           JOB_ENABLED=true
           SKIP_REASON=""
@@ -1450,7 +1450,7 @@ jobs:
         id: job_config
         if: needs.movie.outputs.enabled == 'true' && needs.podcast.result == 'success' && steps.restore.outcome == 'success'
         run: |
-          SERVICE_CONFIG='${{ secrets.DOUBAN_CONFIG }}'
+          SERVICE_CONFIG="$DOUBAN_CONFIG"
           PLAN=$(printf '%s' "$SERVICE_CONFIG" | jq -r '.DOUBAN_SYNC_PLAN // "lifetime"')
           JOB_ENABLED=true
           SKIP_REASON=""

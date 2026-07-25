@@ -246,7 +246,7 @@ jobs:
         id: job_config
         if: steps.progress.outcome == 'success'
         run: |
-          SERVICE_CONFIG='${{ secrets.PODCAST_CONFIG }}'
+          SERVICE_CONFIG="$PODCAST_CONFIG"
           PLAN=$(printf '%s' "$SERVICE_CONFIG" | jq -r '.PODCAST_SYNC_PLAN // "lifetime"')
           JOB_ENABLED=true
           SKIP_REASON=""
@@ -378,7 +378,7 @@ jobs:
         id: job_config
         if: needs.data.outputs.enabled == 'true' && needs.data.result == 'success' && steps.restore.outcome == 'success'
         run: |
-          SERVICE_CONFIG='${{ secrets.PODCAST_CONFIG }}'
+          SERVICE_CONFIG="$PODCAST_CONFIG"
           PLAN=$(printf '%s' "$SERVICE_CONFIG" | jq -r '.PODCAST_SYNC_PLAN // "lifetime"')
           JOB_ENABLED=true
           SKIP_REASON=""

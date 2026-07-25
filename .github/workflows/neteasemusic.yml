@@ -43,7 +43,7 @@ jobs:
       NETEASEMUSIC_CONFIG: ${{ secrets.NETEASEMUSIC_CONFIG }}
       NOTIONHUB_API_BASE: https://i.notionhub.app/v1
       NOTIONHUB_SERVICE: neteasemusic
-      NOTIONHUB_CONFIG_VERSION: '30'
+      NOTIONHUB_CONFIG_VERSION: '31'
       SYNC_POLICY_STATE_PATH: ${{ github.workspace }}/notionhub-state.json
       SYNC_POLICY_CONTINUATION_PATH: ${{ github.workspace }}/notionhub-continuation-id
       SYNC_POLICY_REPORT_PATH: ${{ github.workspace }}/notionhub-service-report.json
@@ -360,7 +360,7 @@ jobs:
       NETEASEMUSIC_CONFIG: ${{ secrets.NETEASEMUSIC_CONFIG }}
       NOTIONHUB_API_BASE: https://i.notionhub.app/v1
       NOTIONHUB_SERVICE: neteasemusic
-      NOTIONHUB_CONFIG_VERSION: '30'
+      NOTIONHUB_CONFIG_VERSION: '31'
       SYNC_POLICY_STATE_PATH: ${{ github.workspace }}/notionhub-state.json
       SYNC_POLICY_CONTINUATION_PATH: ${{ github.workspace }}/notionhub-continuation-id
       SYNC_POLICY_REPORT_PATH: ${{ github.workspace }}/notionhub-service-report.json
@@ -384,10 +384,6 @@ jobs:
           PLAN=$(printf '%s' "$SERVICE_CONFIG" | jq -r '.NETEASEMUSIC_SYNC_PLAN // "lifetime"')
           JOB_ENABLED=true
           SKIP_REASON=""
-          if [ "$PLAN" != "lifetime" ]; then
-            JOB_ENABLED=false
-            SKIP_REASON="免费体验不执行此阶段"
-          fi
           UPLOAD_FILES=$(printf '%s' "$SERVICE_CONFIG" | jq -r '.NETEASEMUSIC_UPLOAD_FILES // "false"')
           if [ "$UPLOAD_FILES" != "true" ]; then
             JOB_ENABLED=false

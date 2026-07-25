@@ -43,7 +43,7 @@ jobs:
       BILIBILI_CONFIG: ${{ secrets.BILIBILI_CONFIG }}
       NOTIONHUB_API_BASE: https://i.notionhub.app/v1
       NOTIONHUB_SERVICE: bilibili
-      NOTIONHUB_CONFIG_VERSION: '30'
+      NOTIONHUB_CONFIG_VERSION: '31'
       SYNC_POLICY_STATE_PATH: ${{ github.workspace }}/notionhub-state.json
       SYNC_POLICY_CONTINUATION_PATH: ${{ github.workspace }}/notionhub-continuation-id
       SYNC_POLICY_REPORT_PATH: ${{ github.workspace }}/notionhub-service-report.json
@@ -360,7 +360,7 @@ jobs:
       BILIBILI_CONFIG: ${{ secrets.BILIBILI_CONFIG }}
       NOTIONHUB_API_BASE: https://i.notionhub.app/v1
       NOTIONHUB_SERVICE: bilibili
-      NOTIONHUB_CONFIG_VERSION: '30'
+      NOTIONHUB_CONFIG_VERSION: '31'
       SYNC_POLICY_STATE_PATH: ${{ github.workspace }}/notionhub-state.json
       SYNC_POLICY_CONTINUATION_PATH: ${{ github.workspace }}/notionhub-continuation-id
       SYNC_POLICY_REPORT_PATH: ${{ github.workspace }}/notionhub-service-report.json
@@ -384,14 +384,10 @@ jobs:
           PLAN=$(printf '%s' "$SERVICE_CONFIG" | jq -r '.BILIBILI_SYNC_PLAN // "lifetime"')
           JOB_ENABLED=true
           SKIP_REASON=""
-          if [ "$PLAN" != "lifetime" ]; then
+          SERVICE_OPTIONS=$(printf '%s' "$SERVICE_CONFIG" | jq -r '.BILIBILI_SERVICE_OPTIONS // "{}"')
+          if ! printf '%s' "$SERVICE_OPTIONS" | jq -e --arg key "uploadFolderIds" 'try fromjson catch {} | (.[$key] // []) as $selected | (($selected | type) == "array" and ($selected | length) > 0)' >/dev/null; then
             JOB_ENABLED=false
-            SKIP_REASON="免费体验不执行此阶段"
-          fi
-          UPLOAD_FILES=$(printf '%s' "$SERVICE_CONFIG" | jq -r '.BILIBILI_UPLOAD_FILES // "false"')
-          if [ "$UPLOAD_FILES" != "true" ]; then
-            JOB_ENABLED=false
-            SKIP_REASON="未开启文件上传"
+            SKIP_REASON="未选择媒体上传范围"
           fi
           echo "enabled=$JOB_ENABLED" >> "$GITHUB_OUTPUT"
           echo "plan=$PLAN" >> "$GITHUB_OUTPUT"
@@ -633,7 +629,7 @@ jobs:
       BILIBILI_CONFIG: ${{ secrets.BILIBILI_CONFIG }}
       NOTIONHUB_API_BASE: https://i.notionhub.app/v1
       NOTIONHUB_SERVICE: bilibili
-      NOTIONHUB_CONFIG_VERSION: '30'
+      NOTIONHUB_CONFIG_VERSION: '31'
       SYNC_POLICY_STATE_PATH: ${{ github.workspace }}/notionhub-state.json
       SYNC_POLICY_CONTINUATION_PATH: ${{ github.workspace }}/notionhub-continuation-id
       SYNC_POLICY_REPORT_PATH: ${{ github.workspace }}/notionhub-service-report.json

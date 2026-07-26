@@ -38,12 +38,11 @@ jobs:
     outputs:
       enabled: ${{ steps.activation.outputs.enabled }}
     runs-on: ubuntu-latest
-    timeout-minutes: 120
     env:
       DIDA_CONFIG: ${{ secrets.DIDA_CONFIG }}
       NOTIONHUB_API_BASE: https://i.notionhub.app/v1
       NOTIONHUB_SERVICE: dida
-      NOTIONHUB_CONFIG_VERSION: '32'
+      NOTIONHUB_CONFIG_VERSION: '33'
       SYNC_POLICY_STATE_PATH: ${{ github.workspace }}/notionhub-state.json
       SYNC_POLICY_CONTINUATION_PATH: ${{ github.workspace }}/notionhub-continuation-id
       SYNC_POLICY_REPORT_PATH: ${{ github.workspace }}/notionhub-service-report.json
@@ -359,12 +358,11 @@ jobs:
     needs: task
     if: needs.task.outputs.enabled == 'true' && needs.task.result == 'success'
     runs-on: ubuntu-latest
-    timeout-minutes: 120
     env:
       DIDA_CONFIG: ${{ secrets.DIDA_CONFIG }}
       NOTIONHUB_API_BASE: https://i.notionhub.app/v1
       NOTIONHUB_SERVICE: dida
-      NOTIONHUB_CONFIG_VERSION: '32'
+      NOTIONHUB_CONFIG_VERSION: '33'
       SYNC_POLICY_STATE_PATH: ${{ github.workspace }}/notionhub-state.json
       SYNC_POLICY_CONTINUATION_PATH: ${{ github.workspace }}/notionhub-continuation-id
       SYNC_POLICY_REPORT_PATH: ${{ github.workspace }}/notionhub-service-report.json
@@ -626,12 +624,11 @@ jobs:
     needs: [task, pomodoro]
     if: needs.task.outputs.enabled == 'true' && needs.pomodoro.result == 'success'
     runs-on: ubuntu-latest
-    timeout-minutes: 120
     env:
       DIDA_CONFIG: ${{ secrets.DIDA_CONFIG }}
       NOTIONHUB_API_BASE: https://i.notionhub.app/v1
       NOTIONHUB_SERVICE: dida
-      NOTIONHUB_CONFIG_VERSION: '32'
+      NOTIONHUB_CONFIG_VERSION: '33'
       SYNC_POLICY_STATE_PATH: ${{ github.workspace }}/notionhub-state.json
       SYNC_POLICY_CONTINUATION_PATH: ${{ github.workspace }}/notionhub-continuation-id
       SYNC_POLICY_REPORT_PATH: ${{ github.workspace }}/notionhub-service-report.json
@@ -893,12 +890,11 @@ jobs:
     needs: [task, habit]
     if: always()
     runs-on: ubuntu-latest
-    timeout-minutes: 120
     env:
       DIDA_CONFIG: ${{ secrets.DIDA_CONFIG }}
       NOTIONHUB_API_BASE: https://i.notionhub.app/v1
       NOTIONHUB_SERVICE: dida
-      NOTIONHUB_CONFIG_VERSION: '32'
+      NOTIONHUB_CONFIG_VERSION: '33'
       SYNC_POLICY_STATE_PATH: ${{ github.workspace }}/notionhub-state.json
       SYNC_POLICY_CONTINUATION_PATH: ${{ github.workspace }}/notionhub-continuation-id
       SYNC_POLICY_REPORT_PATH: ${{ github.workspace }}/notionhub-service-report.json

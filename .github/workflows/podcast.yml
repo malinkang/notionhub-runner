@@ -38,12 +38,11 @@ jobs:
     outputs:
       enabled: ${{ steps.activation.outputs.enabled }}
     runs-on: ubuntu-latest
-    timeout-minutes: 120
     env:
       PODCAST_CONFIG: ${{ secrets.PODCAST_CONFIG }}
       NOTIONHUB_API_BASE: https://i.notionhub.app/v1
       NOTIONHUB_SERVICE: podcast
-      NOTIONHUB_CONFIG_VERSION: '32'
+      NOTIONHUB_CONFIG_VERSION: '33'
       SYNC_POLICY_STATE_PATH: ${{ github.workspace }}/notionhub-state.json
       SYNC_POLICY_CONTINUATION_PATH: ${{ github.workspace }}/notionhub-continuation-id
       SYNC_POLICY_REPORT_PATH: ${{ github.workspace }}/notionhub-service-report.json
@@ -355,12 +354,11 @@ jobs:
     needs: data
     if: always()
     runs-on: ubuntu-latest
-    timeout-minutes: 120
     env:
       PODCAST_CONFIG: ${{ secrets.PODCAST_CONFIG }}
       NOTIONHUB_API_BASE: https://i.notionhub.app/v1
       NOTIONHUB_SERVICE: podcast
-      NOTIONHUB_CONFIG_VERSION: '32'
+      NOTIONHUB_CONFIG_VERSION: '33'
       SYNC_POLICY_STATE_PATH: ${{ github.workspace }}/notionhub-state.json
       SYNC_POLICY_CONTINUATION_PATH: ${{ github.workspace }}/notionhub-continuation-id
       SYNC_POLICY_REPORT_PATH: ${{ github.workspace }}/notionhub-service-report.json

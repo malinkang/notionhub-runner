@@ -38,12 +38,11 @@ jobs:
     outputs:
       enabled: ${{ steps.activation.outputs.enabled }}
     runs-on: ubuntu-latest
-    timeout-minutes: 360
     env:
       KEEP_CONFIG: ${{ secrets.KEEP_CONFIG }}
       NOTIONHUB_API_BASE: https://i.notionhub.app/v1
       NOTIONHUB_SERVICE: keep
-      NOTIONHUB_CONFIG_VERSION: '32'
+      NOTIONHUB_CONFIG_VERSION: '33'
       SYNC_POLICY_STATE_PATH: ${{ github.workspace }}/notionhub-state.json
       SYNC_POLICY_CONTINUATION_PATH: ${{ github.workspace }}/notionhub-continuation-id
       SYNC_POLICY_REPORT_PATH: ${{ github.workspace }}/notionhub-service-report.json
@@ -359,12 +358,11 @@ jobs:
     needs: workout
     if: needs.workout.outputs.enabled == 'true' && needs.workout.result == 'success'
     runs-on: ubuntu-latest
-    timeout-minutes: 360
     env:
       KEEP_CONFIG: ${{ secrets.KEEP_CONFIG }}
       NOTIONHUB_API_BASE: https://i.notionhub.app/v1
       NOTIONHUB_SERVICE: keep
-      NOTIONHUB_CONFIG_VERSION: '32'
+      NOTIONHUB_CONFIG_VERSION: '33'
       SYNC_POLICY_STATE_PATH: ${{ github.workspace }}/notionhub-state.json
       SYNC_POLICY_CONTINUATION_PATH: ${{ github.workspace }}/notionhub-continuation-id
       SYNC_POLICY_REPORT_PATH: ${{ github.workspace }}/notionhub-service-report.json
@@ -626,12 +624,11 @@ jobs:
     needs: [workout, sleep]
     if: needs.workout.outputs.enabled == 'true' && needs.sleep.result == 'success'
     runs-on: ubuntu-latest
-    timeout-minutes: 360
     env:
       KEEP_CONFIG: ${{ secrets.KEEP_CONFIG }}
       NOTIONHUB_API_BASE: https://i.notionhub.app/v1
       NOTIONHUB_SERVICE: keep
-      NOTIONHUB_CONFIG_VERSION: '32'
+      NOTIONHUB_CONFIG_VERSION: '33'
       SYNC_POLICY_STATE_PATH: ${{ github.workspace }}/notionhub-state.json
       SYNC_POLICY_CONTINUATION_PATH: ${{ github.workspace }}/notionhub-continuation-id
       SYNC_POLICY_REPORT_PATH: ${{ github.workspace }}/notionhub-service-report.json
@@ -893,12 +890,11 @@ jobs:
     needs: [workout, heart_rate]
     if: needs.workout.outputs.enabled == 'true' && needs.heart_rate.result == 'success'
     runs-on: ubuntu-latest
-    timeout-minutes: 360
     env:
       KEEP_CONFIG: ${{ secrets.KEEP_CONFIG }}
       NOTIONHUB_API_BASE: https://i.notionhub.app/v1
       NOTIONHUB_SERVICE: keep
-      NOTIONHUB_CONFIG_VERSION: '32'
+      NOTIONHUB_CONFIG_VERSION: '33'
       SYNC_POLICY_STATE_PATH: ${{ github.workspace }}/notionhub-state.json
       SYNC_POLICY_CONTINUATION_PATH: ${{ github.workspace }}/notionhub-continuation-id
       SYNC_POLICY_REPORT_PATH: ${{ github.workspace }}/notionhub-service-report.json
@@ -1160,12 +1156,11 @@ jobs:
     needs: [workout, vo2max]
     if: needs.workout.outputs.enabled == 'true' && needs.vo2max.result == 'success'
     runs-on: ubuntu-latest
-    timeout-minutes: 360
     env:
       KEEP_CONFIG: ${{ secrets.KEEP_CONFIG }}
       NOTIONHUB_API_BASE: https://i.notionhub.app/v1
       NOTIONHUB_SERVICE: keep
-      NOTIONHUB_CONFIG_VERSION: '32'
+      NOTIONHUB_CONFIG_VERSION: '33'
       SYNC_POLICY_STATE_PATH: ${{ github.workspace }}/notionhub-state.json
       SYNC_POLICY_CONTINUATION_PATH: ${{ github.workspace }}/notionhub-continuation-id
       SYNC_POLICY_REPORT_PATH: ${{ github.workspace }}/notionhub-service-report.json
@@ -1427,12 +1422,11 @@ jobs:
     needs: [workout, blood_oxygen]
     if: needs.workout.outputs.enabled == 'true' && needs.blood_oxygen.result == 'success'
     runs-on: ubuntu-latest
-    timeout-minutes: 360
     env:
       KEEP_CONFIG: ${{ secrets.KEEP_CONFIG }}
       NOTIONHUB_API_BASE: https://i.notionhub.app/v1
       NOTIONHUB_SERVICE: keep
-      NOTIONHUB_CONFIG_VERSION: '32'
+      NOTIONHUB_CONFIG_VERSION: '33'
       SYNC_POLICY_STATE_PATH: ${{ github.workspace }}/notionhub-state.json
       SYNC_POLICY_CONTINUATION_PATH: ${{ github.workspace }}/notionhub-continuation-id
       SYNC_POLICY_REPORT_PATH: ${{ github.workspace }}/notionhub-service-report.json
@@ -1696,12 +1690,11 @@ jobs:
     needs: [workout, workout_heatmap]
     if: always()
     runs-on: ubuntu-latest
-    timeout-minutes: 360
     env:
       KEEP_CONFIG: ${{ secrets.KEEP_CONFIG }}
       NOTIONHUB_API_BASE: https://i.notionhub.app/v1
       NOTIONHUB_SERVICE: keep
-      NOTIONHUB_CONFIG_VERSION: '32'
+      NOTIONHUB_CONFIG_VERSION: '33'
       SYNC_POLICY_STATE_PATH: ${{ github.workspace }}/notionhub-state.json
       SYNC_POLICY_CONTINUATION_PATH: ${{ github.workspace }}/notionhub-continuation-id
       SYNC_POLICY_REPORT_PATH: ${{ github.workspace }}/notionhub-service-report.json

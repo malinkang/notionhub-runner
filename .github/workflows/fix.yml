@@ -27,10 +27,9 @@ concurrency:
 jobs:
   fix:
     runs-on: ubuntu-latest
-    timeout-minutes: 120
     env:
       NOTIONHUB_API_BASE: https://i.notionhub.app/v1
-      NOTIONHUB_CONFIG_VERSION: '32'
+      NOTIONHUB_CONFIG_VERSION: '33'
       WEREAD_CONFIG: ${{ secrets.WEREAD_CONFIG }}
       PODCAST_CONFIG: ${{ secrets.PODCAST_CONFIG }}
       DOUBAN_CONFIG: ${{ secrets.DOUBAN_CONFIG }}

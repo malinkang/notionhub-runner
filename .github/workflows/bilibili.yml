@@ -43,7 +43,7 @@ jobs:
       BILIBILI_CONFIG: ${{ secrets.BILIBILI_CONFIG }}
       NOTIONHUB_API_BASE: https://i.notionhub.app/v1
       NOTIONHUB_SERVICE: bilibili
-      NOTIONHUB_CONFIG_VERSION: '31'
+      NOTIONHUB_CONFIG_VERSION: '32'
       SYNC_POLICY_STATE_PATH: ${{ github.workspace }}/notionhub-state.json
       SYNC_POLICY_CONTINUATION_PATH: ${{ github.workspace }}/notionhub-continuation-id
       SYNC_POLICY_REPORT_PATH: ${{ github.workspace }}/notionhub-service-report.json
@@ -350,8 +350,8 @@ jobs:
           if [ "${{ steps.sync.outcome }}" != "success" ]; then exit 1; fi
 
 
-  heatmap:
-    name: 更新热力图
+  media_files:
+    name: 上传已启用媒体
     needs: data
     if: needs.data.outputs.enabled == 'true' && needs.data.result == 'success'
     runs-on: ubuntu-latest
@@ -360,7 +360,7 @@ jobs:
       BILIBILI_CONFIG: ${{ secrets.BILIBILI_CONFIG }}
       NOTIONHUB_API_BASE: https://i.notionhub.app/v1
       NOTIONHUB_SERVICE: bilibili
-      NOTIONHUB_CONFIG_VERSION: '31'
+      NOTIONHUB_CONFIG_VERSION: '32'
       SYNC_POLICY_STATE_PATH: ${{ github.workspace }}/notionhub-state.json
       SYNC_POLICY_CONTINUATION_PATH: ${{ github.workspace }}/notionhub-continuation-id
       SYNC_POLICY_REPORT_PATH: ${{ github.workspace }}/notionhub-service-report.json
@@ -375,7 +375,7 @@ jobs:
           name: notionhub-bilibili-01-data-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ github.workspace }}
 
-      - name: 检查更新热力图配置
+      - name: 检查上传已启用媒体配置
         id: job_config
         if: needs.data.outputs.enabled == 'true' && needs.data.result == 'success' && steps.restore.outcome == 'success'
         continue-on-error: true
@@ -384,11 +384,15 @@ jobs:
           PLAN=$(printf '%s' "$SERVICE_CONFIG" | jq -r '.BILIBILI_SYNC_PLAN // "lifetime"')
           JOB_ENABLED=true
           SKIP_REASON=""
-
+          SERVICE_OPTIONS=$(printf '%s' "$SERVICE_CONFIG" | jq -r '.BILIBILI_SERVICE_OPTIONS // "{}"')
+          if ! printf '%s' "$SERVICE_OPTIONS" | jq -e --arg key "uploadFolderIds" 'try fromjson catch {} | (.[$key] // []) as $selected | (($selected | type) == "array" and ($selected | length) > 0)' >/dev/null; then
+            JOB_ENABLED=false
+            SKIP_REASON="未选择媒体上传范围"
+          fi
           echo "enabled=$JOB_ENABLED" >> "$GITHUB_OUTPUT"
           echo "plan=$PLAN" >> "$GITHUB_OUTPUT"
           if [ "$JOB_ENABLED" != "true" ]; then
-            echo "::notice title=更新热力图已跳过::$SKIP_REASON"
+            echo "::notice title=上传已启用媒体已跳过::$SKIP_REASON"
           fi
 
       - name: 验证权限并获取运行程序
@@ -540,7 +544,7 @@ jobs:
           SERVICE_REQUIREMENTS=$(cd runner && python -m notionhub_runner requirements bilibili)
           if [ -f "$SERVICE_REQUIREMENTS" ]; then pip install --quiet --disable-pip-version-check -r "$SERVICE_REQUIREMENTS"; fi
 
-      - name: 更新热力图
+      - name: 上传已启用媒体
         id: sync
         if: steps.job_config.outputs.enabled == 'true' && steps.install.outcome == 'success'
         continue-on-error: true
@@ -579,9 +583,9 @@ jobs:
             exit 1
           fi
           cd runner
-          python -m notionhub_runner sync bilibili --job heatmap
+          python -m notionhub_runner sync bilibili --job media_files
 
-      - name: 记录更新热力图结果
+      - name: 记录上传已启用媒体结果
         if: always() && needs.data.outputs.enabled == 'true' && needs.data.result == 'success'
         continue-on-error: true
         run: |
@@ -593,19 +597,19 @@ jobs:
             STATUS=success
           elif [ "true" = "true" ]; then
             STATUS=warning
-            echo "::warning title=更新热力图未完成::主同步结果不受影响，可稍后重试此辅助阶段。"
+            echo "::warning title=上传已启用媒体未完成::主同步结果不受影响，可稍后重试此辅助阶段。"
           else
             STATUS=failure
           fi
           if [ ! -f "$SYNC_POLICY_STATE_PATH" ]; then printf '{}' > "$SYNC_POLICY_STATE_PATH"; fi
-          jq -cn             --arg jobKey "heatmap"             --arg label "更新热力图"             --arg status "$STATUS"             --arg failureClass "${NOTIONHUB_FAILURE_CLASS:-}"             --argjson stageIndex 2             --argjson required false             '{stageIndex:$stageIndex,jobKey:$jobKey,label:$label,status:$status,required:$required,failureClass:(if ($failureClass | length) > 0 then $failureClass else null end)}'             > "${{ github.workspace }}/notionhub-stage-02.json"
+          jq -cn             --arg jobKey "media_files"             --arg label "上传已启用媒体"             --arg status "$STATUS"             --arg failureClass "${NOTIONHUB_FAILURE_CLASS:-}"             --argjson stageIndex 2             --argjson required false             '{stageIndex:$stageIndex,jobKey:$jobKey,label:$label,status:$status,required:$required,failureClass:(if ($failureClass | length) > 0 then $failureClass else null end)}'             > "${{ github.workspace }}/notionhub-stage-02.json"
 
-      - name: 保存更新热力图进度
+      - name: 保存上传已启用媒体进度
         if: always() && needs.data.outputs.enabled == 'true' && needs.data.result == 'success'
         continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
-          name: notionhub-bilibili-02-heatmap-${{ github.run_id }}-${{ github.run_attempt }}
+          name: notionhub-bilibili-02-media_files-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
             ${{ env.SYNC_POLICY_STATE_PATH }}
             ${{ env.SYNC_POLICY_CONTINUATION_PATH }}
@@ -615,9 +619,9 @@ jobs:
           retention-days: 1
 
 
-  media_files:
-    name: 上传已启用媒体
-    needs: [data, heatmap]
+  heatmap:
+    name: 更新热力图
+    needs: [data, media_files]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 120
@@ -625,7 +629,7 @@ jobs:
       BILIBILI_CONFIG: ${{ secrets.BILIBILI_CONFIG }}
       NOTIONHUB_API_BASE: https://i.notionhub.app/v1
       NOTIONHUB_SERVICE: bilibili
-      NOTIONHUB_CONFIG_VERSION: '31'
+      NOTIONHUB_CONFIG_VERSION: '32'
       SYNC_POLICY_STATE_PATH: ${{ github.workspace }}/notionhub-state.json
       SYNC_POLICY_CONTINUATION_PATH: ${{ github.workspace }}/notionhub-continuation-id
       SYNC_POLICY_REPORT_PATH: ${{ github.workspace }}/notionhub-service-report.json
@@ -633,31 +637,27 @@ jobs:
     steps:
       - name: 恢复上一阶段进度
         id: restore
-        if: needs.data.outputs.enabled == 'true' && needs.heatmap.result == 'success'
+        if: needs.data.outputs.enabled == 'true' && needs.media_files.result == 'success'
         continue-on-error: true
         uses: actions/download-artifact@v4
         with:
-          name: notionhub-bilibili-02-heatmap-${{ github.run_id }}-${{ github.run_attempt }}
+          name: notionhub-bilibili-02-media_files-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ github.workspace }}
 
-      - name: 检查上传已启用媒体配置
+      - name: 检查更新热力图配置
         id: job_config
-        if: needs.data.outputs.enabled == 'true' && needs.heatmap.result == 'success' && steps.restore.outcome == 'success'
+        if: needs.data.outputs.enabled == 'true' && needs.media_files.result == 'success' && steps.restore.outcome == 'success'
         continue-on-error: true
         run: |
           SERVICE_CONFIG="$BILIBILI_CONFIG"
           PLAN=$(printf '%s' "$SERVICE_CONFIG" | jq -r '.BILIBILI_SYNC_PLAN // "lifetime"')
           JOB_ENABLED=true
           SKIP_REASON=""
-          SERVICE_OPTIONS=$(printf '%s' "$SERVICE_CONFIG" | jq -r '.BILIBILI_SERVICE_OPTIONS // "{}"')
-          if ! printf '%s' "$SERVICE_OPTIONS" | jq -e --arg key "uploadFolderIds" 'try fromjson catch {} | (.[$key] // []) as $selected | (($selected | type) == "array" and ($selected | length) > 0)' >/dev/null; then
-            JOB_ENABLED=false
-            SKIP_REASON="未选择媒体上传范围"
-          fi
+
           echo "enabled=$JOB_ENABLED" >> "$GITHUB_OUTPUT"
           echo "plan=$PLAN" >> "$GITHUB_OUTPUT"
           if [ "$JOB_ENABLED" != "true" ]; then
-            echo "::notice title=上传已启用媒体已跳过::$SKIP_REASON"
+            echo "::notice title=更新热力图已跳过::$SKIP_REASON"
           fi
 
       - name: 验证权限并获取运行程序
@@ -809,7 +809,7 @@ jobs:
           SERVICE_REQUIREMENTS=$(cd runner && python -m notionhub_runner requirements bilibili)
           if [ -f "$SERVICE_REQUIREMENTS" ]; then pip install --quiet --disable-pip-version-check -r "$SERVICE_REQUIREMENTS"; fi
 
-      - name: 上传已启用媒体
+      - name: 更新热力图
         id: sync
         if: steps.job_config.outputs.enabled == 'true' && steps.install.outcome == 'success'
         continue-on-error: true
@@ -848,10 +848,10 @@ jobs:
             exit 1
           fi
           cd runner
-          python -m notionhub_runner sync bilibili --job media_files
+          python -m notionhub_runner sync bilibili --job heatmap
 
-      - name: 记录上传已启用媒体结果
-        if: always() && needs.data.outputs.enabled == 'true' && needs.heatmap.result == 'success'
+      - name: 记录更新热力图结果
+        if: always() && needs.data.outputs.enabled == 'true' && needs.media_files.result == 'success'
         continue-on-error: true
         run: |
           if [ "${{ steps.restore.outcome }}" != "success" ] || [ "${{ steps.job_config.outcome }}" != "success" ]; then
@@ -862,19 +862,19 @@ jobs:
             STATUS=success
           elif [ "true" = "true" ]; then
             STATUS=warning
-            echo "::warning title=上传已启用媒体未完成::主同步结果不受影响，可稍后重试此辅助阶段。"
+            echo "::warning title=更新热力图未完成::主同步结果不受影响，可稍后重试此辅助阶段。"
           else
             STATUS=failure
           fi
           if [ ! -f "$SYNC_POLICY_STATE_PATH" ]; then printf '{}' > "$SYNC_POLICY_STATE_PATH"; fi
-          jq -cn             --arg jobKey "media_files"             --arg label "上传已启用媒体"             --arg status "$STATUS"             --arg failureClass "${NOTIONHUB_FAILURE_CLASS:-}"             --argjson stageIndex 3             --argjson required false             '{stageIndex:$stageIndex,jobKey:$jobKey,label:$label,status:$status,required:$required,failureClass:(if ($failureClass | length) > 0 then $failureClass else null end)}'             > "${{ github.workspace }}/notionhub-stage-03.json"
+          jq -cn             --arg jobKey "heatmap"             --arg label "更新热力图"             --arg status "$STATUS"             --arg failureClass "${NOTIONHUB_FAILURE_CLASS:-}"             --argjson stageIndex 3             --argjson required false             '{stageIndex:$stageIndex,jobKey:$jobKey,label:$label,status:$status,required:$required,failureClass:(if ($failureClass | length) > 0 then $failureClass else null end)}'             > "${{ github.workspace }}/notionhub-stage-03.json"
 
-      - name: 保存上传已启用媒体进度
-        if: always() && needs.data.outputs.enabled == 'true' && needs.heatmap.result == 'success'
+      - name: 保存更新热力图进度
+        if: always() && needs.data.outputs.enabled == 'true' && needs.media_files.result == 'success'
         continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
-          name: notionhub-bilibili-03-media_files-${{ github.run_id }}-${{ github.run_attempt }}
+          name: notionhub-bilibili-03-heatmap-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
             ${{ env.SYNC_POLICY_STATE_PATH }}
             ${{ env.SYNC_POLICY_CONTINUATION_PATH }}

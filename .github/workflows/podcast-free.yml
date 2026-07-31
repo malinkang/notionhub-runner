@@ -1,0 +1,121 @@
+# NotionHub generated free workflow v2
+name: 小宇宙免费版
+
+on:
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 触发原因
+        required: false
+        default: manual
+  schedule:
+    - cron: "20 16 * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: notionhub-podcast-sync-${{ github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  sync:
+    name: 同步小宇宙
+    runs-on: ubuntu-latest
+    env:
+      FREE_CONFIG_JSON: ${{ secrets.PODCAST_FREE_CONFIG }}
+      SOURCE_REPOSITORY: malinkang/Podcast2Notion
+      SOURCE_REF: notionhub-free-v1.0.0
+      SOURCE_SHA: ed2f2484e5c675c31ff2d828db19868262aebbca
+      REPOSITORY: ${{ github.repository }}
+      ARTIFACT_BRANCH: ${{ github.event.repository.default_branch }}
+      NOTIONHUB_ARTIFACT_ROOT: ${{ github.workspace }}/.notionhub-artifacts/podcast
+      NOTIONHUB_ARTIFACT_PATH: .notionhub-artifacts/podcast
+    steps:
+      - name: Checkout Runner 仓库
+        uses: actions/checkout@v4
+
+      - name: 检查免费版配置
+        id: config
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "$FREE_CONFIG_JSON" ]; then
+            echo "::error title=小宇宙免费版未配置::请先在 NotionHub 插件里保存免费版配置。"
+            exit 1
+          fi
+          CONFIG_FILE="$RUNNER_TEMP/notionhub-free-podcast.json"
+          printf '%s' "$FREE_CONFIG_JSON" > "$CONFIG_FILE"
+          chmod 600 "$CONFIG_FILE"
+
+          if ! jq -e '.schemaVersion == 1 and (.notion | type == "object") and (.account | type == "object") and (.options | type == "object")' "$CONFIG_FILE" >/dev/null; then
+            echo "::error title=小宇宙免费版配置无效::请回到 NotionHub 插件重新保存配置。"
+            exit 1
+          fi
+          python3 - "$CONFIG_FILE" <<'PY'
+          import json
+          import sys
+
+          def walk(value):
+              if isinstance(value, dict):
+                  for child in value.values():
+                      yield from walk(child)
+              elif isinstance(value, list):
+                  for child in value:
+                      yield from walk(child)
+              elif isinstance(value, str) and len(value) >= 4:
+                  yield value
+
+          config = json.load(open(sys.argv[1], encoding='utf-8'))
+          for value in walk(config):
+              escaped = value.replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
+              print(f'::add-mask::{escaped}')
+          PY
+          require_value() {
+            if [ -z "$(jq -r "$1 // empty" "$CONFIG_FILE")" ]; then
+              echo "::error title=小宇宙免费版配置缺失::缺少 $2，请回到插件重新保存。"
+              exit 1
+            fi
+          }
+          require_value '.notion.token' 'Notion token'
+          require_value '.notion.pages.root' '小宇宙 Notion 模板'
+          require_value '.account.refreshToken' '小宇宙 refresh token'
+          echo "FREE_CONFIG_FILE=$CONFIG_FILE" >> "$GITHUB_ENV"
+          echo "configured=true" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout 固定开源版本
+        uses: actions/checkout@v4
+        with:
+          repository: malinkang/Podcast2Notion
+          ref: notionhub-free-v1.0.0
+          path: .notionhub-source/podcast
+          persist-credentials: false
+
+      - name: 校验开源版本
+        working-directory: .notionhub-source/podcast
+        run: |
+          ACTUAL_SHA=$(git rev-parse HEAD)
+          if [ "$ACTUAL_SHA" != "$SOURCE_SHA" ]; then
+            echo "::error title=开源版本校验失败::malinkang/Podcast2Notion@notionhub-free-v1.0.0 的提交与预期 SHA 不一致。"
+            exit 1
+          fi
+
+      - name: 设置 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: 安装开源同步程序
+        working-directory: .notionhub-source/podcast
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+
+      - name: 同步小宇宙
+        working-directory: .notionhub-source/podcast
+        run: |
+          export REFRESH_TOKEN="$(jq -r '.account.refreshToken' "$FREE_CONFIG_FILE")"
+          export NOTION_TOKEN="$(jq -r '.notion.token' "$FREE_CONFIG_FILE")"
+          export NOTION_PAGE="$(jq -r '.notion.pages.root' "$FREE_CONFIG_FILE")"
+          python -u scripts/podcast.py
+

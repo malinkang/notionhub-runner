@@ -48,6 +48,7 @@ jobs:
       TRAKT_CONFIG: ${{ secrets.TRAKT_CONFIG }}
       XIAOHONGSHU_CONFIG: ${{ secrets.XIAOHONGSHU_CONFIG }}
       YOUTUBE_CONFIG: ${{ secrets.YOUTUBE_CONFIG }}
+      GUWENDAO_CONFIG: ${{ secrets.GUWENDAO_CONFIG }}
       DAILY_CONFIG: ${{ secrets.DAILY_CONFIG }}
     steps:
       - name: 验证修复配置

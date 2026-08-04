@@ -242,9 +242,6 @@ jobs:
             echo "NOTIONHUB_INITIAL_FULL_SYNC_FORCED=$INITIAL_FULL_SYNC_FORCED"
           } >> "$GITHUB_ENV"
           export NOTIONHUB_ACTION_PAYLOAD="$ACTION_PAYLOAD"
-          export NOTIONHUB_REQUESTED_SYNC_MODE="$REQUESTED_SYNC_MODE"
-          export NOTIONHUB_EFFECTIVE_SYNC_MODE="$EFFECTIVE_SYNC_MODE"
-          export NOTIONHUB_INITIAL_FULL_SYNC_FORCED="$INITIAL_FULL_SYNC_FORCED"
           if [ "$SYNC_PLAN" = "trial" ] && [ "$EFFECTIVE_SYNC_MODE" = "full" ]; then
             echo "::error title=免费体验不支持全量更新::请激活后再执行全量更新。"
             exit 1

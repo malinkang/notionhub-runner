@@ -39,7 +39,7 @@ jobs:
       BBDC_CONFIG: ${{ secrets.BBDC_CONFIG }}
       NOTIONHUB_API_BASE: https://i.notionhub.app/v1
       NOTIONHUB_SERVICE: bbdc
-      NOTIONHUB_CONFIG_VERSION: '33'
+      NOTIONHUB_CONFIG_VERSION: '34'
       SYNC_POLICY_STATE_PATH: ${{ github.workspace }}/notionhub-state.json
       SYNC_POLICY_REPORT_PATH: ${{ github.workspace }}/notionhub-service-report.json
     steps:
@@ -242,6 +242,9 @@ jobs:
             echo "NOTIONHUB_INITIAL_FULL_SYNC_FORCED=$INITIAL_FULL_SYNC_FORCED"
           } >> "$GITHUB_ENV"
           export NOTIONHUB_ACTION_PAYLOAD="$ACTION_PAYLOAD"
+          export NOTIONHUB_REQUESTED_SYNC_MODE="$REQUESTED_SYNC_MODE"
+          export NOTIONHUB_EFFECTIVE_SYNC_MODE="$EFFECTIVE_SYNC_MODE"
+          export NOTIONHUB_INITIAL_FULL_SYNC_FORCED="$INITIAL_FULL_SYNC_FORCED"
           if [ "$SYNC_PLAN" = "trial" ] && [ "$EFFECTIVE_SYNC_MODE" = "full" ]; then
             echo "::error title=免费体验不支持全量更新::请激活后再执行全量更新。"
             exit 1

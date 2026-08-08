@@ -76,7 +76,7 @@ jobs:
           OIDC_TOKEN=$(curl -fsSL -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=https%3A%2F%2Fi.notionhub.app" | jq -r '.value // empty')
           echo "::add-mask::$OIDC_TOKEN"
           AUTH_RESPONSE="$RUNNER_TEMP/notionhub-authorize.json"
-          HTTP_STATUS=$(curl -sS -o "$AUTH_RESPONSE" -w '%{http_code}' -X POST "$NOTIONHUB_API_BASE/github/runner/authorize-run"             -H "Authorization: Bearer $OIDC_TOKEN" -H 'Content-Type: application/json'             --data "{"service":"${{ steps.validate.outputs.service }}","purpose":"fix"}")
+          HTTP_STATUS=$(curl -sS -o "$AUTH_RESPONSE" -w '%{http_code}' -X POST "$NOTIONHUB_API_BASE/github/runner/authorize-run"             -H "Authorization: Bearer $OIDC_TOKEN" -H 'Content-Type: application/json'             --data "{\"service\":\"${{ steps.validate.outputs.service }}\",\"purpose\":\"fix\"}")
           if [ "$HTTP_STATUS" -lt 200 ] || [ "$HTTP_STATUS" -ge 300 ]; then
             MESSAGE=$(jq -r '.message // "修复授权失败"' "$AUTH_RESPONSE")
             echo "::error title=修复授权失败::$MESSAGE"

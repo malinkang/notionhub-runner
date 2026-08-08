@@ -42,7 +42,7 @@ jobs:
       BILIBILI_CONFIG: ${{ secrets.BILIBILI_CONFIG }}
       NOTIONHUB_API_BASE: https://i.notionhub.app/v1
       NOTIONHUB_SERVICE: bilibili
-      NOTIONHUB_CONFIG_VERSION: '34'
+      NOTIONHUB_CONFIG_VERSION: '35'
       SYNC_POLICY_STATE_PATH: ${{ github.workspace }}/notionhub-state.json
       SYNC_POLICY_CONTINUATION_PATH: ${{ github.workspace }}/notionhub-continuation-id
       SYNC_POLICY_REPORT_PATH: ${{ github.workspace }}/notionhub-service-report.json
@@ -364,7 +364,7 @@ jobs:
       BILIBILI_CONFIG: ${{ secrets.BILIBILI_CONFIG }}
       NOTIONHUB_API_BASE: https://i.notionhub.app/v1
       NOTIONHUB_SERVICE: bilibili
-      NOTIONHUB_CONFIG_VERSION: '34'
+      NOTIONHUB_CONFIG_VERSION: '35'
       SYNC_POLICY_STATE_PATH: ${{ github.workspace }}/notionhub-state.json
       SYNC_POLICY_CONTINUATION_PATH: ${{ github.workspace }}/notionhub-continuation-id
       SYNC_POLICY_REPORT_PATH: ${{ github.workspace }}/notionhub-service-report.json
@@ -631,7 +631,7 @@ jobs:
       BILIBILI_CONFIG: ${{ secrets.BILIBILI_CONFIG }}
       NOTIONHUB_API_BASE: https://i.notionhub.app/v1
       NOTIONHUB_SERVICE: bilibili
-      NOTIONHUB_CONFIG_VERSION: '34'
+      NOTIONHUB_CONFIG_VERSION: '35'
       SYNC_POLICY_STATE_PATH: ${{ github.workspace }}/notionhub-state.json
       SYNC_POLICY_CONTINUATION_PATH: ${{ github.workspace }}/notionhub-continuation-id
       SYNC_POLICY_REPORT_PATH: ${{ github.workspace }}/notionhub-service-report.json
@@ -655,8 +655,8 @@ jobs:
           PLAN=$(printf '%s' "$SERVICE_CONFIG" | jq -r '.BILIBILI_SYNC_PLAN // "lifetime"')
           JOB_ENABLED=true
           SKIP_REASON=""
-          SERVICE_OPTIONS=$(printf '%s' "$SERVICE_CONFIG" | jq -r '.BILIBILI_SERVICE_OPTIONS // "{}"')
-          if ! printf '%s' "$SERVICE_OPTIONS" | jq -e --arg key "uploadFolderIds" 'try fromjson catch {} | (.[$key] // []) as $selected | (($selected | type) == "array" and ($selected | length) > 0)' >/dev/null; then
+          SERVICE_OPTIONS=$(printf '%s' "$SERVICE_CONFIG" | jq -c '.BILIBILI_SERVICE_OPTIONS // {}')
+          if ! printf '%s' "$SERVICE_OPTIONS" | jq -e --arg key "uploadFolderIds" '(if type == "string" then (try fromjson catch {}) elif type == "object" then . else {} end) | (.[$key] // []) as $selected | (($selected | type) == "array" and ($selected | length) > 0)' >/dev/null; then
             JOB_ENABLED=false
             SKIP_REASON="未选择媒体上传范围"
           fi

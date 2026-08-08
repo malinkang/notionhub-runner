@@ -42,7 +42,7 @@ jobs:
       KEEP_CONFIG: ${{ secrets.KEEP_CONFIG }}
       NOTIONHUB_API_BASE: https://i.notionhub.app/v1
       NOTIONHUB_SERVICE: keep
-      NOTIONHUB_CONFIG_VERSION: '34'
+      NOTIONHUB_CONFIG_VERSION: '35'
       SYNC_POLICY_STATE_PATH: ${{ github.workspace }}/notionhub-state.json
       SYNC_POLICY_CONTINUATION_PATH: ${{ github.workspace }}/notionhub-continuation-id
       SYNC_POLICY_REPORT_PATH: ${{ github.workspace }}/notionhub-service-report.json
@@ -252,8 +252,8 @@ jobs:
           PLAN=$(printf '%s' "$SERVICE_CONFIG" | jq -r '.KEEP_SYNC_PLAN // "lifetime"')
           JOB_ENABLED=true
           SKIP_REASON=""
-          SERVICE_OPTIONS=$(printf '%s' "$SERVICE_CONFIG" | jq -r '.KEEP_SERVICE_OPTIONS // "{}"')
-          if ! printf '%s' "$SERVICE_OPTIONS" | jq -e --arg key "workout" 'try fromjson catch {} | (.enabledStreams // []) as $enabled | ($enabled | length == 0) or ($enabled | index($key) != null)' >/dev/null; then
+          SERVICE_OPTIONS=$(printf '%s' "$SERVICE_CONFIG" | jq -c '.KEEP_SERVICE_OPTIONS // {}')
+          if ! printf '%s' "$SERVICE_OPTIONS" | jq -e --arg key "workout" '(if type == "string" then (try fromjson catch {}) elif type == "object" then . else {} end) | (.enabledStreams // []) as $enabled | ($enabled | length == 0) or ($enabled | index($key) != null)' >/dev/null; then
             JOB_ENABLED=false
             SKIP_REASON="未在同步内容中启用"
           fi
@@ -368,7 +368,7 @@ jobs:
       KEEP_CONFIG: ${{ secrets.KEEP_CONFIG }}
       NOTIONHUB_API_BASE: https://i.notionhub.app/v1
       NOTIONHUB_SERVICE: keep
-      NOTIONHUB_CONFIG_VERSION: '34'
+      NOTIONHUB_CONFIG_VERSION: '35'
       SYNC_POLICY_STATE_PATH: ${{ github.workspace }}/notionhub-state.json
       SYNC_POLICY_CONTINUATION_PATH: ${{ github.workspace }}/notionhub-continuation-id
       SYNC_POLICY_REPORT_PATH: ${{ github.workspace }}/notionhub-service-report.json
@@ -390,8 +390,8 @@ jobs:
           PLAN=$(printf '%s' "$SERVICE_CONFIG" | jq -r '.KEEP_SYNC_PLAN // "lifetime"')
           JOB_ENABLED=true
           SKIP_REASON=""
-          SERVICE_OPTIONS=$(printf '%s' "$SERVICE_CONFIG" | jq -r '.KEEP_SERVICE_OPTIONS // "{}"')
-          if ! printf '%s' "$SERVICE_OPTIONS" | jq -e --arg key "sleep" 'try fromjson catch {} | (.enabledStreams // []) as $enabled | ($enabled | length == 0) or ($enabled | index($key) != null)' >/dev/null; then
+          SERVICE_OPTIONS=$(printf '%s' "$SERVICE_CONFIG" | jq -c '.KEEP_SERVICE_OPTIONS // {}')
+          if ! printf '%s' "$SERVICE_OPTIONS" | jq -e --arg key "sleep" '(if type == "string" then (try fromjson catch {}) elif type == "object" then . else {} end) | (.enabledStreams // []) as $enabled | ($enabled | length == 0) or ($enabled | index($key) != null)' >/dev/null; then
             JOB_ENABLED=false
             SKIP_REASON="未在同步内容中启用"
           fi
@@ -637,7 +637,7 @@ jobs:
       KEEP_CONFIG: ${{ secrets.KEEP_CONFIG }}
       NOTIONHUB_API_BASE: https://i.notionhub.app/v1
       NOTIONHUB_SERVICE: keep
-      NOTIONHUB_CONFIG_VERSION: '34'
+      NOTIONHUB_CONFIG_VERSION: '35'
       SYNC_POLICY_STATE_PATH: ${{ github.workspace }}/notionhub-state.json
       SYNC_POLICY_CONTINUATION_PATH: ${{ github.workspace }}/notionhub-continuation-id
       SYNC_POLICY_REPORT_PATH: ${{ github.workspace }}/notionhub-service-report.json
@@ -659,8 +659,8 @@ jobs:
           PLAN=$(printf '%s' "$SERVICE_CONFIG" | jq -r '.KEEP_SYNC_PLAN // "lifetime"')
           JOB_ENABLED=true
           SKIP_REASON=""
-          SERVICE_OPTIONS=$(printf '%s' "$SERVICE_CONFIG" | jq -r '.KEEP_SERVICE_OPTIONS // "{}"')
-          if ! printf '%s' "$SERVICE_OPTIONS" | jq -e --arg key "heart_rate" 'try fromjson catch {} | (.enabledStreams // []) as $enabled | ($enabled | length == 0) or ($enabled | index($key) != null)' >/dev/null; then
+          SERVICE_OPTIONS=$(printf '%s' "$SERVICE_CONFIG" | jq -c '.KEEP_SERVICE_OPTIONS // {}')
+          if ! printf '%s' "$SERVICE_OPTIONS" | jq -e --arg key "heart_rate" '(if type == "string" then (try fromjson catch {}) elif type == "object" then . else {} end) | (.enabledStreams // []) as $enabled | ($enabled | length == 0) or ($enabled | index($key) != null)' >/dev/null; then
             JOB_ENABLED=false
             SKIP_REASON="未在同步内容中启用"
           fi
@@ -906,7 +906,7 @@ jobs:
       KEEP_CONFIG: ${{ secrets.KEEP_CONFIG }}
       NOTIONHUB_API_BASE: https://i.notionhub.app/v1
       NOTIONHUB_SERVICE: keep
-      NOTIONHUB_CONFIG_VERSION: '34'
+      NOTIONHUB_CONFIG_VERSION: '35'
       SYNC_POLICY_STATE_PATH: ${{ github.workspace }}/notionhub-state.json
       SYNC_POLICY_CONTINUATION_PATH: ${{ github.workspace }}/notionhub-continuation-id
       SYNC_POLICY_REPORT_PATH: ${{ github.workspace }}/notionhub-service-report.json
@@ -928,8 +928,8 @@ jobs:
           PLAN=$(printf '%s' "$SERVICE_CONFIG" | jq -r '.KEEP_SYNC_PLAN // "lifetime"')
           JOB_ENABLED=true
           SKIP_REASON=""
-          SERVICE_OPTIONS=$(printf '%s' "$SERVICE_CONFIG" | jq -r '.KEEP_SERVICE_OPTIONS // "{}"')
-          if ! printf '%s' "$SERVICE_OPTIONS" | jq -e --arg key "vo2max" 'try fromjson catch {} | (.enabledStreams // []) as $enabled | ($enabled | length == 0) or ($enabled | index($key) != null)' >/dev/null; then
+          SERVICE_OPTIONS=$(printf '%s' "$SERVICE_CONFIG" | jq -c '.KEEP_SERVICE_OPTIONS // {}')
+          if ! printf '%s' "$SERVICE_OPTIONS" | jq -e --arg key "vo2max" '(if type == "string" then (try fromjson catch {}) elif type == "object" then . else {} end) | (.enabledStreams // []) as $enabled | ($enabled | length == 0) or ($enabled | index($key) != null)' >/dev/null; then
             JOB_ENABLED=false
             SKIP_REASON="未在同步内容中启用"
           fi
@@ -1175,7 +1175,7 @@ jobs:
       KEEP_CONFIG: ${{ secrets.KEEP_CONFIG }}
       NOTIONHUB_API_BASE: https://i.notionhub.app/v1
       NOTIONHUB_SERVICE: keep
-      NOTIONHUB_CONFIG_VERSION: '34'
+      NOTIONHUB_CONFIG_VERSION: '35'
       SYNC_POLICY_STATE_PATH: ${{ github.workspace }}/notionhub-state.json
       SYNC_POLICY_CONTINUATION_PATH: ${{ github.workspace }}/notionhub-continuation-id
       SYNC_POLICY_REPORT_PATH: ${{ github.workspace }}/notionhub-service-report.json
@@ -1197,8 +1197,8 @@ jobs:
           PLAN=$(printf '%s' "$SERVICE_CONFIG" | jq -r '.KEEP_SYNC_PLAN // "lifetime"')
           JOB_ENABLED=true
           SKIP_REASON=""
-          SERVICE_OPTIONS=$(printf '%s' "$SERVICE_CONFIG" | jq -r '.KEEP_SERVICE_OPTIONS // "{}"')
-          if ! printf '%s' "$SERVICE_OPTIONS" | jq -e --arg key "blood_oxygen" 'try fromjson catch {} | (.enabledStreams // []) as $enabled | ($enabled | length == 0) or ($enabled | index($key) != null)' >/dev/null; then
+          SERVICE_OPTIONS=$(printf '%s' "$SERVICE_CONFIG" | jq -c '.KEEP_SERVICE_OPTIONS // {}')
+          if ! printf '%s' "$SERVICE_OPTIONS" | jq -e --arg key "blood_oxygen" '(if type == "string" then (try fromjson catch {}) elif type == "object" then . else {} end) | (.enabledStreams // []) as $enabled | ($enabled | length == 0) or ($enabled | index($key) != null)' >/dev/null; then
             JOB_ENABLED=false
             SKIP_REASON="未在同步内容中启用"
           fi
@@ -1444,7 +1444,7 @@ jobs:
       KEEP_CONFIG: ${{ secrets.KEEP_CONFIG }}
       NOTIONHUB_API_BASE: https://i.notionhub.app/v1
       NOTIONHUB_SERVICE: keep
-      NOTIONHUB_CONFIG_VERSION: '34'
+      NOTIONHUB_CONFIG_VERSION: '35'
       SYNC_POLICY_STATE_PATH: ${{ github.workspace }}/notionhub-state.json
       SYNC_POLICY_CONTINUATION_PATH: ${{ github.workspace }}/notionhub-continuation-id
       SYNC_POLICY_REPORT_PATH: ${{ github.workspace }}/notionhub-service-report.json
@@ -1468,8 +1468,8 @@ jobs:
           PLAN=$(printf '%s' "$SERVICE_CONFIG" | jq -r '.KEEP_SYNC_PLAN // "lifetime"')
           JOB_ENABLED=true
           SKIP_REASON=""
-          SERVICE_OPTIONS=$(printf '%s' "$SERVICE_CONFIG" | jq -r '.KEEP_SERVICE_OPTIONS // "{}"')
-          if ! printf '%s' "$SERVICE_OPTIONS" | jq -e --arg key "workout" 'try fromjson catch {} | (.enabledStreams // []) as $enabled | ($enabled | length == 0) or ($enabled | index($key) != null)' >/dev/null; then
+          SERVICE_OPTIONS=$(printf '%s' "$SERVICE_CONFIG" | jq -c '.KEEP_SERVICE_OPTIONS // {}')
+          if ! printf '%s' "$SERVICE_OPTIONS" | jq -e --arg key "workout" '(if type == "string" then (try fromjson catch {}) elif type == "object" then . else {} end) | (.enabledStreams // []) as $enabled | ($enabled | length == 0) or ($enabled | index($key) != null)' >/dev/null; then
             JOB_ENABLED=false
             SKIP_REASON="未在同步内容中启用"
           fi
@@ -1715,7 +1715,7 @@ jobs:
       KEEP_CONFIG: ${{ secrets.KEEP_CONFIG }}
       NOTIONHUB_API_BASE: https://i.notionhub.app/v1
       NOTIONHUB_SERVICE: keep
-      NOTIONHUB_CONFIG_VERSION: '34'
+      NOTIONHUB_CONFIG_VERSION: '35'
       SYNC_POLICY_STATE_PATH: ${{ github.workspace }}/notionhub-state.json
       SYNC_POLICY_CONTINUATION_PATH: ${{ github.workspace }}/notionhub-continuation-id
       SYNC_POLICY_REPORT_PATH: ${{ github.workspace }}/notionhub-service-report.json
@@ -1739,8 +1739,8 @@ jobs:
           PLAN=$(printf '%s' "$SERVICE_CONFIG" | jq -r '.KEEP_SYNC_PLAN // "lifetime"')
           JOB_ENABLED=true
           SKIP_REASON=""
-          SERVICE_OPTIONS=$(printf '%s' "$SERVICE_CONFIG" | jq -r '.KEEP_SERVICE_OPTIONS // "{}"')
-          if ! printf '%s' "$SERVICE_OPTIONS" | jq -e --arg key "sleep" 'try fromjson catch {} | (.enabledStreams // []) as $enabled | ($enabled | length == 0) or ($enabled | index($key) != null)' >/dev/null; then
+          SERVICE_OPTIONS=$(printf '%s' "$SERVICE_CONFIG" | jq -c '.KEEP_SERVICE_OPTIONS // {}')
+          if ! printf '%s' "$SERVICE_OPTIONS" | jq -e --arg key "sleep" '(if type == "string" then (try fromjson catch {}) elif type == "object" then . else {} end) | (.enabledStreams // []) as $enabled | ($enabled | length == 0) or ($enabled | index($key) != null)' >/dev/null; then
             JOB_ENABLED=false
             SKIP_REASON="未在同步内容中启用"
           fi

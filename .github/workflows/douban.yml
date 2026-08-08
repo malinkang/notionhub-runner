@@ -42,7 +42,7 @@ jobs:
       DOUBAN_CONFIG: ${{ secrets.DOUBAN_CONFIG }}
       NOTIONHUB_API_BASE: https://i.notionhub.app/v1
       NOTIONHUB_SERVICE: douban
-      NOTIONHUB_CONFIG_VERSION: '34'
+      NOTIONHUB_CONFIG_VERSION: '35'
       SYNC_POLICY_STATE_PATH: ${{ github.workspace }}/notionhub-state.json
       SYNC_POLICY_CONTINUATION_PATH: ${{ github.workspace }}/notionhub-continuation-id
       SYNC_POLICY_REPORT_PATH: ${{ github.workspace }}/notionhub-service-report.json
@@ -252,8 +252,8 @@ jobs:
           PLAN=$(printf '%s' "$SERVICE_CONFIG" | jq -r '.DOUBAN_SYNC_PLAN // "lifetime"')
           JOB_ENABLED=true
           SKIP_REASON=""
-          SERVICE_OPTIONS=$(printf '%s' "$SERVICE_CONFIG" | jq -r '.DOUBAN_SERVICE_OPTIONS // "{}"')
-          if ! printf '%s' "$SERVICE_OPTIONS" | jq -e --arg key "movie" 'try fromjson catch {} | (.enabledStreams // []) as $enabled | ($enabled | length == 0) or ($enabled | index($key) != null)' >/dev/null; then
+          SERVICE_OPTIONS=$(printf '%s' "$SERVICE_CONFIG" | jq -c '.DOUBAN_SERVICE_OPTIONS // {}')
+          if ! printf '%s' "$SERVICE_OPTIONS" | jq -e --arg key "movie" '(if type == "string" then (try fromjson catch {}) elif type == "object" then . else {} end) | (.enabledStreams // []) as $enabled | ($enabled | length == 0) or ($enabled | index($key) != null)' >/dev/null; then
             JOB_ENABLED=false
             SKIP_REASON="未在同步内容中启用"
           fi
@@ -368,7 +368,7 @@ jobs:
       DOUBAN_CONFIG: ${{ secrets.DOUBAN_CONFIG }}
       NOTIONHUB_API_BASE: https://i.notionhub.app/v1
       NOTIONHUB_SERVICE: douban
-      NOTIONHUB_CONFIG_VERSION: '34'
+      NOTIONHUB_CONFIG_VERSION: '35'
       SYNC_POLICY_STATE_PATH: ${{ github.workspace }}/notionhub-state.json
       SYNC_POLICY_CONTINUATION_PATH: ${{ github.workspace }}/notionhub-continuation-id
       SYNC_POLICY_REPORT_PATH: ${{ github.workspace }}/notionhub-service-report.json
@@ -390,8 +390,8 @@ jobs:
           PLAN=$(printf '%s' "$SERVICE_CONFIG" | jq -r '.DOUBAN_SYNC_PLAN // "lifetime"')
           JOB_ENABLED=true
           SKIP_REASON=""
-          SERVICE_OPTIONS=$(printf '%s' "$SERVICE_CONFIG" | jq -r '.DOUBAN_SERVICE_OPTIONS // "{}"')
-          if ! printf '%s' "$SERVICE_OPTIONS" | jq -e --arg key "book" 'try fromjson catch {} | (.enabledStreams // []) as $enabled | ($enabled | length == 0) or ($enabled | index($key) != null)' >/dev/null; then
+          SERVICE_OPTIONS=$(printf '%s' "$SERVICE_CONFIG" | jq -c '.DOUBAN_SERVICE_OPTIONS // {}')
+          if ! printf '%s' "$SERVICE_OPTIONS" | jq -e --arg key "book" '(if type == "string" then (try fromjson catch {}) elif type == "object" then . else {} end) | (.enabledStreams // []) as $enabled | ($enabled | length == 0) or ($enabled | index($key) != null)' >/dev/null; then
             JOB_ENABLED=false
             SKIP_REASON="未在同步内容中启用"
           fi
@@ -637,7 +637,7 @@ jobs:
       DOUBAN_CONFIG: ${{ secrets.DOUBAN_CONFIG }}
       NOTIONHUB_API_BASE: https://i.notionhub.app/v1
       NOTIONHUB_SERVICE: douban
-      NOTIONHUB_CONFIG_VERSION: '34'
+      NOTIONHUB_CONFIG_VERSION: '35'
       SYNC_POLICY_STATE_PATH: ${{ github.workspace }}/notionhub-state.json
       SYNC_POLICY_CONTINUATION_PATH: ${{ github.workspace }}/notionhub-continuation-id
       SYNC_POLICY_REPORT_PATH: ${{ github.workspace }}/notionhub-service-report.json
@@ -659,8 +659,8 @@ jobs:
           PLAN=$(printf '%s' "$SERVICE_CONFIG" | jq -r '.DOUBAN_SYNC_PLAN // "lifetime"')
           JOB_ENABLED=true
           SKIP_REASON=""
-          SERVICE_OPTIONS=$(printf '%s' "$SERVICE_CONFIG" | jq -r '.DOUBAN_SERVICE_OPTIONS // "{}"')
-          if ! printf '%s' "$SERVICE_OPTIONS" | jq -e --arg key "music" 'try fromjson catch {} | (.enabledStreams // []) as $enabled | ($enabled | length == 0) or ($enabled | index($key) != null)' >/dev/null; then
+          SERVICE_OPTIONS=$(printf '%s' "$SERVICE_CONFIG" | jq -c '.DOUBAN_SERVICE_OPTIONS // {}')
+          if ! printf '%s' "$SERVICE_OPTIONS" | jq -e --arg key "music" '(if type == "string" then (try fromjson catch {}) elif type == "object" then . else {} end) | (.enabledStreams // []) as $enabled | ($enabled | length == 0) or ($enabled | index($key) != null)' >/dev/null; then
             JOB_ENABLED=false
             SKIP_REASON="未在同步内容中启用"
           fi
@@ -906,7 +906,7 @@ jobs:
       DOUBAN_CONFIG: ${{ secrets.DOUBAN_CONFIG }}
       NOTIONHUB_API_BASE: https://i.notionhub.app/v1
       NOTIONHUB_SERVICE: douban
-      NOTIONHUB_CONFIG_VERSION: '34'
+      NOTIONHUB_CONFIG_VERSION: '35'
       SYNC_POLICY_STATE_PATH: ${{ github.workspace }}/notionhub-state.json
       SYNC_POLICY_CONTINUATION_PATH: ${{ github.workspace }}/notionhub-continuation-id
       SYNC_POLICY_REPORT_PATH: ${{ github.workspace }}/notionhub-service-report.json
@@ -928,8 +928,8 @@ jobs:
           PLAN=$(printf '%s' "$SERVICE_CONFIG" | jq -r '.DOUBAN_SYNC_PLAN // "lifetime"')
           JOB_ENABLED=true
           SKIP_REASON=""
-          SERVICE_OPTIONS=$(printf '%s' "$SERVICE_CONFIG" | jq -r '.DOUBAN_SERVICE_OPTIONS // "{}"')
-          if ! printf '%s' "$SERVICE_OPTIONS" | jq -e --arg key "game" 'try fromjson catch {} | (.enabledStreams // []) as $enabled | ($enabled | length == 0) or ($enabled | index($key) != null)' >/dev/null; then
+          SERVICE_OPTIONS=$(printf '%s' "$SERVICE_CONFIG" | jq -c '.DOUBAN_SERVICE_OPTIONS // {}')
+          if ! printf '%s' "$SERVICE_OPTIONS" | jq -e --arg key "game" '(if type == "string" then (try fromjson catch {}) elif type == "object" then . else {} end) | (.enabledStreams // []) as $enabled | ($enabled | length == 0) or ($enabled | index($key) != null)' >/dev/null; then
             JOB_ENABLED=false
             SKIP_REASON="未在同步内容中启用"
           fi
@@ -1175,7 +1175,7 @@ jobs:
       DOUBAN_CONFIG: ${{ secrets.DOUBAN_CONFIG }}
       NOTIONHUB_API_BASE: https://i.notionhub.app/v1
       NOTIONHUB_SERVICE: douban
-      NOTIONHUB_CONFIG_VERSION: '34'
+      NOTIONHUB_CONFIG_VERSION: '35'
       SYNC_POLICY_STATE_PATH: ${{ github.workspace }}/notionhub-state.json
       SYNC_POLICY_CONTINUATION_PATH: ${{ github.workspace }}/notionhub-continuation-id
       SYNC_POLICY_REPORT_PATH: ${{ github.workspace }}/notionhub-service-report.json
@@ -1197,8 +1197,8 @@ jobs:
           PLAN=$(printf '%s' "$SERVICE_CONFIG" | jq -r '.DOUBAN_SYNC_PLAN // "lifetime"')
           JOB_ENABLED=true
           SKIP_REASON=""
-          SERVICE_OPTIONS=$(printf '%s' "$SERVICE_CONFIG" | jq -r '.DOUBAN_SERVICE_OPTIONS // "{}"')
-          if ! printf '%s' "$SERVICE_OPTIONS" | jq -e --arg key "podcast" 'try fromjson catch {} | (.enabledStreams // []) as $enabled | ($enabled | length == 0) or ($enabled | index($key) != null)' >/dev/null; then
+          SERVICE_OPTIONS=$(printf '%s' "$SERVICE_CONFIG" | jq -c '.DOUBAN_SERVICE_OPTIONS // {}')
+          if ! printf '%s' "$SERVICE_OPTIONS" | jq -e --arg key "podcast" '(if type == "string" then (try fromjson catch {}) elif type == "object" then . else {} end) | (.enabledStreams // []) as $enabled | ($enabled | length == 0) or ($enabled | index($key) != null)' >/dev/null; then
             JOB_ENABLED=false
             SKIP_REASON="未在同步内容中启用"
           fi
@@ -1444,7 +1444,7 @@ jobs:
       DOUBAN_CONFIG: ${{ secrets.DOUBAN_CONFIG }}
       NOTIONHUB_API_BASE: https://i.notionhub.app/v1
       NOTIONHUB_SERVICE: douban
-      NOTIONHUB_CONFIG_VERSION: '34'
+      NOTIONHUB_CONFIG_VERSION: '35'
       SYNC_POLICY_STATE_PATH: ${{ github.workspace }}/notionhub-state.json
       SYNC_POLICY_CONTINUATION_PATH: ${{ github.workspace }}/notionhub-continuation-id
       SYNC_POLICY_REPORT_PATH: ${{ github.workspace }}/notionhub-service-report.json
@@ -1466,8 +1466,8 @@ jobs:
           PLAN=$(printf '%s' "$SERVICE_CONFIG" | jq -r '.DOUBAN_SYNC_PLAN // "lifetime"')
           JOB_ENABLED=true
           SKIP_REASON=""
-          SERVICE_OPTIONS=$(printf '%s' "$SERVICE_CONFIG" | jq -r '.DOUBAN_SERVICE_OPTIONS // "{}"')
-          if ! printf '%s' "$SERVICE_OPTIONS" | jq -e --arg key "drama" 'try fromjson catch {} | (.enabledStreams // []) as $enabled | ($enabled | length == 0) or ($enabled | index($key) != null)' >/dev/null; then
+          SERVICE_OPTIONS=$(printf '%s' "$SERVICE_CONFIG" | jq -c '.DOUBAN_SERVICE_OPTIONS // {}')
+          if ! printf '%s' "$SERVICE_OPTIONS" | jq -e --arg key "drama" '(if type == "string" then (try fromjson catch {}) elif type == "object" then . else {} end) | (.enabledStreams // []) as $enabled | ($enabled | length == 0) or ($enabled | index($key) != null)' >/dev/null; then
             JOB_ENABLED=false
             SKIP_REASON="未在同步内容中启用"
           fi

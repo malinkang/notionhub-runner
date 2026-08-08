@@ -42,7 +42,7 @@ jobs:
       DIDA_CONFIG: ${{ secrets.DIDA_CONFIG }}
       NOTIONHUB_API_BASE: https://i.notionhub.app/v1
       NOTIONHUB_SERVICE: dida
-      NOTIONHUB_CONFIG_VERSION: '34'
+      NOTIONHUB_CONFIG_VERSION: '35'
       SYNC_POLICY_STATE_PATH: ${{ github.workspace }}/notionhub-state.json
       SYNC_POLICY_CONTINUATION_PATH: ${{ github.workspace }}/notionhub-continuation-id
       SYNC_POLICY_REPORT_PATH: ${{ github.workspace }}/notionhub-service-report.json
@@ -252,8 +252,8 @@ jobs:
           PLAN=$(printf '%s' "$SERVICE_CONFIG" | jq -r '.DIDA_SYNC_PLAN // "lifetime"')
           JOB_ENABLED=true
           SKIP_REASON=""
-          SERVICE_OPTIONS=$(printf '%s' "$SERVICE_CONFIG" | jq -r '.DIDA_SERVICE_OPTIONS // "{}"')
-          if ! printf '%s' "$SERVICE_OPTIONS" | jq -e --arg key "task" 'try fromjson catch {} | (.enabledStreams // []) as $enabled | ($enabled | length == 0) or ($enabled | index($key) != null)' >/dev/null; then
+          SERVICE_OPTIONS=$(printf '%s' "$SERVICE_CONFIG" | jq -c '.DIDA_SERVICE_OPTIONS // {}')
+          if ! printf '%s' "$SERVICE_OPTIONS" | jq -e --arg key "task" '(if type == "string" then (try fromjson catch {}) elif type == "object" then . else {} end) | (.enabledStreams // []) as $enabled | ($enabled | length == 0) or ($enabled | index($key) != null)' >/dev/null; then
             JOB_ENABLED=false
             SKIP_REASON="未在同步内容中启用"
           fi
@@ -368,7 +368,7 @@ jobs:
       DIDA_CONFIG: ${{ secrets.DIDA_CONFIG }}
       NOTIONHUB_API_BASE: https://i.notionhub.app/v1
       NOTIONHUB_SERVICE: dida
-      NOTIONHUB_CONFIG_VERSION: '34'
+      NOTIONHUB_CONFIG_VERSION: '35'
       SYNC_POLICY_STATE_PATH: ${{ github.workspace }}/notionhub-state.json
       SYNC_POLICY_CONTINUATION_PATH: ${{ github.workspace }}/notionhub-continuation-id
       SYNC_POLICY_REPORT_PATH: ${{ github.workspace }}/notionhub-service-report.json
@@ -390,8 +390,8 @@ jobs:
           PLAN=$(printf '%s' "$SERVICE_CONFIG" | jq -r '.DIDA_SYNC_PLAN // "lifetime"')
           JOB_ENABLED=true
           SKIP_REASON=""
-          SERVICE_OPTIONS=$(printf '%s' "$SERVICE_CONFIG" | jq -r '.DIDA_SERVICE_OPTIONS // "{}"')
-          if ! printf '%s' "$SERVICE_OPTIONS" | jq -e --arg key "pomodoro" 'try fromjson catch {} | (.enabledStreams // []) as $enabled | ($enabled | length == 0) or ($enabled | index($key) != null)' >/dev/null; then
+          SERVICE_OPTIONS=$(printf '%s' "$SERVICE_CONFIG" | jq -c '.DIDA_SERVICE_OPTIONS // {}')
+          if ! printf '%s' "$SERVICE_OPTIONS" | jq -e --arg key "pomodoro" '(if type == "string" then (try fromjson catch {}) elif type == "object" then . else {} end) | (.enabledStreams // []) as $enabled | ($enabled | length == 0) or ($enabled | index($key) != null)' >/dev/null; then
             JOB_ENABLED=false
             SKIP_REASON="未在同步内容中启用"
           fi
@@ -637,7 +637,7 @@ jobs:
       DIDA_CONFIG: ${{ secrets.DIDA_CONFIG }}
       NOTIONHUB_API_BASE: https://i.notionhub.app/v1
       NOTIONHUB_SERVICE: dida
-      NOTIONHUB_CONFIG_VERSION: '34'
+      NOTIONHUB_CONFIG_VERSION: '35'
       SYNC_POLICY_STATE_PATH: ${{ github.workspace }}/notionhub-state.json
       SYNC_POLICY_CONTINUATION_PATH: ${{ github.workspace }}/notionhub-continuation-id
       SYNC_POLICY_REPORT_PATH: ${{ github.workspace }}/notionhub-service-report.json
@@ -659,8 +659,8 @@ jobs:
           PLAN=$(printf '%s' "$SERVICE_CONFIG" | jq -r '.DIDA_SYNC_PLAN // "lifetime"')
           JOB_ENABLED=true
           SKIP_REASON=""
-          SERVICE_OPTIONS=$(printf '%s' "$SERVICE_CONFIG" | jq -r '.DIDA_SERVICE_OPTIONS // "{}"')
-          if ! printf '%s' "$SERVICE_OPTIONS" | jq -e --arg key "habit" 'try fromjson catch {} | (.enabledStreams // []) as $enabled | ($enabled | length == 0) or ($enabled | index($key) != null)' >/dev/null; then
+          SERVICE_OPTIONS=$(printf '%s' "$SERVICE_CONFIG" | jq -c '.DIDA_SERVICE_OPTIONS // {}')
+          if ! printf '%s' "$SERVICE_OPTIONS" | jq -e --arg key "habit" '(if type == "string" then (try fromjson catch {}) elif type == "object" then . else {} end) | (.enabledStreams // []) as $enabled | ($enabled | length == 0) or ($enabled | index($key) != null)' >/dev/null; then
             JOB_ENABLED=false
             SKIP_REASON="未在同步内容中启用"
           fi
@@ -906,7 +906,7 @@ jobs:
       DIDA_CONFIG: ${{ secrets.DIDA_CONFIG }}
       NOTIONHUB_API_BASE: https://i.notionhub.app/v1
       NOTIONHUB_SERVICE: dida
-      NOTIONHUB_CONFIG_VERSION: '34'
+      NOTIONHUB_CONFIG_VERSION: '35'
       SYNC_POLICY_STATE_PATH: ${{ github.workspace }}/notionhub-state.json
       SYNC_POLICY_CONTINUATION_PATH: ${{ github.workspace }}/notionhub-continuation-id
       SYNC_POLICY_REPORT_PATH: ${{ github.workspace }}/notionhub-service-report.json
@@ -928,8 +928,8 @@ jobs:
           PLAN=$(printf '%s' "$SERVICE_CONFIG" | jq -r '.DIDA_SYNC_PLAN // "lifetime"')
           JOB_ENABLED=true
           SKIP_REASON=""
-          SERVICE_OPTIONS=$(printf '%s' "$SERVICE_CONFIG" | jq -r '.DIDA_SERVICE_OPTIONS // "{}"')
-          if ! printf '%s' "$SERVICE_OPTIONS" | jq -e --arg key "countdown" 'try fromjson catch {} | (.enabledStreams // []) as $enabled | ($enabled | length == 0) or ($enabled | index($key) != null)' >/dev/null; then
+          SERVICE_OPTIONS=$(printf '%s' "$SERVICE_CONFIG" | jq -c '.DIDA_SERVICE_OPTIONS // {}')
+          if ! printf '%s' "$SERVICE_OPTIONS" | jq -e --arg key "countdown" '(if type == "string" then (try fromjson catch {}) elif type == "object" then . else {} end) | (.enabledStreams // []) as $enabled | ($enabled | length == 0) or ($enabled | index($key) != null)' >/dev/null; then
             JOB_ENABLED=false
             SKIP_REASON="未在同步内容中启用"
           fi

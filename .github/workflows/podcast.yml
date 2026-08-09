@@ -1,4 +1,4 @@
-# NotionHub generated workflow v37
+# NotionHub generated workflow v38
 name: 小宇宙
 
 on:
@@ -25,6 +25,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
   id-token: write
 
 concurrency:
@@ -42,7 +43,7 @@ jobs:
       PODCAST_CONFIG: ${{ secrets.PODCAST_CONFIG }}
       NOTIONHUB_API_BASE: https://i.notionhub.app/v1
       NOTIONHUB_SERVICE: podcast
-      NOTIONHUB_CONFIG_VERSION: '35'
+      NOTIONHUB_CONFIG_VERSION: '36'
       SYNC_POLICY_STATE_PATH: ${{ github.workspace }}/notionhub-state.json
       SYNC_POLICY_CONTINUATION_PATH: ${{ github.workspace }}/notionhub-continuation-id
       SYNC_POLICY_REPORT_PATH: ${{ github.workspace }}/notionhub-service-report.json
@@ -364,7 +365,7 @@ jobs:
       PODCAST_CONFIG: ${{ secrets.PODCAST_CONFIG }}
       NOTIONHUB_API_BASE: https://i.notionhub.app/v1
       NOTIONHUB_SERVICE: podcast
-      NOTIONHUB_CONFIG_VERSION: '35'
+      NOTIONHUB_CONFIG_VERSION: '36'
       SYNC_POLICY_STATE_PATH: ${{ github.workspace }}/notionhub-state.json
       SYNC_POLICY_CONTINUATION_PATH: ${{ github.workspace }}/notionhub-continuation-id
       SYNC_POLICY_REPORT_PATH: ${{ github.workspace }}/notionhub-service-report.json
@@ -373,10 +374,75 @@ jobs:
       - name: 恢复上一阶段进度
         id: restore
         if: needs.data.outputs.enabled == 'true' && needs.data.result == 'success'
-        uses: actions/download-artifact@v4
-        with:
-          name: notionhub-podcast-01-data-${{ github.run_id }}-${{ github.run_attempt }}
-          path: ${{ github.workspace }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          ARTIFACT_SPECS=(
+            "required|notionhub-podcast-01-data-${{ github.run_id }}-${{ github.run_attempt }}|notionhub-state.json|notionhub-continuation-id|notionhub-run-meta.json|notionhub-stage-01.json"
+          )
+          ATTEMPT_DIR=""
+          cleanup_artifact_attempt() {
+            if [ -n "$ATTEMPT_DIR" ] && [ -d "$ATTEMPT_DIR" ]; then
+              rm -rf -- "$ATTEMPT_DIR"
+            fi
+          }
+          trap cleanup_artifact_attempt EXIT
+
+          for ATTEMPT in 1 2 3 4 5 6; do
+            cleanup_artifact_attempt
+            ATTEMPT_DIR=$(mktemp -d "$RUNNER_TEMP/notionhub-artifacts.XXXXXX")
+            DOWNLOAD_OK=true
+            for SPEC in "${ARTIFACT_SPECS[@]}"; do
+              SPEC_REQUIRED="${SPEC%%|*}"
+              SPEC_CONTENT="${SPEC#*|}"
+              ARTIFACT_NAME="${SPEC_CONTENT%%|*}"
+              EXPECTED_FILES="${SPEC_CONTENT#*|}"
+              ARTIFACT_DIR="$ATTEMPT_DIR/$ARTIFACT_NAME"
+              mkdir -p "$ARTIFACT_DIR"
+              ARTIFACT_OK=true
+              if ! gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "$ARTIFACT_NAME" --dir "$ARTIFACT_DIR"; then
+                ARTIFACT_OK=false
+              else
+                IFS='|' read -r -a EXPECTED_FILE_LIST <<< "$EXPECTED_FILES"
+                for EXPECTED_FILE in "${EXPECTED_FILE_LIST[@]}"; do
+                  if [ ! -f "$ARTIFACT_DIR/$EXPECTED_FILE" ]; then
+                    ARTIFACT_OK=false
+                    break
+                  fi
+                done
+              fi
+              if [ "$ARTIFACT_OK" != "true" ]; then
+                rm -rf -- "$ARTIFACT_DIR"
+                if [ "$SPEC_REQUIRED" = "required" ]; then
+                  echo "::warning title=同步进度暂不可用::必要阶段结果尚未完整可见，将自动重试。"
+                  DOWNLOAD_OK=false
+                  break
+                fi
+                echo "::notice title=辅助阶段结果暂不可用::本次汇总将忽略尚未可见的辅助阶段结果。"
+              fi
+            done
+            if [ "$DOWNLOAD_OK" = "true" ]; then
+              cp -R "$ATTEMPT_DIR"/*/. "${{ github.workspace }}"/
+              cleanup_artifact_attempt
+              ATTEMPT_DIR=""
+              exit 0
+            fi
+            if [ "$ATTEMPT" -lt 6 ]; then
+              case "$ATTEMPT" in
+                1) DELAY=2 ;;
+                2) DELAY=4 ;;
+                3) DELAY=8 ;;
+                4) DELAY=16 ;;
+                *) DELAY=30 ;;
+              esac
+              echo "::notice title=等待同步进度::GitHub 阶段结果暂不可见，${DELAY} 秒后进行第 $((ATTEMPT + 1)) 次尝试。"
+              sleep "$DELAY"
+            fi
+          done
+
+          echo "::error title=同步进度恢复失败::GitHub 阶段结果在 6 次尝试后仍不可用。"
+          exit 1
 
       - name: 检查语音转文字配置
         id: job_config
@@ -629,7 +695,7 @@ jobs:
       PODCAST_CONFIG: ${{ secrets.PODCAST_CONFIG }}
       NOTIONHUB_API_BASE: https://i.notionhub.app/v1
       NOTIONHUB_SERVICE: podcast
-      NOTIONHUB_CONFIG_VERSION: '35'
+      NOTIONHUB_CONFIG_VERSION: '36'
       SYNC_POLICY_STATE_PATH: ${{ github.workspace }}/notionhub-state.json
       SYNC_POLICY_CONTINUATION_PATH: ${{ github.workspace }}/notionhub-continuation-id
       SYNC_POLICY_REPORT_PATH: ${{ github.workspace }}/notionhub-service-report.json
@@ -639,10 +705,75 @@ jobs:
         id: restore
         if: needs.data.outputs.enabled == 'true' && needs.transcription.result == 'success'
         continue-on-error: true
-        uses: actions/download-artifact@v4
-        with:
-          name: notionhub-podcast-02-transcription-${{ github.run_id }}-${{ github.run_attempt }}
-          path: ${{ github.workspace }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          ARTIFACT_SPECS=(
+            "required|notionhub-podcast-02-transcription-${{ github.run_id }}-${{ github.run_attempt }}|notionhub-state.json|notionhub-continuation-id|notionhub-run-meta.json|notionhub-stage-02.json"
+          )
+          ATTEMPT_DIR=""
+          cleanup_artifact_attempt() {
+            if [ -n "$ATTEMPT_DIR" ] && [ -d "$ATTEMPT_DIR" ]; then
+              rm -rf -- "$ATTEMPT_DIR"
+            fi
+          }
+          trap cleanup_artifact_attempt EXIT
+
+          for ATTEMPT in 1 2 3 4 5 6; do
+            cleanup_artifact_attempt
+            ATTEMPT_DIR=$(mktemp -d "$RUNNER_TEMP/notionhub-artifacts.XXXXXX")
+            DOWNLOAD_OK=true
+            for SPEC in "${ARTIFACT_SPECS[@]}"; do
+              SPEC_REQUIRED="${SPEC%%|*}"
+              SPEC_CONTENT="${SPEC#*|}"
+              ARTIFACT_NAME="${SPEC_CONTENT%%|*}"
+              EXPECTED_FILES="${SPEC_CONTENT#*|}"
+              ARTIFACT_DIR="$ATTEMPT_DIR/$ARTIFACT_NAME"
+              mkdir -p "$ARTIFACT_DIR"
+              ARTIFACT_OK=true
+              if ! gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "$ARTIFACT_NAME" --dir "$ARTIFACT_DIR"; then
+                ARTIFACT_OK=false
+              else
+                IFS='|' read -r -a EXPECTED_FILE_LIST <<< "$EXPECTED_FILES"
+                for EXPECTED_FILE in "${EXPECTED_FILE_LIST[@]}"; do
+                  if [ ! -f "$ARTIFACT_DIR/$EXPECTED_FILE" ]; then
+                    ARTIFACT_OK=false
+                    break
+                  fi
+                done
+              fi
+              if [ "$ARTIFACT_OK" != "true" ]; then
+                rm -rf -- "$ARTIFACT_DIR"
+                if [ "$SPEC_REQUIRED" = "required" ]; then
+                  echo "::warning title=同步进度暂不可用::必要阶段结果尚未完整可见，将自动重试。"
+                  DOWNLOAD_OK=false
+                  break
+                fi
+                echo "::notice title=辅助阶段结果暂不可用::本次汇总将忽略尚未可见的辅助阶段结果。"
+              fi
+            done
+            if [ "$DOWNLOAD_OK" = "true" ]; then
+              cp -R "$ATTEMPT_DIR"/*/. "${{ github.workspace }}"/
+              cleanup_artifact_attempt
+              ATTEMPT_DIR=""
+              exit 0
+            fi
+            if [ "$ATTEMPT" -lt 6 ]; then
+              case "$ATTEMPT" in
+                1) DELAY=2 ;;
+                2) DELAY=4 ;;
+                3) DELAY=8 ;;
+                4) DELAY=16 ;;
+                *) DELAY=30 ;;
+              esac
+              echo "::notice title=等待同步进度::GitHub 阶段结果暂不可见，${DELAY} 秒后进行第 $((ATTEMPT + 1)) 次尝试。"
+              sleep "$DELAY"
+            fi
+          done
+
+          echo "::error title=同步进度恢复失败::GitHub 阶段结果在 6 次尝试后仍不可用。"
+          exit 1
 
       - name: 检查补写逐字稿配置
         id: job_config
@@ -896,7 +1027,7 @@ jobs:
       PODCAST_CONFIG: ${{ secrets.PODCAST_CONFIG }}
       NOTIONHUB_API_BASE: https://i.notionhub.app/v1
       NOTIONHUB_SERVICE: podcast
-      NOTIONHUB_CONFIG_VERSION: '35'
+      NOTIONHUB_CONFIG_VERSION: '36'
       SYNC_POLICY_STATE_PATH: ${{ github.workspace }}/notionhub-state.json
       SYNC_POLICY_CONTINUATION_PATH: ${{ github.workspace }}/notionhub-continuation-id
       SYNC_POLICY_REPORT_PATH: ${{ github.workspace }}/notionhub-service-report.json
@@ -906,10 +1037,75 @@ jobs:
         id: restore
         if: needs.data.outputs.enabled == 'true' && needs.transcript_backfill.result == 'success'
         continue-on-error: true
-        uses: actions/download-artifact@v4
-        with:
-          name: notionhub-podcast-03-transcript_backfill-${{ github.run_id }}-${{ github.run_attempt }}
-          path: ${{ github.workspace }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          ARTIFACT_SPECS=(
+            "required|notionhub-podcast-03-transcript_backfill-${{ github.run_id }}-${{ github.run_attempt }}|notionhub-state.json|notionhub-continuation-id|notionhub-run-meta.json|notionhub-stage-03.json"
+          )
+          ATTEMPT_DIR=""
+          cleanup_artifact_attempt() {
+            if [ -n "$ATTEMPT_DIR" ] && [ -d "$ATTEMPT_DIR" ]; then
+              rm -rf -- "$ATTEMPT_DIR"
+            fi
+          }
+          trap cleanup_artifact_attempt EXIT
+
+          for ATTEMPT in 1 2 3 4 5 6; do
+            cleanup_artifact_attempt
+            ATTEMPT_DIR=$(mktemp -d "$RUNNER_TEMP/notionhub-artifacts.XXXXXX")
+            DOWNLOAD_OK=true
+            for SPEC in "${ARTIFACT_SPECS[@]}"; do
+              SPEC_REQUIRED="${SPEC%%|*}"
+              SPEC_CONTENT="${SPEC#*|}"
+              ARTIFACT_NAME="${SPEC_CONTENT%%|*}"
+              EXPECTED_FILES="${SPEC_CONTENT#*|}"
+              ARTIFACT_DIR="$ATTEMPT_DIR/$ARTIFACT_NAME"
+              mkdir -p "$ARTIFACT_DIR"
+              ARTIFACT_OK=true
+              if ! gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "$ARTIFACT_NAME" --dir "$ARTIFACT_DIR"; then
+                ARTIFACT_OK=false
+              else
+                IFS='|' read -r -a EXPECTED_FILE_LIST <<< "$EXPECTED_FILES"
+                for EXPECTED_FILE in "${EXPECTED_FILE_LIST[@]}"; do
+                  if [ ! -f "$ARTIFACT_DIR/$EXPECTED_FILE" ]; then
+                    ARTIFACT_OK=false
+                    break
+                  fi
+                done
+              fi
+              if [ "$ARTIFACT_OK" != "true" ]; then
+                rm -rf -- "$ARTIFACT_DIR"
+                if [ "$SPEC_REQUIRED" = "required" ]; then
+                  echo "::warning title=同步进度暂不可用::必要阶段结果尚未完整可见，将自动重试。"
+                  DOWNLOAD_OK=false
+                  break
+                fi
+                echo "::notice title=辅助阶段结果暂不可用::本次汇总将忽略尚未可见的辅助阶段结果。"
+              fi
+            done
+            if [ "$DOWNLOAD_OK" = "true" ]; then
+              cp -R "$ATTEMPT_DIR"/*/. "${{ github.workspace }}"/
+              cleanup_artifact_attempt
+              ATTEMPT_DIR=""
+              exit 0
+            fi
+            if [ "$ATTEMPT" -lt 6 ]; then
+              case "$ATTEMPT" in
+                1) DELAY=2 ;;
+                2) DELAY=4 ;;
+                3) DELAY=8 ;;
+                4) DELAY=16 ;;
+                *) DELAY=30 ;;
+              esac
+              echo "::notice title=等待同步进度::GitHub 阶段结果暂不可见，${DELAY} 秒后进行第 $((ATTEMPT + 1)) 次尝试。"
+              sleep "$DELAY"
+            fi
+          done
+
+          echo "::error title=同步进度恢复失败::GitHub 阶段结果在 6 次尝试后仍不可用。"
+          exit 1
 
       - name: 检查上传已启用音频配置
         id: job_config
@@ -1160,10 +1356,79 @@ jobs:
       - name: 下载全部阶段结果
         if: always() && needs.data.outputs.enabled == 'true'
         continue-on-error: true
-        uses: actions/download-artifact@v4
-        with:
-          pattern: notionhub-podcast-*-${{ github.run_id }}-${{ github.run_attempt }}
-          path: ${{ github.workspace }}/notionhub-artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          ARTIFACT_SPECS=(
+            "required|notionhub-podcast-01-data-${{ github.run_id }}-${{ github.run_attempt }}|notionhub-stage-01.json"
+            "required|notionhub-podcast-02-transcription-${{ github.run_id }}-${{ github.run_attempt }}|notionhub-stage-02.json"
+            "optional|notionhub-podcast-03-transcript_backfill-${{ github.run_id }}-${{ github.run_attempt }}|notionhub-stage-03.json"
+            "optional|notionhub-podcast-04-media_files-${{ github.run_id }}-${{ github.run_attempt }}|notionhub-stage-04.json"
+          )
+          ATTEMPT_DIR=""
+          cleanup_artifact_attempt() {
+            if [ -n "$ATTEMPT_DIR" ] && [ -d "$ATTEMPT_DIR" ]; then
+              rm -rf -- "$ATTEMPT_DIR"
+            fi
+          }
+          trap cleanup_artifact_attempt EXIT
+
+          for ATTEMPT in 1 2 3 4 5 6; do
+            cleanup_artifact_attempt
+            ATTEMPT_DIR=$(mktemp -d "$RUNNER_TEMP/notionhub-artifacts.XXXXXX")
+            DOWNLOAD_OK=true
+            for SPEC in "${ARTIFACT_SPECS[@]}"; do
+              SPEC_REQUIRED="${SPEC%%|*}"
+              SPEC_CONTENT="${SPEC#*|}"
+              ARTIFACT_NAME="${SPEC_CONTENT%%|*}"
+              EXPECTED_FILES="${SPEC_CONTENT#*|}"
+              ARTIFACT_DIR="$ATTEMPT_DIR/$ARTIFACT_NAME"
+              mkdir -p "$ARTIFACT_DIR"
+              ARTIFACT_OK=true
+              if ! gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "$ARTIFACT_NAME" --dir "$ARTIFACT_DIR"; then
+                ARTIFACT_OK=false
+              else
+                IFS='|' read -r -a EXPECTED_FILE_LIST <<< "$EXPECTED_FILES"
+                for EXPECTED_FILE in "${EXPECTED_FILE_LIST[@]}"; do
+                  if [ ! -f "$ARTIFACT_DIR/$EXPECTED_FILE" ]; then
+                    ARTIFACT_OK=false
+                    break
+                  fi
+                done
+              fi
+              if [ "$ARTIFACT_OK" != "true" ]; then
+                rm -rf -- "$ARTIFACT_DIR"
+                if [ "$SPEC_REQUIRED" = "required" ]; then
+                  echo "::warning title=同步进度暂不可用::必要阶段结果尚未完整可见，将自动重试。"
+                  DOWNLOAD_OK=false
+                  break
+                fi
+                echo "::notice title=辅助阶段结果暂不可用::本次汇总将忽略尚未可见的辅助阶段结果。"
+              fi
+            done
+            if [ "$DOWNLOAD_OK" = "true" ]; then
+              mkdir -p "${{ github.workspace }}/notionhub-artifacts"
+              cp -R "$ATTEMPT_DIR"/. "${{ github.workspace }}/notionhub-artifacts"/
+              cleanup_artifact_attempt
+              ATTEMPT_DIR=""
+              exit 0
+            fi
+            if [ "$ATTEMPT" -lt 6 ]; then
+              case "$ATTEMPT" in
+                1) DELAY=2 ;;
+                2) DELAY=4 ;;
+                3) DELAY=8 ;;
+                4) DELAY=16 ;;
+                *) DELAY=30 ;;
+              esac
+              echo "::notice title=等待同步进度::GitHub 阶段结果暂不可见，${DELAY} 秒后进行第 $((ATTEMPT + 1)) 次尝试。"
+              sleep "$DELAY"
+            fi
+          done
+
+          echo "::error title=同步进度恢复失败::GitHub 阶段结果在 6 次尝试后仍不可用。"
+          exit 1
 
       - name: 汇总同步结果
         id: aggregate

@@ -274,6 +274,7 @@ jobs:
           SERVICE_REQUIREMENTS=$(cd runner && python -m notionhub_runner requirements guwendao)
           if [ -f "$SERVICE_REQUIREMENTS" ]; then pip install --quiet --disable-pip-version-check -r "$SERVICE_REQUIREMENTS"; fi
 
+
       - name: 同步古文岛数据
         id: sync
         if: steps.job_config.outputs.enabled == 'true' && steps.install.outcome == 'success'

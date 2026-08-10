@@ -279,6 +279,7 @@ jobs:
           SERVICE_REQUIREMENTS=$(cd runner && python -m notionhub_runner requirements douban)
           if [ -f "$SERVICE_REQUIREMENTS" ]; then pip install --quiet --disable-pip-version-check -r "$SERVICE_REQUIREMENTS"; fi
 
+
       - name: 同步电影
         id: sync
         if: steps.job_config.outputs.enabled == 'true' && steps.install.outcome == 'success'
@@ -612,6 +613,7 @@ jobs:
           if [ -f runner/requirements.txt ]; then pip install --quiet --disable-pip-version-check -r runner/requirements.txt; fi
           SERVICE_REQUIREMENTS=$(cd runner && python -m notionhub_runner requirements douban)
           if [ -f "$SERVICE_REQUIREMENTS" ]; then pip install --quiet --disable-pip-version-check -r "$SERVICE_REQUIREMENTS"; fi
+
 
       - name: 同步图书
         id: sync
@@ -947,6 +949,7 @@ jobs:
           SERVICE_REQUIREMENTS=$(cd runner && python -m notionhub_runner requirements douban)
           if [ -f "$SERVICE_REQUIREMENTS" ]; then pip install --quiet --disable-pip-version-check -r "$SERVICE_REQUIREMENTS"; fi
 
+
       - name: 同步音乐
         id: sync
         if: steps.job_config.outputs.enabled == 'true' && steps.install.outcome == 'success'
@@ -1280,6 +1283,7 @@ jobs:
           if [ -f runner/requirements.txt ]; then pip install --quiet --disable-pip-version-check -r runner/requirements.txt; fi
           SERVICE_REQUIREMENTS=$(cd runner && python -m notionhub_runner requirements douban)
           if [ -f "$SERVICE_REQUIREMENTS" ]; then pip install --quiet --disable-pip-version-check -r "$SERVICE_REQUIREMENTS"; fi
+
 
       - name: 同步游戏
         id: sync
@@ -1615,6 +1619,7 @@ jobs:
           SERVICE_REQUIREMENTS=$(cd runner && python -m notionhub_runner requirements douban)
           if [ -f "$SERVICE_REQUIREMENTS" ]; then pip install --quiet --disable-pip-version-check -r "$SERVICE_REQUIREMENTS"; fi
 
+
       - name: 同步播客
         id: sync
         if: steps.job_config.outputs.enabled == 'true' && steps.install.outcome == 'success'
@@ -1948,6 +1953,7 @@ jobs:
           if [ -f runner/requirements.txt ]; then pip install --quiet --disable-pip-version-check -r runner/requirements.txt; fi
           SERVICE_REQUIREMENTS=$(cd runner && python -m notionhub_runner requirements douban)
           if [ -f "$SERVICE_REQUIREMENTS" ]; then pip install --quiet --disable-pip-version-check -r "$SERVICE_REQUIREMENTS"; fi
+
 
       - name: 同步舞台剧
         id: sync

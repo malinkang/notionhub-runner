@@ -279,6 +279,7 @@ jobs:
           SERVICE_REQUIREMENTS=$(cd runner && python -m notionhub_runner requirements dida)
           if [ -f "$SERVICE_REQUIREMENTS" ]; then pip install --quiet --disable-pip-version-check -r "$SERVICE_REQUIREMENTS"; fi
 
+
       - name: 同步任务
         id: sync
         if: steps.job_config.outputs.enabled == 'true' && steps.install.outcome == 'success'
@@ -612,6 +613,7 @@ jobs:
           if [ -f runner/requirements.txt ]; then pip install --quiet --disable-pip-version-check -r runner/requirements.txt; fi
           SERVICE_REQUIREMENTS=$(cd runner && python -m notionhub_runner requirements dida)
           if [ -f "$SERVICE_REQUIREMENTS" ]; then pip install --quiet --disable-pip-version-check -r "$SERVICE_REQUIREMENTS"; fi
+
 
       - name: 同步番茄
         id: sync
@@ -947,6 +949,7 @@ jobs:
           SERVICE_REQUIREMENTS=$(cd runner && python -m notionhub_runner requirements dida)
           if [ -f "$SERVICE_REQUIREMENTS" ]; then pip install --quiet --disable-pip-version-check -r "$SERVICE_REQUIREMENTS"; fi
 
+
       - name: 同步习惯与打卡
         id: sync
         if: steps.job_config.outputs.enabled == 'true' && steps.install.outcome == 'success'
@@ -1280,6 +1283,7 @@ jobs:
           if [ -f runner/requirements.txt ]; then pip install --quiet --disable-pip-version-check -r runner/requirements.txt; fi
           SERVICE_REQUIREMENTS=$(cd runner && python -m notionhub_runner requirements dida)
           if [ -f "$SERVICE_REQUIREMENTS" ]; then pip install --quiet --disable-pip-version-check -r "$SERVICE_REQUIREMENTS"; fi
+
 
       - name: 同步倒数日
         id: sync

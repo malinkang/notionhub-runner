@@ -279,6 +279,7 @@ jobs:
           SERVICE_REQUIREMENTS=$(cd runner && python -m notionhub_runner requirements keep)
           if [ -f "$SERVICE_REQUIREMENTS" ]; then pip install --quiet --disable-pip-version-check -r "$SERVICE_REQUIREMENTS"; fi
 
+
       - name: 同步运动
         id: sync
         if: steps.job_config.outputs.enabled == 'true' && steps.install.outcome == 'success'
@@ -612,6 +613,7 @@ jobs:
           if [ -f runner/requirements.txt ]; then pip install --quiet --disable-pip-version-check -r runner/requirements.txt; fi
           SERVICE_REQUIREMENTS=$(cd runner && python -m notionhub_runner requirements keep)
           if [ -f "$SERVICE_REQUIREMENTS" ]; then pip install --quiet --disable-pip-version-check -r "$SERVICE_REQUIREMENTS"; fi
+
 
       - name: 同步睡眠
         id: sync
@@ -947,6 +949,7 @@ jobs:
           SERVICE_REQUIREMENTS=$(cd runner && python -m notionhub_runner requirements keep)
           if [ -f "$SERVICE_REQUIREMENTS" ]; then pip install --quiet --disable-pip-version-check -r "$SERVICE_REQUIREMENTS"; fi
 
+
       - name: 同步心率
         id: sync
         if: steps.job_config.outputs.enabled == 'true' && steps.install.outcome == 'success'
@@ -1281,6 +1284,7 @@ jobs:
           SERVICE_REQUIREMENTS=$(cd runner && python -m notionhub_runner requirements keep)
           if [ -f "$SERVICE_REQUIREMENTS" ]; then pip install --quiet --disable-pip-version-check -r "$SERVICE_REQUIREMENTS"; fi
 
+
       - name: 同步 VO2Max
         id: sync
         if: steps.job_config.outputs.enabled == 'true' && steps.install.outcome == 'success'
@@ -1614,6 +1618,7 @@ jobs:
           if [ -f runner/requirements.txt ]; then pip install --quiet --disable-pip-version-check -r runner/requirements.txt; fi
           SERVICE_REQUIREMENTS=$(cd runner && python -m notionhub_runner requirements keep)
           if [ -f "$SERVICE_REQUIREMENTS" ]; then pip install --quiet --disable-pip-version-check -r "$SERVICE_REQUIREMENTS"; fi
+
 
       - name: 同步血氧
         id: sync
@@ -1954,6 +1959,7 @@ jobs:
           SERVICE_REQUIREMENTS=$(cd runner && python -m notionhub_runner requirements keep)
           if [ -f "$SERVICE_REQUIREMENTS" ]; then pip install --quiet --disable-pip-version-check -r "$SERVICE_REQUIREMENTS"; fi
 
+
       - name: 更新运动热力图
         id: sync
         if: steps.job_config.outputs.enabled == 'true' && steps.install.outcome == 'success'
@@ -2289,6 +2295,7 @@ jobs:
           if [ -f runner/requirements.txt ]; then pip install --quiet --disable-pip-version-check -r runner/requirements.txt; fi
           SERVICE_REQUIREMENTS=$(cd runner && python -m notionhub_runner requirements keep)
           if [ -f "$SERVICE_REQUIREMENTS" ]; then pip install --quiet --disable-pip-version-check -r "$SERVICE_REQUIREMENTS"; fi
+
 
       - name: 更新睡眠热力图
         id: sync

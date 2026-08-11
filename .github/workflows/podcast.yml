@@ -336,7 +336,7 @@ jobs:
             STATUS=failure
           fi
           if [ ! -f "$SYNC_POLICY_STATE_PATH" ]; then printf '{}' > "$SYNC_POLICY_STATE_PATH"; fi
-          jq -cn             --arg jobKey "data"             --arg label "同步小宇宙数据"             --arg status "$STATUS"             --arg failureClass "${NOTIONHUB_FAILURE_CLASS:-}"             --argjson stageIndex 1             --argjson required true             '{stageIndex:$stageIndex,jobKey:$jobKey,label:$label,status:$status,required:$required,failureClass:(if ($failureClass | length) > 0 then $failureClass else null end)}'             > "${{ github.workspace }}/notionhub-stage-01.json"
+          jq -cn             --arg jobKey "data"             --arg stageLabel "同步小宇宙数据"             --arg status "$STATUS"             --arg failureClass "${NOTIONHUB_FAILURE_CLASS:-}"             --argjson stageIndex 1             --argjson required true             '{stageIndex:$stageIndex,jobKey:$jobKey,label:$stageLabel,status:$status,required:$required,failureClass:(if ($failureClass | length) > 0 then $failureClass else null end)}'             > "${{ github.workspace }}/notionhub-stage-01.json"
 
       - name: 保存同步小宇宙数据进度
         if: always() && steps.activation.outputs.enabled == 'true'
@@ -667,7 +667,7 @@ jobs:
             STATUS=failure
           fi
           if [ ! -f "$SYNC_POLICY_STATE_PATH" ]; then printf '{}' > "$SYNC_POLICY_STATE_PATH"; fi
-          jq -cn             --arg jobKey "transcription"             --arg label "语音转文字"             --arg status "$STATUS"             --arg failureClass "${NOTIONHUB_FAILURE_CLASS:-}"             --argjson stageIndex 2             --argjson required true             '{stageIndex:$stageIndex,jobKey:$jobKey,label:$label,status:$status,required:$required,failureClass:(if ($failureClass | length) > 0 then $failureClass else null end)}'             > "${{ github.workspace }}/notionhub-stage-02.json"
+          jq -cn             --arg jobKey "transcription"             --arg stageLabel "语音转文字"             --arg status "$STATUS"             --arg failureClass "${NOTIONHUB_FAILURE_CLASS:-}"             --argjson stageIndex 2             --argjson required true             '{stageIndex:$stageIndex,jobKey:$jobKey,label:$stageLabel,status:$status,required:$required,failureClass:(if ($failureClass | length) > 0 then $failureClass else null end)}'             > "${{ github.workspace }}/notionhub-stage-02.json"
 
       - name: 保存语音转文字进度
         if: always() && needs.data.outputs.enabled == 'true' && needs.data.result == 'success'
@@ -1004,7 +1004,7 @@ jobs:
             STATUS=failure
           fi
           if [ ! -f "$SYNC_POLICY_STATE_PATH" ]; then printf '{}' > "$SYNC_POLICY_STATE_PATH"; fi
-          jq -cn             --arg jobKey "transcript_backfill"             --arg label "补写逐字稿"             --arg status "$STATUS"             --arg failureClass "${NOTIONHUB_FAILURE_CLASS:-}"             --argjson stageIndex 3             --argjson required false             '{stageIndex:$stageIndex,jobKey:$jobKey,label:$label,status:$status,required:$required,failureClass:(if ($failureClass | length) > 0 then $failureClass else null end)}'             > "${{ github.workspace }}/notionhub-stage-03.json"
+          jq -cn             --arg jobKey "transcript_backfill"             --arg stageLabel "补写逐字稿"             --arg status "$STATUS"             --arg failureClass "${NOTIONHUB_FAILURE_CLASS:-}"             --argjson stageIndex 3             --argjson required false             '{stageIndex:$stageIndex,jobKey:$jobKey,label:$stageLabel,status:$status,required:$required,failureClass:(if ($failureClass | length) > 0 then $failureClass else null end)}'             > "${{ github.workspace }}/notionhub-stage-03.json"
 
       - name: 保存补写逐字稿进度
         if: always() && needs.data.outputs.enabled == 'true' && needs.transcription.result == 'success'
@@ -1341,7 +1341,7 @@ jobs:
             STATUS=failure
           fi
           if [ ! -f "$SYNC_POLICY_STATE_PATH" ]; then printf '{}' > "$SYNC_POLICY_STATE_PATH"; fi
-          jq -cn             --arg jobKey "media_files"             --arg label "上传已启用音频"             --arg status "$STATUS"             --arg failureClass "${NOTIONHUB_FAILURE_CLASS:-}"             --argjson stageIndex 4             --argjson required false             '{stageIndex:$stageIndex,jobKey:$jobKey,label:$label,status:$status,required:$required,failureClass:(if ($failureClass | length) > 0 then $failureClass else null end)}'             > "${{ github.workspace }}/notionhub-stage-04.json"
+          jq -cn             --arg jobKey "media_files"             --arg stageLabel "上传已启用音频"             --arg status "$STATUS"             --arg failureClass "${NOTIONHUB_FAILURE_CLASS:-}"             --argjson stageIndex 4             --argjson required false             '{stageIndex:$stageIndex,jobKey:$jobKey,label:$stageLabel,status:$status,required:$required,failureClass:(if ($failureClass | length) > 0 then $failureClass else null end)}'             > "${{ github.workspace }}/notionhub-stage-04.json"
 
       - name: 保存上传已启用音频进度
         if: always() && needs.data.outputs.enabled == 'true' && needs.transcript_backfill.result == 'success'

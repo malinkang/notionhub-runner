@@ -336,7 +336,7 @@ jobs:
             STATUS=failure
           fi
           if [ ! -f "$SYNC_POLICY_STATE_PATH" ]; then printf '{}' > "$SYNC_POLICY_STATE_PATH"; fi
-          jq -cn             --arg jobKey "data"             --arg label "同步运动数据"             --arg status "$STATUS"             --arg failureClass "${NOTIONHUB_FAILURE_CLASS:-}"             --argjson stageIndex 1             --argjson required true             '{stageIndex:$stageIndex,jobKey:$jobKey,label:$label,status:$status,required:$required,failureClass:(if ($failureClass | length) > 0 then $failureClass else null end)}'             > "${{ github.workspace }}/notionhub-stage-01.json"
+          jq -cn             --arg jobKey "data"             --arg stageLabel "同步运动数据"             --arg status "$STATUS"             --arg failureClass "${NOTIONHUB_FAILURE_CLASS:-}"             --argjson stageIndex 1             --argjson required true             '{stageIndex:$stageIndex,jobKey:$jobKey,label:$stageLabel,status:$status,required:$required,failureClass:(if ($failureClass | length) > 0 then $failureClass else null end)}'             > "${{ github.workspace }}/notionhub-stage-01.json"
 
       - name: 保存同步运动数据进度
         if: always() && steps.activation.outputs.enabled == 'true'
@@ -673,7 +673,7 @@ jobs:
             STATUS=failure
           fi
           if [ ! -f "$SYNC_POLICY_STATE_PATH" ]; then printf '{}' > "$SYNC_POLICY_STATE_PATH"; fi
-          jq -cn             --arg jobKey "heatmap"             --arg label "更新热力图"             --arg status "$STATUS"             --arg failureClass "${NOTIONHUB_FAILURE_CLASS:-}"             --argjson stageIndex 2             --argjson required false             '{stageIndex:$stageIndex,jobKey:$jobKey,label:$label,status:$status,required:$required,failureClass:(if ($failureClass | length) > 0 then $failureClass else null end)}'             > "${{ github.workspace }}/notionhub-stage-02.json"
+          jq -cn             --arg jobKey "heatmap"             --arg stageLabel "更新热力图"             --arg status "$STATUS"             --arg failureClass "${NOTIONHUB_FAILURE_CLASS:-}"             --argjson stageIndex 2             --argjson required false             '{stageIndex:$stageIndex,jobKey:$jobKey,label:$stageLabel,status:$status,required:$required,failureClass:(if ($failureClass | length) > 0 then $failureClass else null end)}'             > "${{ github.workspace }}/notionhub-stage-02.json"
 
       - name: 保存更新热力图进度
         if: always() && needs.data.outputs.enabled == 'true' && needs.data.result == 'success'

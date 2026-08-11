@@ -694,7 +694,7 @@ jobs:
     name: 上传已启用媒体
     needs: [data, heatmap]
     if: always()
-    runs-on: ubuntu-latest
+    runs-on: notionhub-youtube-media
     env:
       YOUTUBE_CONFIG: ${{ secrets.YOUTUBE_CONFIG }}
       NOTIONHUB_API_BASE: https://i.notionhub.app/v1
@@ -1398,4 +1398,3 @@ jobs:
         if: always()
         run: |
           if [ "${{ steps.aggregate.outputs.status }}" = "failure" ]; then exit 1; fi
-

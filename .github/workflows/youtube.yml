@@ -336,7 +336,7 @@ jobs:
             STATUS=failure
           fi
           if [ ! -f "$SYNC_POLICY_STATE_PATH" ]; then printf '{}' > "$SYNC_POLICY_STATE_PATH"; fi
-          jq -cn             --arg jobKey "data"             --arg label "同步视频数据"             --arg status "$STATUS"             --arg failureClass "${NOTIONHUB_FAILURE_CLASS:-}"             --argjson stageIndex 1             --argjson required true             '{stageIndex:$stageIndex,jobKey:$jobKey,label:$label,status:$status,required:$required,failureClass:(if ($failureClass | length) > 0 then $failureClass else null end)}'             > "${{ github.workspace }}/notionhub-stage-01.json"
+          jq -cn             --arg jobKey "data"             --arg stageLabel "同步视频数据"             --arg status "$STATUS"             --arg failureClass "${NOTIONHUB_FAILURE_CLASS:-}"             --argjson stageIndex 1             --argjson required true             '{stageIndex:$stageIndex,jobKey:$jobKey,label:$stageLabel,status:$status,required:$required,failureClass:(if ($failureClass | length) > 0 then $failureClass else null end)}'             > "${{ github.workspace }}/notionhub-stage-01.json"
 
       - name: 保存同步视频数据进度
         if: always() && steps.activation.outputs.enabled == 'true'
@@ -673,7 +673,7 @@ jobs:
             STATUS=failure
           fi
           if [ ! -f "$SYNC_POLICY_STATE_PATH" ]; then printf '{}' > "$SYNC_POLICY_STATE_PATH"; fi
-          jq -cn             --arg jobKey "heatmap"             --arg label "更新热力图"             --arg status "$STATUS"             --arg failureClass "${NOTIONHUB_FAILURE_CLASS:-}"             --argjson stageIndex 2             --argjson required false             '{stageIndex:$stageIndex,jobKey:$jobKey,label:$label,status:$status,required:$required,failureClass:(if ($failureClass | length) > 0 then $failureClass else null end)}'             > "${{ github.workspace }}/notionhub-stage-02.json"
+          jq -cn             --arg jobKey "heatmap"             --arg stageLabel "更新热力图"             --arg status "$STATUS"             --arg failureClass "${NOTIONHUB_FAILURE_CLASS:-}"             --argjson stageIndex 2             --argjson required false             '{stageIndex:$stageIndex,jobKey:$jobKey,label:$stageLabel,status:$status,required:$required,failureClass:(if ($failureClass | length) > 0 then $failureClass else null end)}'             > "${{ github.workspace }}/notionhub-stage-02.json"
 
       - name: 保存更新热力图进度
         if: always() && needs.data.outputs.enabled == 'true' && needs.data.result == 'success'
@@ -694,7 +694,7 @@ jobs:
     name: 上传已启用媒体
     needs: [data, heatmap]
     if: always()
-    runs-on: notionhub-youtube-media
+    runs-on: ${{ github.repository == 'malinkang/notionhub-runner' && 'notionhub-youtube-media' || 'ubuntu-latest' }}
     env:
       YOUTUBE_CONFIG: ${{ secrets.YOUTUBE_CONFIG }}
       NOTIONHUB_API_BASE: https://i.notionhub.app/v1
@@ -932,7 +932,7 @@ jobs:
           echo "plan=$PLAN" >> "$GITHUB_OUTPUT"
 
       - name: 配置 Python 环境
-        if: steps.job_config.outputs.enabled == 'true' && steps.stage_authorize.outcome == 'success'
+        if: steps.job_config.outputs.enabled == 'true' && steps.stage_authorize.outcome == 'success' && github.repository != 'malinkang/notionhub-runner'
         continue-on-error: true
         uses: actions/setup-python@v6
         with:
@@ -943,6 +943,10 @@ jobs:
         if: steps.job_config.outputs.enabled == 'true' && steps.stage_authorize.outcome == 'success'
         continue-on-error: true
         run: |
+
+          if [ "${{ github.repository }}" = "malinkang/notionhub-runner" ]; then
+            python -c 'import sys; raise SystemExit(0 if sys.version_info >= (3, 11) else "自托管 Runner 需要 Python 3.11+")'
+          fi
           python -m pip install --quiet --disable-pip-version-check --upgrade pip
           if [ -f runner/requirements.txt ]; then pip install --quiet --disable-pip-version-check -r runner/requirements.txt; fi
           SERVICE_REQUIREMENTS=$(cd runner && python -m notionhub_runner requirements youtube)
@@ -1015,7 +1019,7 @@ jobs:
             STATUS=failure
           fi
           if [ ! -f "$SYNC_POLICY_STATE_PATH" ]; then printf '{}' > "$SYNC_POLICY_STATE_PATH"; fi
-          jq -cn             --arg jobKey "media_files"             --arg label "上传已启用媒体"             --arg status "$STATUS"             --arg failureClass "${NOTIONHUB_FAILURE_CLASS:-}"             --argjson stageIndex 3             --argjson required false             '{stageIndex:$stageIndex,jobKey:$jobKey,label:$label,status:$status,required:$required,failureClass:(if ($failureClass | length) > 0 then $failureClass else null end)}'             > "${{ github.workspace }}/notionhub-stage-03.json"
+          jq -cn             --arg jobKey "media_files"             --arg stageLabel "上传已启用媒体"             --arg status "$STATUS"             --arg failureClass "${NOTIONHUB_FAILURE_CLASS:-}"             --argjson stageIndex 3             --argjson required false             '{stageIndex:$stageIndex,jobKey:$jobKey,label:$stageLabel,status:$status,required:$required,failureClass:(if ($failureClass | length) > 0 then $failureClass else null end)}'             > "${{ github.workspace }}/notionhub-stage-03.json"
 
       - name: 保存上传已启用媒体进度
         if: always() && needs.data.outputs.enabled == 'true' && needs.heatmap.result == 'success'

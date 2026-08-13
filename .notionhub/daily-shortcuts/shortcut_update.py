@@ -8,6 +8,7 @@ import os
 import time as time_module
 from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta, timezone
+from email.utils import parsedate_to_datetime
 from typing import Any, Mapping
 
 import requests
@@ -17,6 +18,8 @@ SHANGHAI = timezone(timedelta(hours=8))
 WEEKDAY = ["一", "二", "三", "四", "五", "六", "日"]
 NOTION_API_BASE = "https://api.notion.com/v1"
 NOTION_VERSION = "2026-03-11"
+DEFAULT_RETRY_SECONDS = 60
+MAX_FALLBACK_RETRY_SECONDS = 300
 
 
 @dataclass(frozen=True)
@@ -34,22 +37,34 @@ class NotionClient:
         self.last_request_at = 0.0
 
     def request(self, method: str, path: str, *, json_body: dict[str, Any] | None = None) -> dict[str, Any]:
-        self._pace()
-        response = self.session.request(
-            method,
-            f"{NOTION_API_BASE}{path}",
-            headers={
-                "Authorization": f"Bearer {self.token}",
-                "Notion-Version": NOTION_VERSION,
-                "Content-Type": "application/json",
-            },
-            json=json_body,
-            timeout=120,
-        )
-        if response.status_code == 429:
-            retry_after = int(response.headers.get("Retry-After", "1"))
-            time_module.sleep(max(1, retry_after))
-            return self.request(method, path, json_body=json_body)
+        rate_limit_count = 0
+        while True:
+            self._pace()
+            response = self.session.request(
+                method,
+                f"{NOTION_API_BASE}{path}",
+                headers={
+                    "Authorization": f"Bearer {self.token}",
+                    "Notion-Version": NOTION_VERSION,
+                    "Content-Type": "application/json",
+                },
+                json=json_body,
+                timeout=120,
+            )
+            if response.status_code != 429:
+                break
+            wait_seconds = notion_retry_after_seconds(
+                response.headers.get("Retry-After"),
+                rate_limit_count,
+            )
+            rate_limit_count += 1
+            print(
+                "[notion] 超出 Notion 请求限制，请等待 "
+                f"{format_notion_wait(wait_seconds)} 后继续（第 {rate_limit_count} 次限流）",
+                flush=True,
+            )
+            response.close()
+            time_module.sleep(wait_seconds)
         if not response.ok:
             try:
                 message = str(response.json().get("message") or "")
@@ -93,6 +108,27 @@ class NotionClient:
         if icon:
             body["icon"] = icon
         self.request("PATCH", f"/pages/{page_id}", json_body=body)
+
+
+def notion_retry_after_seconds(value: str | None, rate_limit_count: int) -> int:
+    text = str(value or "").strip()
+    if text:
+        try:
+            return max(1, math.ceil(float(text)))
+        except ValueError:
+            try:
+                retry_at = parsedate_to_datetime(text)
+                if retry_at.tzinfo is None:
+                    retry_at = retry_at.replace(tzinfo=timezone.utc)
+                return max(1, math.ceil((retry_at - datetime.now(timezone.utc)).total_seconds()))
+            except (TypeError, ValueError, OverflowError):
+                pass
+    return min(DEFAULT_RETRY_SECONDS * (rate_limit_count + 1), MAX_FALLBACK_RETRY_SECONDS)
+
+
+def format_notion_wait(seconds: int) -> str:
+    total = max(0, int(seconds))
+    return f"{total // 60} 分钟 {total % 60} 秒"
 
 
 def load_daily_shortcut_config(env: Mapping[str, str] | None = None) -> DailyShortcutConfig:

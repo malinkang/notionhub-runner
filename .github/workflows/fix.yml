@@ -49,7 +49,6 @@ jobs:
       XIAOHONGSHU_CONFIG: ${{ secrets.XIAOHONGSHU_CONFIG }}
       YOUTUBE_CONFIG: ${{ secrets.YOUTUBE_CONFIG }}
       GUWENDAO_CONFIG: ${{ secrets.GUWENDAO_CONFIG }}
-      GHSTAR_CONFIG: ${{ secrets.GHSTAR_CONFIG }}
       DAILY_CONFIG: ${{ secrets.DAILY_CONFIG }}
     steps:
       - name: 验证修复配置

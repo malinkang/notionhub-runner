@@ -32,9 +32,6 @@ concurrency:
   group: notionhub-podcast-sync-${{ github.ref_name }}
   cancel-in-progress: true
 
-env:
-  PODCAST_TRANSCRIPT_CACHE_URL: https://podcast-transcript-cache-worker.linkang-ma.workers.dev
-
 jobs:
   data:
     name: 同步小宇宙数据
@@ -1728,3 +1725,4 @@ jobs:
         if: always()
         run: |
           if [ "${{ steps.aggregate.outputs.status }}" = "failure" ]; then exit 1; fi
+

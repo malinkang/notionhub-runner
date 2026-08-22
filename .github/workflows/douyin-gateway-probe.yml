@@ -2,6 +2,15 @@ name: Douyin gateway probe
 
 on:
   workflow_dispatch:
+    inputs:
+      operation:
+        description: Probe operation
+        required: true
+        default: favorite
+        type: choice
+        options:
+          - favorite
+          - profile
 
 permissions:
   contents: read
@@ -14,6 +23,7 @@ jobs:
     env:
       DOUYIN_CONFIG: ${{ secrets.DOUYIN_CONFIG }}
       DOUYIN_GATEWAY_TOKEN: ${{ secrets.DOUYIN_GATEWAY_TOKEN }}
+      PROBE_OPERATION: ${{ inputs.operation }}
     steps:
       - name: Probe profile and favorites
         shell: bash
@@ -40,7 +50,8 @@ jobs:
           jq -cn \
             --arg cookie "$COOKIE" \
             --arg secUid "$SEC_UID" \
-            '{cookie:$cookie,operation:"favorite",count:5} + (if $secUid == "" then {} else {secUid:$secUid} end)' \
+            --arg operation "$PROBE_OPERATION" \
+            '{cookie:$cookie,operation:$operation,count:5} + (if $secUid == "" then {} else {secUid:$secUid} end)' \
             > "$REQUEST_FILE"
 
           HTTP_STATUS=$(curl -sS --max-time 90 \
@@ -60,4 +71,4 @@ jobs:
             exit 1
           fi
 
-          jq -c '{ok,profile:{hasNickname:.result.profile.hasNickname,secUidSuffix:.result.profile.secUidSuffix},favorite:{count:.result.favorite.count,hasMore:.result.favorite.hasMore,cursor:.result.favorite.cursor,itemIdSuffixes:.result.favorite.itemIdSuffixes}}' "$RESPONSE_FILE"
+          jq -c '{ok,profile:{hasNickname:.result.profile.hasNickname,secUidSuffix:.result.profile.secUidSuffix}} + (if .result.favorite then {favorite:{count:.result.favorite.count,hasMore:.result.favorite.hasMore,cursor:.result.favorite.cursor,itemIdSuffixes:.result.favorite.itemIdSuffixes}} else {} end)' "$RESPONSE_FILE"

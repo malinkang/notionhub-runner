@@ -11,6 +11,7 @@ on:
         options:
           - favorite
           - profile
+          - collect-default
 
 permissions:
   contents: read
@@ -47,17 +48,27 @@ jobs:
           fi
           echo "::add-mask::$COOKIE"
 
-          jq -cn \
-            --arg cookie "$COOKIE" \
-            --arg secUid "$SEC_UID" \
-            --arg operation "$PROBE_OPERATION" \
-            '{cookie:$cookie,operation:$operation,count:5} + (if $secUid == "" then {} else {secUid:$secUid} end)' \
-            > "$REQUEST_FILE"
+          if [ "$PROBE_OPERATION" = "collect-default" ]; then
+            ENDPOINT='https://douyin-fetch.notionhub.app/v1/collect'
+            jq -cn \
+              --arg cookie "$COOKIE" \
+              --arg secUid "$SEC_UID" \
+              '{cookie:$cookie,enabledStreams:["post","favorite","like"],maxPages:1,maxItemsPerSource:5} + (if $secUid == "" then {} else {secUid:$secUid} end)' \
+              > "$REQUEST_FILE"
+          else
+            ENDPOINT='https://douyin-fetch.notionhub.app/v1/probe'
+            jq -cn \
+              --arg cookie "$COOKIE" \
+              --arg secUid "$SEC_UID" \
+              --arg operation "$PROBE_OPERATION" \
+              '{cookie:$cookie,operation:$operation,count:5} + (if $secUid == "" then {} else {secUid:$secUid} end)' \
+              > "$REQUEST_FILE"
+          fi
 
           HTTP_STATUS=$(curl -sS --max-time 90 \
             -o "$RESPONSE_FILE" \
             -w '%{http_code}' \
-            -X POST 'https://douyin-fetch.notionhub.app/v1/probe' \
+            -X POST "$ENDPOINT" \
             -H "Authorization: Bearer $DOUYIN_GATEWAY_TOKEN" \
             -H 'Content-Type: application/json' \
             --data-binary "@$REQUEST_FILE")
@@ -71,4 +82,8 @@ jobs:
             exit 1
           fi
 
-          jq -c '{ok,profile:{hasNickname:.result.profile.hasNickname,secUidSuffix:.result.profile.secUidSuffix}} + (if .result.favorite then {favorite:{count:.result.favorite.count,hasMore:.result.favorite.hasMore,cursor:.result.favorite.cursor,itemIdSuffixes:.result.favorite.itemIdSuffixes}} else {} end)' "$RESPONSE_FILE"
+          if [ "$PROBE_OPERATION" = "collect-default" ]; then
+            jq -c '{ok,profile:{hasNickname:((.result.profile.nickname // "") | length > 0),secUidSuffix:((.result.profile.sec_uid // "")[-6:])},counts:(reduce (.result.records[]?) as $record ({}; .[$record.source_type] = ((.[$record.source_type] // 0) + 1)))}' "$RESPONSE_FILE"
+          else
+            jq -c '{ok,profile:{hasNickname:.result.profile.hasNickname,secUidSuffix:.result.profile.secUidSuffix}} + (if .result.favorite then {favorite:{count:.result.favorite.count,hasMore:.result.favorite.hasMore,cursor:.result.favorite.cursor,itemIdSuffixes:.result.favorite.itemIdSuffixes}} else {} end)' "$RESPONSE_FILE"
+          fi

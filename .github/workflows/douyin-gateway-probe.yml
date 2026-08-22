@@ -1,0 +1,63 @@
+name: Douyin gateway probe
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    name: Probe residential Douyin egress
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      DOUYIN_CONFIG: ${{ secrets.DOUYIN_CONFIG }}
+      DOUYIN_GATEWAY_TOKEN: ${{ secrets.DOUYIN_GATEWAY_TOKEN }}
+    steps:
+      - name: Probe profile and favorites
+        shell: bash
+        run: |
+          set -euo pipefail
+          REQUEST_FILE=$(mktemp)
+          RESPONSE_FILE=$(mktemp)
+          cleanup() { rm -f "$REQUEST_FILE" "$RESPONSE_FILE"; }
+          trap cleanup EXIT
+
+          if [ -z "${DOUYIN_CONFIG:-}" ] || [ -z "${DOUYIN_GATEWAY_TOKEN:-}" ]; then
+            echo "::error title=Gateway probe not configured::Required repository secrets are missing."
+            exit 1
+          fi
+
+          COOKIE=$(printf '%s' "$DOUYIN_CONFIG" | jq -r '.DOUYIN_COOKIE // empty')
+          SEC_UID=$(printf '%s' "$DOUYIN_CONFIG" | jq -r '.DOUYIN_SEC_UID // empty')
+          if [ -z "$COOKIE" ]; then
+            echo "::error title=Douyin account not configured::DOUYIN_CONFIG has no account Cookie."
+            exit 1
+          fi
+          echo "::add-mask::$COOKIE"
+
+          jq -cn \
+            --arg cookie "$COOKIE" \
+            --arg secUid "$SEC_UID" \
+            '{cookie:$cookie,operation:"favorite",count:5} + (if $secUid == "" then {} else {secUid:$secUid} end)' \
+            > "$REQUEST_FILE"
+
+          HTTP_STATUS=$(curl -sS --max-time 90 \
+            -o "$RESPONSE_FILE" \
+            -w '%{http_code}' \
+            -X POST 'https://douyin-fetch.notionhub.app/v1/probe' \
+            -H "Authorization: Bearer $DOUYIN_GATEWAY_TOKEN" \
+            -H 'Content-Type: application/json' \
+            --data-binary "@$REQUEST_FILE")
+
+          if ! jq -e 'type == "object"' "$RESPONSE_FILE" >/dev/null 2>&1; then
+            echo "::error title=Gateway returned invalid JSON::HTTP $HTTP_STATUS"
+            exit 1
+          fi
+          if [ "$HTTP_STATUS" -lt 200 ] || [ "$HTTP_STATUS" -ge 300 ]; then
+            jq -c '{ok:(.ok // false),error:{code:(.error.code // "unknown")}}' "$RESPONSE_FILE"
+            exit 1
+          fi
+
+          jq -c '{ok,profile:{hasNickname:.result.profile.hasNickname,secUidSuffix:.result.profile.secUidSuffix},favorite:{count:.result.favorite.count,hasMore:.result.favorite.hasMore,cursor:.result.favorite.cursor,itemIdSuffixes:.result.favorite.itemIdSuffixes}}' "$RESPONSE_FILE"

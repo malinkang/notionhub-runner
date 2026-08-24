@@ -399,10 +399,26 @@ jobs:
               SPEC_CONTENT="${SPEC#*|}"
               ARTIFACT_NAME="${SPEC_CONTENT%%|*}"
               EXPECTED_FILES="${SPEC_CONTENT#*|}"
-              ARTIFACT_DIR="$ATTEMPT_DIR/$ARTIFACT_NAME"
-              mkdir -p "$ARTIFACT_DIR"
               ARTIFACT_OK=true
-              if ! gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "$ARTIFACT_NAME" --dir "$ARTIFACT_DIR"; then
+              ARTIFACT_DIR=""
+              RESOLVED_ARTIFACT_NAME=""
+              ARTIFACT_BASE_NAME="${ARTIFACT_NAME%-*}"
+              CURRENT_RUN_ATTEMPT="${GITHUB_RUN_ATTEMPT:-1}"
+              for ((CANDIDATE_ATTEMPT=CURRENT_RUN_ATTEMPT; CANDIDATE_ATTEMPT>=1; CANDIDATE_ATTEMPT--)); do
+                CANDIDATE_ARTIFACT_NAME="$ARTIFACT_BASE_NAME-$CANDIDATE_ATTEMPT"
+                CANDIDATE_ARTIFACT_DIR="$ATTEMPT_DIR/$CANDIDATE_ARTIFACT_NAME"
+                mkdir -p "$CANDIDATE_ARTIFACT_DIR"
+                if gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "$CANDIDATE_ARTIFACT_NAME" --dir "$CANDIDATE_ARTIFACT_DIR"; then
+                  RESOLVED_ARTIFACT_NAME="$CANDIDATE_ARTIFACT_NAME"
+                  ARTIFACT_DIR="$CANDIDATE_ARTIFACT_DIR"
+                  if [ "$CANDIDATE_ATTEMPT" -lt "$CURRENT_RUN_ATTEMPT" ]; then
+                    echo "::notice title=已恢复前次运行进度::当前重试沿用第 ${CANDIDATE_ATTEMPT} 次尝试的阶段结果。"
+                  fi
+                  break
+                fi
+                rm -rf -- "$CANDIDATE_ARTIFACT_DIR"
+              done
+              if [ -z "$RESOLVED_ARTIFACT_NAME" ]; then
                 ARTIFACT_OK=false
               else
                 IFS='|' read -r -a EXPECTED_FILE_LIST <<< "$EXPECTED_FILES"
@@ -414,7 +430,9 @@ jobs:
                 done
               fi
               if [ "$ARTIFACT_OK" != "true" ]; then
-                rm -rf -- "$ARTIFACT_DIR"
+                if [ -n "$ARTIFACT_DIR" ]; then
+                  rm -rf -- "$ARTIFACT_DIR"
+                fi
                 if [ "$SPEC_REQUIRED" = "required" ]; then
                   echo "::warning title=同步进度暂不可用::必要阶段结果尚未完整可见，将自动重试。"
                   DOWNLOAD_OK=false
@@ -730,10 +748,26 @@ jobs:
               SPEC_CONTENT="${SPEC#*|}"
               ARTIFACT_NAME="${SPEC_CONTENT%%|*}"
               EXPECTED_FILES="${SPEC_CONTENT#*|}"
-              ARTIFACT_DIR="$ATTEMPT_DIR/$ARTIFACT_NAME"
-              mkdir -p "$ARTIFACT_DIR"
               ARTIFACT_OK=true
-              if ! gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "$ARTIFACT_NAME" --dir "$ARTIFACT_DIR"; then
+              ARTIFACT_DIR=""
+              RESOLVED_ARTIFACT_NAME=""
+              ARTIFACT_BASE_NAME="${ARTIFACT_NAME%-*}"
+              CURRENT_RUN_ATTEMPT="${GITHUB_RUN_ATTEMPT:-1}"
+              for ((CANDIDATE_ATTEMPT=CURRENT_RUN_ATTEMPT; CANDIDATE_ATTEMPT>=1; CANDIDATE_ATTEMPT--)); do
+                CANDIDATE_ARTIFACT_NAME="$ARTIFACT_BASE_NAME-$CANDIDATE_ATTEMPT"
+                CANDIDATE_ARTIFACT_DIR="$ATTEMPT_DIR/$CANDIDATE_ARTIFACT_NAME"
+                mkdir -p "$CANDIDATE_ARTIFACT_DIR"
+                if gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "$CANDIDATE_ARTIFACT_NAME" --dir "$CANDIDATE_ARTIFACT_DIR"; then
+                  RESOLVED_ARTIFACT_NAME="$CANDIDATE_ARTIFACT_NAME"
+                  ARTIFACT_DIR="$CANDIDATE_ARTIFACT_DIR"
+                  if [ "$CANDIDATE_ATTEMPT" -lt "$CURRENT_RUN_ATTEMPT" ]; then
+                    echo "::notice title=已恢复前次运行进度::当前重试沿用第 ${CANDIDATE_ATTEMPT} 次尝试的阶段结果。"
+                  fi
+                  break
+                fi
+                rm -rf -- "$CANDIDATE_ARTIFACT_DIR"
+              done
+              if [ -z "$RESOLVED_ARTIFACT_NAME" ]; then
                 ARTIFACT_OK=false
               else
                 IFS='|' read -r -a EXPECTED_FILE_LIST <<< "$EXPECTED_FILES"
@@ -745,7 +779,9 @@ jobs:
                 done
               fi
               if [ "$ARTIFACT_OK" != "true" ]; then
-                rm -rf -- "$ARTIFACT_DIR"
+                if [ -n "$ARTIFACT_DIR" ]; then
+                  rm -rf -- "$ARTIFACT_DIR"
+                fi
                 if [ "$SPEC_REQUIRED" = "required" ]; then
                   echo "::warning title=同步进度暂不可用::必要阶段结果尚未完整可见，将自动重试。"
                   DOWNLOAD_OK=false
@@ -1070,10 +1106,26 @@ jobs:
               SPEC_CONTENT="${SPEC#*|}"
               ARTIFACT_NAME="${SPEC_CONTENT%%|*}"
               EXPECTED_FILES="${SPEC_CONTENT#*|}"
-              ARTIFACT_DIR="$ATTEMPT_DIR/$ARTIFACT_NAME"
-              mkdir -p "$ARTIFACT_DIR"
               ARTIFACT_OK=true
-              if ! gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "$ARTIFACT_NAME" --dir "$ARTIFACT_DIR"; then
+              ARTIFACT_DIR=""
+              RESOLVED_ARTIFACT_NAME=""
+              ARTIFACT_BASE_NAME="${ARTIFACT_NAME%-*}"
+              CURRENT_RUN_ATTEMPT="${GITHUB_RUN_ATTEMPT:-1}"
+              for ((CANDIDATE_ATTEMPT=CURRENT_RUN_ATTEMPT; CANDIDATE_ATTEMPT>=1; CANDIDATE_ATTEMPT--)); do
+                CANDIDATE_ARTIFACT_NAME="$ARTIFACT_BASE_NAME-$CANDIDATE_ATTEMPT"
+                CANDIDATE_ARTIFACT_DIR="$ATTEMPT_DIR/$CANDIDATE_ARTIFACT_NAME"
+                mkdir -p "$CANDIDATE_ARTIFACT_DIR"
+                if gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "$CANDIDATE_ARTIFACT_NAME" --dir "$CANDIDATE_ARTIFACT_DIR"; then
+                  RESOLVED_ARTIFACT_NAME="$CANDIDATE_ARTIFACT_NAME"
+                  ARTIFACT_DIR="$CANDIDATE_ARTIFACT_DIR"
+                  if [ "$CANDIDATE_ATTEMPT" -lt "$CURRENT_RUN_ATTEMPT" ]; then
+                    echo "::notice title=已恢复前次运行进度::当前重试沿用第 ${CANDIDATE_ATTEMPT} 次尝试的阶段结果。"
+                  fi
+                  break
+                fi
+                rm -rf -- "$CANDIDATE_ARTIFACT_DIR"
+              done
+              if [ -z "$RESOLVED_ARTIFACT_NAME" ]; then
                 ARTIFACT_OK=false
               else
                 IFS='|' read -r -a EXPECTED_FILE_LIST <<< "$EXPECTED_FILES"
@@ -1085,7 +1137,9 @@ jobs:
                 done
               fi
               if [ "$ARTIFACT_OK" != "true" ]; then
-                rm -rf -- "$ARTIFACT_DIR"
+                if [ -n "$ARTIFACT_DIR" ]; then
+                  rm -rf -- "$ARTIFACT_DIR"
+                fi
                 if [ "$SPEC_REQUIRED" = "required" ]; then
                   echo "::warning title=同步进度暂不可用::必要阶段结果尚未完整可见，将自动重试。"
                   DOWNLOAD_OK=false
@@ -1389,10 +1443,26 @@ jobs:
               SPEC_CONTENT="${SPEC#*|}"
               ARTIFACT_NAME="${SPEC_CONTENT%%|*}"
               EXPECTED_FILES="${SPEC_CONTENT#*|}"
-              ARTIFACT_DIR="$ATTEMPT_DIR/$ARTIFACT_NAME"
-              mkdir -p "$ARTIFACT_DIR"
               ARTIFACT_OK=true
-              if ! gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "$ARTIFACT_NAME" --dir "$ARTIFACT_DIR"; then
+              ARTIFACT_DIR=""
+              RESOLVED_ARTIFACT_NAME=""
+              ARTIFACT_BASE_NAME="${ARTIFACT_NAME%-*}"
+              CURRENT_RUN_ATTEMPT="${GITHUB_RUN_ATTEMPT:-1}"
+              for ((CANDIDATE_ATTEMPT=CURRENT_RUN_ATTEMPT; CANDIDATE_ATTEMPT>=1; CANDIDATE_ATTEMPT--)); do
+                CANDIDATE_ARTIFACT_NAME="$ARTIFACT_BASE_NAME-$CANDIDATE_ATTEMPT"
+                CANDIDATE_ARTIFACT_DIR="$ATTEMPT_DIR/$CANDIDATE_ARTIFACT_NAME"
+                mkdir -p "$CANDIDATE_ARTIFACT_DIR"
+                if gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "$CANDIDATE_ARTIFACT_NAME" --dir "$CANDIDATE_ARTIFACT_DIR"; then
+                  RESOLVED_ARTIFACT_NAME="$CANDIDATE_ARTIFACT_NAME"
+                  ARTIFACT_DIR="$CANDIDATE_ARTIFACT_DIR"
+                  if [ "$CANDIDATE_ATTEMPT" -lt "$CURRENT_RUN_ATTEMPT" ]; then
+                    echo "::notice title=已恢复前次运行进度::当前重试沿用第 ${CANDIDATE_ATTEMPT} 次尝试的阶段结果。"
+                  fi
+                  break
+                fi
+                rm -rf -- "$CANDIDATE_ARTIFACT_DIR"
+              done
+              if [ -z "$RESOLVED_ARTIFACT_NAME" ]; then
                 ARTIFACT_OK=false
               else
                 IFS='|' read -r -a EXPECTED_FILE_LIST <<< "$EXPECTED_FILES"
@@ -1404,7 +1474,9 @@ jobs:
                 done
               fi
               if [ "$ARTIFACT_OK" != "true" ]; then
-                rm -rf -- "$ARTIFACT_DIR"
+                if [ -n "$ARTIFACT_DIR" ]; then
+                  rm -rf -- "$ARTIFACT_DIR"
+                fi
                 if [ "$SPEC_REQUIRED" = "required" ]; then
                   echo "::warning title=同步进度暂不可用::必要阶段结果尚未完整可见，将自动重试。"
                   DOWNLOAD_OK=false

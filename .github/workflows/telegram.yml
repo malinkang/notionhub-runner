@@ -216,6 +216,12 @@ jobs:
               with open(report_path, 'w', encoding='utf-8') as handle:
                   json.dump(report, handle, ensure_ascii=False, separators=(',', ':'))
               os.chmod(report_path, 0o600)
+          failed_codes = sorted({
+              str(item.get('errorCode') or 'transfer_failed')
+              for item in results if item.get('status') != 'success'
+          })[:20]
+          for code in failed_codes:
+              print('::notice title=附件传输诊断::' + code)
           if any(item.get('status') != 'success' for item in results):
               raise SystemExit(2)
           PY

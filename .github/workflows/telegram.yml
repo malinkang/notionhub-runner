@@ -1,0 +1,257 @@
+# NotionHub generated Telegram event workflow v1
+name: Telegram附件上传
+
+on:
+  workflow_dispatch:
+    inputs:
+      task_id:
+        description: NotionHub 随机任务标识
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: notionhub-telegram-${{ inputs.task_id }}
+  cancel-in-progress: false
+
+jobs:
+  upload:
+    name: 安全上传 Telegram 附件
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    env:
+      NOTIONHUB_API_BASE: https://i.notionhub.app/v1
+      NOTIONHUB_TASK_ID: ${{ inputs.task_id }}
+    steps:
+      - name: 领取附件任务
+        id: claim
+        run: |
+          set -euo pipefail
+          if ! [[ "$NOTIONHUB_TASK_ID" =~ ^tgtask_[A-Za-z0-9_-]{8,160}$ ]]; then
+            echo "::error title=任务标识无效::本次附件任务无法验证。"
+            exit 1
+          fi
+          OIDC_RESPONSE="$RUNNER_TEMP/notionhub-oidc.json"
+          CLAIM_RESPONSE="$RUNNER_TEMP/notionhub-telegram-claim.json"
+          HTTP_STATUS=$(curl --silent --show-error --output "$OIDC_RESPONSE" --write-out '%{http_code}'             -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN"             "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=https%3A%2F%2Fi.notionhub.app")
+          if [ "$HTTP_STATUS" -lt 200 ] || [ "$HTTP_STATUS" -ge 300 ]; then
+            echo "::error title=GitHub 身份验证失败::无法获取本次运行的身份凭证。"
+            exit 1
+          fi
+          OIDC_TOKEN=$(jq -r '.value // empty' "$OIDC_RESPONSE")
+          if [ -z "$OIDC_TOKEN" ]; then
+            echo "::error title=GitHub 身份验证失败::身份凭证为空。"
+            exit 1
+          fi
+          echo "::add-mask::$OIDC_TOKEN"
+          CLAIM_BODY=$(jq -cn --arg task_id "$NOTIONHUB_TASK_ID" '{taskId:$task_id}')
+          HTTP_STATUS=$(curl --silent --show-error --output "$CLAIM_RESPONSE" --write-out '%{http_code}'             --request POST "$NOTIONHUB_API_BASE/github/runner/telegram/claim"             -H "Authorization: Bearer $OIDC_TOKEN" -H 'Content-Type: application/json' --data "$CLAIM_BODY")
+          rm -f -- "$OIDC_RESPONSE"
+          unset OIDC_TOKEN CLAIM_BODY
+          if [ "$HTTP_STATUS" -lt 200 ] || [ "$HTTP_STATUS" -ge 300 ]; then
+            echo "::error title=附件任务领取失败::任务尚不可用或已由其他运行领取。"
+            exit 1
+          fi
+          chmod 600 "$CLAIM_RESPONSE"
+          python3 - "$CLAIM_RESPONSE" <<'PY'
+          import json
+          import sys
+
+          payload = json.load(open(sys.argv[1], encoding='utf-8')).get('data', {})
+          secrets = [payload.get('notionToken'), payload.get('reportToken')]
+          secrets.extend(item.get('mediaTicket') for item in payload.get('items', []))
+          for value in secrets:
+              if value:
+                  escaped = str(value).replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
+                  print('::add-mask::' + escaped)
+          if not payload.get('notionToken') or not payload.get('reportToken'):
+              raise SystemExit('任务凭证不完整。')
+          PY
+          echo "claim_path=$CLAIM_RESPONSE" >> "$GITHUB_OUTPUT"
+
+      - name: 分片下载并上传到 Notion
+        id: transfer
+        continue-on-error: true
+        env:
+          CLAIM_PATH: ${{ steps.claim.outputs.claim_path }}
+        run: |
+          set -euo pipefail
+          REPORT_PATH="$RUNNER_TEMP/notionhub-telegram-report.json"
+          python3 - "$CLAIM_PATH" "$REPORT_PATH" "$RUNNER_TEMP" <<'PY'
+          import json
+          import math
+          import mimetypes
+          import os
+          import secrets
+          import sys
+          import tempfile
+          import time
+          import urllib.error
+          import urllib.request
+
+          claim_path, report_path, temp_root = sys.argv[1:]
+          data = json.load(open(claim_path, encoding='utf-8')).get('data', {})
+          notion_token = str(data.get('notionToken') or '')
+          gateway_url = str(data.get('mediaGatewayUrl') or '').rstrip('/')
+          notion_version = str(data.get('notionVersion') or '2026-03-11')
+          chunk_size = int(data.get('chunkSize') or 10 * 1024 * 1024)
+          results = []
+
+          def request(url, method='GET', headers=None, body=None, attempts=4):
+              headers = dict(headers or {})
+              for attempt in range(attempts):
+                  try:
+                      req = urllib.request.Request(url, data=body, headers=headers, method=method)
+                      with urllib.request.urlopen(req, timeout=180) as response:
+                          return response.status, response.headers, response.read()
+                  except urllib.error.HTTPError as error:
+                      if error.code not in (408, 409, 425, 429) and error.code < 500:
+                          raise
+                      if attempt + 1 >= attempts:
+                          raise
+                  except (TimeoutError, urllib.error.URLError):
+                      if attempt + 1 >= attempts:
+                          raise
+                  time.sleep(min(30, 2 ** attempt))
+              raise RuntimeError('request_failed')
+
+          def notion_json(path, method='GET', payload=None):
+              headers = {'Authorization': 'Bearer ' + notion_token, 'Notion-Version': notion_version}
+              body = None
+              if payload is not None:
+                  headers['Content-Type'] = 'application/json'
+                  body = json.dumps(payload, separators=(',', ':')).encode()
+              _, _, raw = request('https://api.notion.com/v1' + path, method, headers, body)
+              return json.loads(raw or b'{}')
+
+          def multipart_file(field_name, file_name, mime_type, contents, fields=None):
+              boundary = '----NotionHub' + secrets.token_hex(16)
+              parts = []
+              for key, value in (fields or {}).items():
+                  parts.extend([
+                      ('--' + boundary + '\r\n').encode(),
+                      ('Content-Disposition: form-data; name="' + key + '"\r\n\r\n').encode(),
+                      str(value).encode(), b'\r\n',
+                  ])
+              safe_name = str(file_name).replace('"', '_').replace('\r', '_').replace('\n', '_')
+              parts.extend([
+                  ('--' + boundary + '\r\n').encode(),
+                  ('Content-Disposition: form-data; name="' + field_name + '"; filename="' + safe_name + '"\r\n').encode(),
+                  ('Content-Type: ' + mime_type + '\r\n\r\n').encode(),
+                  contents, b'\r\n', ('--' + boundary + '--\r\n').encode(),
+              ])
+              return boundary, b''.join(parts)
+
+          try:
+              for item in data.get('items', []):
+                  item_id = str(item.get('itemId') or '')
+                  size = int(item.get('size') or 0)
+                  file_name = str(item.get('fileName') or 'telegram-file')
+                  mime_type = str(item.get('mimeType') or mimetypes.guess_type(file_name)[0] or 'application/octet-stream')
+                  ticket = str(item.get('mediaTicket') or '')
+                  result = {'itemId': item_id, 'status': 'failure', 'errorCode': 'transfer_failed'}
+                  try:
+                      if not item_id or size <= 0 or not ticket or not gateway_url:
+                          raise ValueError('item_invalid')
+                      multi = size > 20 * 1024 * 1024
+                      part_size = chunk_size if multi else size
+                      part_count = max(1, math.ceil(size / part_size))
+                      create_body = {'mode': 'multi_part' if multi else 'single_part', 'filename': file_name, 'content_type': mime_type}
+                      if multi:
+                          create_body['number_of_parts'] = part_count
+                      created = notion_json('/file_uploads', 'POST', create_body)
+                      upload_id = str(created.get('id') or '')
+                      if not upload_id:
+                          raise RuntimeError('upload_create_failed')
+                      for part_number in range(1, part_count + 1):
+                          start = (part_number - 1) * part_size
+                          end = min(size, start + part_size) - 1
+                          headers = {'Authorization': 'Bearer ' + ticket, 'Range': 'bytes=' + str(start) + '-' + str(end)}
+                          _, response_headers, contents = request(gateway_url + '/v1/media/chunk', 'GET', headers)
+                          expected = end - start + 1
+                          if len(contents) != expected or int(response_headers.get('Content-Length') or expected) != expected:
+                              raise RuntimeError('chunk_size_mismatch')
+                          boundary, body = multipart_file('file', file_name, mime_type, contents, {'part_number': part_number} if multi else None)
+                          upload_headers = {
+                              'Authorization': 'Bearer ' + notion_token,
+                              'Notion-Version': notion_version,
+                              'Content-Type': 'multipart/form-data; boundary=' + boundary,
+                          }
+                          request('https://api.notion.com/v1/file_uploads/' + upload_id + '/send', 'POST', upload_headers, body)
+                      if multi:
+                          notion_json('/file_uploads/' + upload_id + '/complete', 'POST', {})
+                      result = {'itemId': item_id, 'status': 'success', 'fileUploadId': upload_id}
+                  except Exception as error:
+                      result = {'itemId': item_id, 'status': 'failure', 'errorCode': type(error).__name__[:80]}
+                  results.append(result)
+          finally:
+              success_count = sum(1 for item in results if item.get('status') == 'success')
+              report = {
+                  'status': 'success' if success_count == len(results) else 'partial',
+                  'uploadedCount': success_count,
+                  'failedCount': len(results) - success_count,
+                  'items': results,
+              }
+              with open(report_path, 'w', encoding='utf-8') as handle:
+                  json.dump(report, handle, ensure_ascii=False, separators=(',', ':'))
+              os.chmod(report_path, 0o600)
+          if any(item.get('status') != 'success' for item in results):
+              raise SystemExit(2)
+          PY
+
+      - name: 回报处理结果
+        id: report
+        if: always() && steps.claim.outcome == 'success'
+        env:
+          CLAIM_PATH: ${{ steps.claim.outputs.claim_path }}
+        run: |
+          set -euo pipefail
+          REPORT_PATH="$RUNNER_TEMP/notionhub-telegram-report.json"
+          if [ ! -s "$REPORT_PATH" ]; then
+            printf '%s' '{"status":"partial","uploadedCount":0,"failedCount":1,"items":[]}' > "$REPORT_PATH"
+            chmod 600 "$REPORT_PATH"
+          fi
+          REPORT_TOKEN=$(jq -r '.data.reportToken // empty' "$CLAIM_PATH")
+          if [ -z "$REPORT_TOKEN" ]; then
+            echo "::error title=结果回报失败::任务回报凭证不可用。"
+            exit 1
+          fi
+          echo "::add-mask::$REPORT_TOKEN"
+          HTTP_STATUS=$(curl --silent --show-error --retry 4 --retry-all-errors --output /dev/null --write-out '%{http_code}'             --request POST "$NOTIONHUB_API_BASE/github/runner/telegram/report"             -H "Authorization: Bearer $REPORT_TOKEN" -H 'Content-Type: application/json' --data-binary "@$REPORT_PATH")
+          if [ "$HTTP_STATUS" -lt 200 ] || [ "$HTTP_STATUS" -ge 300 ]; then
+            echo "::error title=结果回报失败::服务端未接受本次附件处理结果。"
+            exit 1
+          fi
+
+      - name: 清理临时凭证和附件分片
+        if: always()
+        run: |
+          rm -f -- "$RUNNER_TEMP/notionhub-oidc.json" "$RUNNER_TEMP/notionhub-telegram-claim.json"
+
+      - name: 生成隐私安全摘要
+        if: always() && steps.claim.outcome == 'success'
+        run: |
+          REPORT_PATH="$RUNNER_TEMP/notionhub-telegram-report.json"
+          if [ -s "$REPORT_PATH" ]; then
+            UPLOADED=$(jq -r '.uploadedCount // 0' "$REPORT_PATH")
+            FAILED=$(jq -r '.failedCount // 0' "$REPORT_PATH")
+          else
+            UPLOADED=0
+            FAILED=1
+          fi
+          {
+            echo '## Telegram 附件处理'
+            echo ''
+            echo "- 已上传：$UPLOADED"
+            echo "- 未上传：$FAILED"
+            echo '- 日志未记录消息正文、文件名、Telegram 标识或访问凭证。'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: 确认处理完成
+        if: always()
+        run: |
+          find "$RUNNER_TEMP" -maxdepth 1 -type f -name 'notionhub-*' -delete
+          if [ "${{ steps.claim.outcome }}" != 'success' ] || [ "${{ steps.report.outcome }}" != 'success' ]; then exit 1; fi

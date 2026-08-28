@@ -102,6 +102,7 @@ jobs:
 
           def request(url, method='GET', headers=None, body=None, attempts=4):
               headers = dict(headers or {})
+              headers.setdefault('User-Agent', 'NotionHub-Telegram-Runner/1.0')
               for attempt in range(attempts):
                   try:
                       req = urllib.request.Request(url, data=body, headers=headers, method=method)
@@ -145,6 +146,18 @@ jobs:
               ])
               return boundary, b''.join(parts)
 
+          def safe_error_code(stage, error):
+              if isinstance(error, urllib.error.HTTPError):
+                  return stage + '_http_' + str(int(error.code))
+              if isinstance(error, (TimeoutError, urllib.error.URLError)):
+                  return stage + '_network'
+              known = str(error)
+              if known in ('item_invalid', 'chunk_size_mismatch'):
+                  return known
+              if known == 'upload_create_failed':
+                  return 'notion_create_missing_id'
+              return stage + '_failed'
+
           try:
               for item in data.get('items', []):
                   item_id = str(item.get('itemId') or '')
@@ -153,6 +166,7 @@ jobs:
                   mime_type = str(item.get('mimeType') or mimetypes.guess_type(file_name)[0] or 'application/octet-stream')
                   ticket = str(item.get('mediaTicket') or '')
                   result = {'itemId': item_id, 'status': 'failure', 'errorCode': 'transfer_failed'}
+                  stage = 'item_validate'
                   try:
                       if not item_id or size <= 0 or not ticket or not gateway_url:
                           raise ValueError('item_invalid')
@@ -162,6 +176,7 @@ jobs:
                       create_body = {'mode': 'multi_part' if multi else 'single_part', 'filename': file_name, 'content_type': mime_type}
                       if multi:
                           create_body['number_of_parts'] = part_count
+                      stage = 'notion_create'
                       created = notion_json('/file_uploads', 'POST', create_body)
                       upload_id = str(created.get('id') or '')
                       if not upload_id:
@@ -170,6 +185,7 @@ jobs:
                           start = (part_number - 1) * part_size
                           end = min(size, start + part_size) - 1
                           headers = {'Authorization': 'Bearer ' + ticket, 'Range': 'bytes=' + str(start) + '-' + str(end)}
+                          stage = 'gateway_chunk'
                           _, response_headers, contents = request(gateway_url + '/v1/media/chunk', 'GET', headers)
                           expected = end - start + 1
                           if len(contents) != expected or int(response_headers.get('Content-Length') or expected) != expected:
@@ -180,12 +196,14 @@ jobs:
                               'Notion-Version': notion_version,
                               'Content-Type': 'multipart/form-data; boundary=' + boundary,
                           }
+                          stage = 'notion_send'
                           request('https://api.notion.com/v1/file_uploads/' + upload_id + '/send', 'POST', upload_headers, body)
                       if multi:
+                          stage = 'notion_complete'
                           notion_json('/file_uploads/' + upload_id + '/complete', 'POST', {})
                       result = {'itemId': item_id, 'status': 'success', 'fileUploadId': upload_id}
                   except Exception as error:
-                      result = {'itemId': item_id, 'status': 'failure', 'errorCode': type(error).__name__[:80]}
+                      result = {'itemId': item_id, 'status': 'failure', 'errorCode': safe_error_code(stage, error)[:80]}
                   results.append(result)
           finally:
               success_count = sum(1 for item in results if item.get('status') == 'success')

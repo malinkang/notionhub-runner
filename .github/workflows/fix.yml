@@ -53,6 +53,7 @@ jobs:
       GHSTAR_CONFIG: ${{ secrets.GHSTAR_CONFIG }}
       DAILY_CONFIG: ${{ secrets.DAILY_CONFIG }}
       TELEGRAM_CONFIG: ${{ secrets.TELEGRAM_CONFIG }}
+      WEIBO_CONFIG: ${{ secrets.WEIBO_CONFIG }}
     steps:
       - name: 验证修复配置
         id: validate

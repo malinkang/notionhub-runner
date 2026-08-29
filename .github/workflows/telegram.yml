@@ -95,7 +95,9 @@ jobs:
           claim_path, report_path, temp_root = sys.argv[1:]
           data = json.load(open(claim_path, encoding='utf-8')).get('data', {})
           notion_token = str(data.get('notionToken') or '')
+          report_token = str(data.get('reportToken') or '')
           gateway_url = str(data.get('mediaGatewayUrl') or '').rstrip('/')
+          api_base = str(os.environ.get('NOTIONHUB_API_BASE') or '').rstrip('/')
           notion_version = str(data.get('notionVersion') or '2026-03-11')
           chunk_size = int(data.get('chunkSize') or 10 * 1024 * 1024)
           results = []
@@ -104,6 +106,7 @@ jobs:
               headers = dict(headers or {})
               headers.setdefault('User-Agent', 'NotionHub-Telegram-Runner/1.0')
               for attempt in range(attempts):
+                  retry_after = 0
                   try:
                       req = urllib.request.Request(url, data=body, headers=headers, method=method)
                       with urllib.request.urlopen(req, timeout=180) as response:
@@ -113,10 +116,14 @@ jobs:
                           raise
                       if attempt + 1 >= attempts:
                           raise
+                      try:
+                          retry_after = int(error.headers.get('Retry-After') or 0)
+                      except (TypeError, ValueError):
+                          retry_after = 0
                   except (TimeoutError, urllib.error.URLError):
                       if attempt + 1 >= attempts:
                           raise
-                  time.sleep(min(30, 2 ** attempt))
+                  time.sleep(max(1, min(30, retry_after or 2 ** attempt)))
               raise RuntimeError('request_failed')
 
           def notion_json(path, method='GET', payload=None):
@@ -158,8 +165,37 @@ jobs:
                   return 'notion_create_missing_id'
               return stage + '_failed'
 
+          items = list(data.get('items', []))
+          total_parts = sum(max(1, math.ceil(max(0, int(item.get('size') or 0)) / chunk_size)) for item in items)
+          completed_parts = 0
+          progress_state = {'key': None}
+
+          def notify_progress(stage, completed, total, force=False):
+              if not report_token or not api_base:
+                  return
+              bucket = int((max(0, completed) * 20) / max(1, total))
+              key = (stage, bucket)
+              if not force and progress_state['key'] == key:
+                  return
+              progress_state['key'] = key
+              payload = json.dumps({
+                  'stage': stage,
+                  'completed': max(0, int(completed)),
+                  'total': max(0, int(total)),
+              }, separators=(',', ':')).encode()
+              try:
+                  request(
+                      api_base + '/github/runner/telegram/progress',
+                      'POST',
+                      {'Authorization': 'Bearer ' + report_token, 'Content-Type': 'application/json'},
+                      payload,
+                      attempts=2,
+                  )
+              except Exception:
+                  pass
+
           try:
-              for item in data.get('items', []):
+              for item in items:
                   item_id = str(item.get('itemId') or '')
                   size = int(item.get('size') or 0)
                   file_name = str(item.get('fileName') or 'telegram-file')
@@ -186,7 +222,7 @@ jobs:
                           end = min(size, start + part_size) - 1
                           headers = {'Authorization': 'Bearer ' + ticket, 'Range': 'bytes=' + str(start) + '-' + str(end)}
                           stage = 'gateway_chunk'
-                          _, response_headers, contents = request(gateway_url + '/v1/media/chunk', 'GET', headers)
+                          _, response_headers, contents = request(gateway_url + '/v1/media/chunk', 'GET', headers, attempts=120)
                           expected = end - start + 1
                           if len(contents) != expected or int(response_headers.get('Content-Length') or expected) != expected:
                               raise RuntimeError('chunk_size_mismatch')
@@ -198,6 +234,8 @@ jobs:
                           }
                           stage = 'notion_send'
                           request('https://api.notion.com/v1/file_uploads/' + upload_id + '/send', 'POST', upload_headers, body)
+                          completed_parts += 1
+                          notify_progress('transferring', completed_parts, total_parts)
                       if multi:
                           stage = 'notion_complete'
                           notion_json('/file_uploads/' + upload_id + '/complete', 'POST', {})

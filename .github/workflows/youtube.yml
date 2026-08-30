@@ -43,7 +43,7 @@ jobs:
       YOUTUBE_CONFIG: ${{ secrets.YOUTUBE_CONFIG }}
       NOTIONHUB_API_BASE: https://i.notionhub.app/v1
       NOTIONHUB_SERVICE: youtube
-      NOTIONHUB_CONFIG_VERSION: '45'
+      NOTIONHUB_CONFIG_VERSION: '46'
       SYNC_POLICY_STATE_PATH: ${{ github.workspace }}/notionhub-state.json
       SYNC_POLICY_CONTINUATION_PATH: ${{ github.workspace }}/notionhub-continuation-id
       SYNC_POLICY_REPORT_PATH: ${{ github.workspace }}/notionhub-service-report.json
@@ -366,7 +366,7 @@ jobs:
       YOUTUBE_CONFIG: ${{ secrets.YOUTUBE_CONFIG }}
       NOTIONHUB_API_BASE: https://i.notionhub.app/v1
       NOTIONHUB_SERVICE: youtube
-      NOTIONHUB_CONFIG_VERSION: '45'
+      NOTIONHUB_CONFIG_VERSION: '46'
       SYNC_POLICY_STATE_PATH: ${{ github.workspace }}/notionhub-state.json
       SYNC_POLICY_CONTINUATION_PATH: ${{ github.workspace }}/notionhub-continuation-id
       SYNC_POLICY_REPORT_PATH: ${{ github.workspace }}/notionhub-service-report.json
@@ -717,7 +717,7 @@ jobs:
       YOUTUBE_CONFIG: ${{ secrets.YOUTUBE_CONFIG }}
       NOTIONHUB_API_BASE: https://i.notionhub.app/v1
       NOTIONHUB_SERVICE: youtube
-      NOTIONHUB_CONFIG_VERSION: '45'
+      NOTIONHUB_CONFIG_VERSION: '46'
       SYNC_POLICY_STATE_PATH: ${{ github.workspace }}/notionhub-state.json
       SYNC_POLICY_CONTINUATION_PATH: ${{ github.workspace }}/notionhub-continuation-id
       SYNC_POLICY_REPORT_PATH: ${{ github.workspace }}/notionhub-service-report.json
@@ -1143,6 +1143,7 @@ jobs:
               fi
             done
             if [ "$DOWNLOAD_OK" = "true" ]; then
+              rm -rf "${{ github.workspace }}/notionhub-artifacts"
               mkdir -p "${{ github.workspace }}/notionhub-artifacts"
               cp -R "$ATTEMPT_DIR"/. "${{ github.workspace }}/notionhub-artifacts"/
               cleanup_artifact_attempt

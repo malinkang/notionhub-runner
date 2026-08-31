@@ -8,8 +8,7 @@ on:
         description: 触发原因
         required: false
         default: manual
-  schedule:
-    - cron: "20 16 * * *"
+
 
 permissions:
   contents: read

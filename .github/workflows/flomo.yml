@@ -40,7 +40,7 @@ jobs:
       FLOMO_CONFIG: ${{ secrets.FLOMO_CONFIG }}
       NOTIONHUB_API_BASE: https://i.notionhub.app/v1
       NOTIONHUB_SERVICE: flomo
-      NOTIONHUB_CONFIG_VERSION: '46'
+      NOTIONHUB_CONFIG_VERSION: '47'
       SYNC_POLICY_STATE_PATH: ${{ github.workspace }}/notionhub-state.json
       SYNC_POLICY_REPORT_PATH: ${{ github.workspace }}/notionhub-service-report.json
     steps:

@@ -1,7 +1,6 @@
 # NotionHub generated free workflow v2
 name: 微信读书免费版
-run-name: >-
-  ${{ github.event_name == 'workflow_dispatch' && format('NotionHub {0}', inputs.notionhub_run_id) || format('{0} scheduled', github.workflow) }}
+run-name: ${{ github.workflow }}
 
 on:
   workflow_dispatch:

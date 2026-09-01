@@ -1,7 +1,6 @@
 # NotionHub generated workflow v31
 name: 修复数据
-run-name: >-
-  ${{ github.event_name == 'workflow_dispatch' && format('NotionHub {0}', inputs.notionhub_run_id) || format('{0} scheduled', github.workflow) }}
+run-name: ${{ github.workflow }}
 
 on:
   workflow_dispatch:
@@ -35,7 +34,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       NOTIONHUB_API_BASE: https://i.notionhub.app/v1
-      NOTIONHUB_CONFIG_VERSION: '48'
+      NOTIONHUB_CONFIG_VERSION: '49'
       WEREAD_CONFIG: ${{ secrets.WEREAD_CONFIG }}
       PODCAST_CONFIG: ${{ secrets.PODCAST_CONFIG }}
       DOUBAN_CONFIG: ${{ secrets.DOUBAN_CONFIG }}
@@ -50,6 +49,7 @@ jobs:
       FOREST_CONFIG: ${{ secrets.FOREST_CONFIG }}
       TOGGL_CONFIG: ${{ secrets.TOGGL_CONFIG }}
       APPLEMUSIC_CONFIG: ${{ secrets.APPLEMUSIC_CONFIG }}
+      APPLEPODCAST_CONFIG: ${{ secrets.APPLEPODCAST_CONFIG }}
       SPOTIFY_CONFIG: ${{ secrets.SPOTIFY_CONFIG }}
       TRAKT_CONFIG: ${{ secrets.TRAKT_CONFIG }}
       XIAOHONGSHU_CONFIG: ${{ secrets.XIAOHONGSHU_CONFIG }}

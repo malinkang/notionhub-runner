@@ -1,7 +1,6 @@
 # NotionHub generated workflow v38
 name: 滴答清单
-run-name: >-
-  ${{ github.event_name == 'workflow_dispatch' && format('NotionHub {0}', inputs.notionhub_run_id) || format('{0} scheduled', github.workflow) }}
+run-name: ${{ github.workflow }}
 
 on:
   workflow_dispatch:
@@ -50,7 +49,7 @@ jobs:
       DIDA_CONFIG: ${{ secrets.DIDA_CONFIG }}
       NOTIONHUB_API_BASE: https://i.notionhub.app/v1
       NOTIONHUB_SERVICE: dida
-      NOTIONHUB_CONFIG_VERSION: '48'
+      NOTIONHUB_CONFIG_VERSION: '49'
       SYNC_POLICY_STATE_PATH: ${{ github.workspace }}/notionhub-state.json
       SYNC_POLICY_CONTINUATION_PATH: ${{ github.workspace }}/notionhub-continuation-id
       SYNC_POLICY_REPORT_PATH: ${{ github.workspace }}/notionhub-service-report.json
@@ -379,7 +378,7 @@ jobs:
       DIDA_CONFIG: ${{ secrets.DIDA_CONFIG }}
       NOTIONHUB_API_BASE: https://i.notionhub.app/v1
       NOTIONHUB_SERVICE: dida
-      NOTIONHUB_CONFIG_VERSION: '48'
+      NOTIONHUB_CONFIG_VERSION: '49'
       SYNC_POLICY_STATE_PATH: ${{ github.workspace }}/notionhub-state.json
       SYNC_POLICY_CONTINUATION_PATH: ${{ github.workspace }}/notionhub-continuation-id
       SYNC_POLICY_REPORT_PATH: ${{ github.workspace }}/notionhub-service-report.json
@@ -734,7 +733,7 @@ jobs:
       DIDA_CONFIG: ${{ secrets.DIDA_CONFIG }}
       NOTIONHUB_API_BASE: https://i.notionhub.app/v1
       NOTIONHUB_SERVICE: dida
-      NOTIONHUB_CONFIG_VERSION: '48'
+      NOTIONHUB_CONFIG_VERSION: '49'
       SYNC_POLICY_STATE_PATH: ${{ github.workspace }}/notionhub-state.json
       SYNC_POLICY_CONTINUATION_PATH: ${{ github.workspace }}/notionhub-continuation-id
       SYNC_POLICY_REPORT_PATH: ${{ github.workspace }}/notionhub-service-report.json
@@ -1089,7 +1088,7 @@ jobs:
       DIDA_CONFIG: ${{ secrets.DIDA_CONFIG }}
       NOTIONHUB_API_BASE: https://i.notionhub.app/v1
       NOTIONHUB_SERVICE: dida
-      NOTIONHUB_CONFIG_VERSION: '48'
+      NOTIONHUB_CONFIG_VERSION: '49'
       SYNC_POLICY_STATE_PATH: ${{ github.workspace }}/notionhub-state.json
       SYNC_POLICY_CONTINUATION_PATH: ${{ github.workspace }}/notionhub-continuation-id
       SYNC_POLICY_REPORT_PATH: ${{ github.workspace }}/notionhub-service-report.json

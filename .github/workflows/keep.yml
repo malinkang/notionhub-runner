@@ -49,7 +49,7 @@ jobs:
       KEEP_CONFIG: ${{ secrets.KEEP_CONFIG }}
       NOTIONHUB_API_BASE: https://i.notionhub.app/v1
       NOTIONHUB_SERVICE: keep
-      NOTIONHUB_CONFIG_VERSION: '50'
+      NOTIONHUB_CONFIG_VERSION: '51'
       SYNC_POLICY_STATE_PATH: ${{ github.workspace }}/notionhub-state.json
       SYNC_POLICY_CONTINUATION_PATH: ${{ github.workspace }}/notionhub-continuation-id
       SYNC_POLICY_REPORT_PATH: ${{ github.workspace }}/notionhub-service-report.json
@@ -378,7 +378,7 @@ jobs:
       KEEP_CONFIG: ${{ secrets.KEEP_CONFIG }}
       NOTIONHUB_API_BASE: https://i.notionhub.app/v1
       NOTIONHUB_SERVICE: keep
-      NOTIONHUB_CONFIG_VERSION: '50'
+      NOTIONHUB_CONFIG_VERSION: '51'
       SYNC_POLICY_STATE_PATH: ${{ github.workspace }}/notionhub-state.json
       SYNC_POLICY_CONTINUATION_PATH: ${{ github.workspace }}/notionhub-continuation-id
       SYNC_POLICY_REPORT_PATH: ${{ github.workspace }}/notionhub-service-report.json
@@ -733,7 +733,7 @@ jobs:
       KEEP_CONFIG: ${{ secrets.KEEP_CONFIG }}
       NOTIONHUB_API_BASE: https://i.notionhub.app/v1
       NOTIONHUB_SERVICE: keep
-      NOTIONHUB_CONFIG_VERSION: '50'
+      NOTIONHUB_CONFIG_VERSION: '51'
       SYNC_POLICY_STATE_PATH: ${{ github.workspace }}/notionhub-state.json
       SYNC_POLICY_CONTINUATION_PATH: ${{ github.workspace }}/notionhub-continuation-id
       SYNC_POLICY_REPORT_PATH: ${{ github.workspace }}/notionhub-service-report.json
@@ -1088,7 +1088,7 @@ jobs:
       KEEP_CONFIG: ${{ secrets.KEEP_CONFIG }}
       NOTIONHUB_API_BASE: https://i.notionhub.app/v1
       NOTIONHUB_SERVICE: keep
-      NOTIONHUB_CONFIG_VERSION: '50'
+      NOTIONHUB_CONFIG_VERSION: '51'
       SYNC_POLICY_STATE_PATH: ${{ github.workspace }}/notionhub-state.json
       SYNC_POLICY_CONTINUATION_PATH: ${{ github.workspace }}/notionhub-continuation-id
       SYNC_POLICY_REPORT_PATH: ${{ github.workspace }}/notionhub-service-report.json
@@ -1443,7 +1443,7 @@ jobs:
       KEEP_CONFIG: ${{ secrets.KEEP_CONFIG }}
       NOTIONHUB_API_BASE: https://i.notionhub.app/v1
       NOTIONHUB_SERVICE: keep
-      NOTIONHUB_CONFIG_VERSION: '50'
+      NOTIONHUB_CONFIG_VERSION: '51'
       SYNC_POLICY_STATE_PATH: ${{ github.workspace }}/notionhub-state.json
       SYNC_POLICY_CONTINUATION_PATH: ${{ github.workspace }}/notionhub-continuation-id
       SYNC_POLICY_REPORT_PATH: ${{ github.workspace }}/notionhub-service-report.json
@@ -1798,7 +1798,7 @@ jobs:
       KEEP_CONFIG: ${{ secrets.KEEP_CONFIG }}
       NOTIONHUB_API_BASE: https://i.notionhub.app/v1
       NOTIONHUB_SERVICE: keep
-      NOTIONHUB_CONFIG_VERSION: '50'
+      NOTIONHUB_CONFIG_VERSION: '51'
       SYNC_POLICY_STATE_PATH: ${{ github.workspace }}/notionhub-state.json
       SYNC_POLICY_CONTINUATION_PATH: ${{ github.workspace }}/notionhub-continuation-id
       SYNC_POLICY_REPORT_PATH: ${{ github.workspace }}/notionhub-service-report.json
@@ -2155,7 +2155,7 @@ jobs:
       KEEP_CONFIG: ${{ secrets.KEEP_CONFIG }}
       NOTIONHUB_API_BASE: https://i.notionhub.app/v1
       NOTIONHUB_SERVICE: keep
-      NOTIONHUB_CONFIG_VERSION: '50'
+      NOTIONHUB_CONFIG_VERSION: '51'
       SYNC_POLICY_STATE_PATH: ${{ github.workspace }}/notionhub-state.json
       SYNC_POLICY_CONTINUATION_PATH: ${{ github.workspace }}/notionhub-continuation-id
       SYNC_POLICY_REPORT_PATH: ${{ github.workspace }}/notionhub-service-report.json

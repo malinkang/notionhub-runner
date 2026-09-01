@@ -1,9 +1,15 @@
 # NotionHub generated workflow v38
 name: 微信读书
+run-name: >-
+  ${{ github.event_name == 'workflow_dispatch' && format('NotionHub {0}', inputs.notionhub_run_id) || format('{0} scheduled', github.workflow) }}
 
 on:
   workflow_dispatch:
     inputs:
+      notionhub_run_id:
+        description: NotionHub 内部运行标识
+        required: false
+        default: ''
       reason:
         description: 触发原因
         required: false
@@ -44,7 +50,7 @@ jobs:
       WEREAD_CONFIG: ${{ secrets.WEREAD_CONFIG }}
       NOTIONHUB_API_BASE: https://i.notionhub.app/v1
       NOTIONHUB_SERVICE: weread
-      NOTIONHUB_CONFIG_VERSION: '47'
+      NOTIONHUB_CONFIG_VERSION: '48'
       SYNC_POLICY_STATE_PATH: ${{ github.workspace }}/notionhub-state.json
       SYNC_POLICY_CONTINUATION_PATH: ${{ github.workspace }}/notionhub-continuation-id
       SYNC_POLICY_REPORT_PATH: ${{ github.workspace }}/notionhub-service-report.json
@@ -197,6 +203,7 @@ jobs:
             echo "SYNC_POLICY_JSON=$POLICY_JSON"
             echo "SYNC_POLICY_SIGNATURE=$POLICY_SIGNATURE"
             echo "SYNC_POLICY_SIGNING_KEY=$ACCESS_TOKEN"
+            echo "NOTIONHUB_TARGET_RESULTS_PATH=$GITHUB_WORKSPACE/notionhub-target-results.json"
             echo 'WEREAD_CONFIG<<NOTIONHUB_CONFIG_EOF'
             echo "$SERVICE_CONFIG"
             echo 'NOTIONHUB_CONFIG_EOF'
@@ -348,6 +355,7 @@ jobs:
             ${{ env.SYNC_POLICY_STATE_PATH }}
             ${{ env.SYNC_POLICY_CONTINUATION_PATH }}
             ${{ env.NOTIONHUB_RUN_META_PATH }}
+            ${{ env.NOTIONHUB_TARGET_RESULTS_PATH }}
             ${{ github.workspace }}/notionhub-stage-01.json
           if-no-files-found: error
           retention-days: 1
@@ -367,7 +375,7 @@ jobs:
       WEREAD_CONFIG: ${{ secrets.WEREAD_CONFIG }}
       NOTIONHUB_API_BASE: https://i.notionhub.app/v1
       NOTIONHUB_SERVICE: weread
-      NOTIONHUB_CONFIG_VERSION: '47'
+      NOTIONHUB_CONFIG_VERSION: '48'
       SYNC_POLICY_STATE_PATH: ${{ github.workspace }}/notionhub-state.json
       SYNC_POLICY_CONTINUATION_PATH: ${{ github.workspace }}/notionhub-continuation-id
       SYNC_POLICY_REPORT_PATH: ${{ github.workspace }}/notionhub-service-report.json
@@ -604,6 +612,7 @@ jobs:
             echo "SYNC_POLICY_JSON=$POLICY_JSON"
             echo "SYNC_POLICY_SIGNATURE=$POLICY_SIGNATURE"
             echo "SYNC_POLICY_SIGNING_KEY=$ACCESS_TOKEN"
+            echo "NOTIONHUB_TARGET_RESULTS_PATH=$GITHUB_WORKSPACE/notionhub-target-results.json"
             echo 'WEREAD_CONFIG<<NOTIONHUB_CONFIG_EOF'
             echo "$SERVICE_CONFIG"
             echo 'NOTIONHUB_CONFIG_EOF'
@@ -697,6 +706,7 @@ jobs:
             ${{ env.SYNC_POLICY_STATE_PATH }}
             ${{ env.SYNC_POLICY_CONTINUATION_PATH }}
             ${{ env.NOTIONHUB_RUN_META_PATH }}
+            ${{ env.NOTIONHUB_TARGET_RESULTS_PATH }}
             ${{ github.workspace }}/notionhub-stage-02.json
           if-no-files-found: error
           retention-days: 1
@@ -716,7 +726,7 @@ jobs:
       WEREAD_CONFIG: ${{ secrets.WEREAD_CONFIG }}
       NOTIONHUB_API_BASE: https://i.notionhub.app/v1
       NOTIONHUB_SERVICE: weread
-      NOTIONHUB_CONFIG_VERSION: '47'
+      NOTIONHUB_CONFIG_VERSION: '48'
       SYNC_POLICY_STATE_PATH: ${{ github.workspace }}/notionhub-state.json
       SYNC_POLICY_CONTINUATION_PATH: ${{ github.workspace }}/notionhub-continuation-id
       SYNC_POLICY_REPORT_PATH: ${{ github.workspace }}/notionhub-service-report.json
@@ -961,6 +971,7 @@ jobs:
             echo "SYNC_POLICY_JSON=$POLICY_JSON"
             echo "SYNC_POLICY_SIGNATURE=$POLICY_SIGNATURE"
             echo "SYNC_POLICY_SIGNING_KEY=$ACCESS_TOKEN"
+            echo "NOTIONHUB_TARGET_RESULTS_PATH=$GITHUB_WORKSPACE/notionhub-target-results.json"
             echo 'WEREAD_CONFIG<<NOTIONHUB_CONFIG_EOF'
             echo "$SERVICE_CONFIG"
             echo 'NOTIONHUB_CONFIG_EOF'
@@ -1054,6 +1065,7 @@ jobs:
             ${{ env.SYNC_POLICY_STATE_PATH }}
             ${{ env.SYNC_POLICY_CONTINUATION_PATH }}
             ${{ env.NOTIONHUB_RUN_META_PATH }}
+            ${{ env.NOTIONHUB_TARGET_RESULTS_PATH }}
             ${{ github.workspace }}/notionhub-stage-03.json
           if-no-files-found: error
           retention-days: 1
@@ -1073,7 +1085,7 @@ jobs:
       WEREAD_CONFIG: ${{ secrets.WEREAD_CONFIG }}
       NOTIONHUB_API_BASE: https://i.notionhub.app/v1
       NOTIONHUB_SERVICE: weread
-      NOTIONHUB_CONFIG_VERSION: '47'
+      NOTIONHUB_CONFIG_VERSION: '48'
       SYNC_POLICY_STATE_PATH: ${{ github.workspace }}/notionhub-state.json
       SYNC_POLICY_CONTINUATION_PATH: ${{ github.workspace }}/notionhub-continuation-id
       SYNC_POLICY_REPORT_PATH: ${{ github.workspace }}/notionhub-service-report.json
@@ -1318,6 +1330,7 @@ jobs:
             echo "SYNC_POLICY_JSON=$POLICY_JSON"
             echo "SYNC_POLICY_SIGNATURE=$POLICY_SIGNATURE"
             echo "SYNC_POLICY_SIGNING_KEY=$ACCESS_TOKEN"
+            echo "NOTIONHUB_TARGET_RESULTS_PATH=$GITHUB_WORKSPACE/notionhub-target-results.json"
             echo 'WEREAD_CONFIG<<NOTIONHUB_CONFIG_EOF'
             echo "$SERVICE_CONFIG"
             echo 'NOTIONHUB_CONFIG_EOF'
@@ -1411,6 +1424,7 @@ jobs:
             ${{ env.SYNC_POLICY_STATE_PATH }}
             ${{ env.SYNC_POLICY_CONTINUATION_PATH }}
             ${{ env.NOTIONHUB_RUN_META_PATH }}
+            ${{ env.NOTIONHUB_TARGET_RESULTS_PATH }}
             ${{ github.workspace }}/notionhub-stage-04.json
           if-no-files-found: error
           retention-days: 1
@@ -1430,7 +1444,7 @@ jobs:
       WEREAD_CONFIG: ${{ secrets.WEREAD_CONFIG }}
       NOTIONHUB_API_BASE: https://i.notionhub.app/v1
       NOTIONHUB_SERVICE: weread
-      NOTIONHUB_CONFIG_VERSION: '47'
+      NOTIONHUB_CONFIG_VERSION: '48'
       SYNC_POLICY_STATE_PATH: ${{ github.workspace }}/notionhub-state.json
       SYNC_POLICY_CONTINUATION_PATH: ${{ github.workspace }}/notionhub-continuation-id
       SYNC_POLICY_REPORT_PATH: ${{ github.workspace }}/notionhub-service-report.json
@@ -1670,6 +1684,7 @@ jobs:
             echo "SYNC_POLICY_JSON=$POLICY_JSON"
             echo "SYNC_POLICY_SIGNATURE=$POLICY_SIGNATURE"
             echo "SYNC_POLICY_SIGNING_KEY=$ACCESS_TOKEN"
+            echo "NOTIONHUB_TARGET_RESULTS_PATH=$GITHUB_WORKSPACE/notionhub-target-results.json"
             echo 'WEREAD_CONFIG<<NOTIONHUB_CONFIG_EOF'
             echo "$SERVICE_CONFIG"
             echo 'NOTIONHUB_CONFIG_EOF'
@@ -1767,6 +1782,7 @@ jobs:
             ${{ env.SYNC_POLICY_STATE_PATH }}
             ${{ env.SYNC_POLICY_CONTINUATION_PATH }}
             ${{ env.NOTIONHUB_RUN_META_PATH }}
+            ${{ env.NOTIONHUB_TARGET_RESULTS_PATH }}
             ${{ github.workspace }}/notionhub-stage-05.json
           if-no-files-found: error
           retention-days: 1
@@ -1961,18 +1977,18 @@ jobs:
         run: |
           SERVICE_PLAN=$(printf '%s' "$WEREAD_CONFIG" | jq -r '.WEREAD_SYNC_PLAN // "lifetime"')
           NEED_AUTH=false
-          SETTLE_TRIAL=false
+          REPORT_RUN=false
           COMPLETE_INITIAL=false
-          if [ "$SERVICE_PLAN" = "trial" ] && [ "${{ steps.aggregate.outputs.status }}" != "skipped" ]; then
+          if [ "${{ steps.aggregate.outputs.status }}" != "skipped" ] && [ "${{ steps.aggregate.outputs.continuation_ready }}" = "true" ]; then
             NEED_AUTH=true
-            SETTLE_TRIAL=true
+            REPORT_RUN=true
           fi
           if [ "$SERVICE_PLAN" = "lifetime" ] && [ "${{ steps.aggregate.outputs.status }}" = "success" ] && [ "${{ steps.aggregate.outputs.initial_forced }}" = "true" ]; then
             NEED_AUTH=true
             COMPLETE_INITIAL=true
           fi
           echo "enabled=$NEED_AUTH" >> "$GITHUB_OUTPUT"
-          echo "settle_trial=$SETTLE_TRIAL" >> "$GITHUB_OUTPUT"
+          echo "report_run=$REPORT_RUN" >> "$GITHUB_OUTPUT"
           echo "complete_initial=$COMPLETE_INITIAL" >> "$GITHUB_OUTPUT"
 
       - name: 验证权限并获取运行程序
@@ -2100,14 +2116,15 @@ jobs:
             echo "SYNC_POLICY_JSON=$POLICY_JSON"
             echo "SYNC_POLICY_SIGNATURE=$POLICY_SIGNATURE"
             echo "SYNC_POLICY_SIGNING_KEY=$ACCESS_TOKEN"
+            echo "NOTIONHUB_TARGET_RESULTS_PATH=$GITHUB_WORKSPACE/notionhub-target-results.json"
             echo 'WEREAD_CONFIG<<NOTIONHUB_CONFIG_EOF'
             echo "$SERVICE_CONFIG"
             echo 'NOTIONHUB_CONFIG_EOF'
           } >> "$GITHUB_ENV"
           echo "plan=$PLAN" >> "$GITHUB_OUTPUT"
 
-      - name: 结算免费体验
-        if: always() && steps.finish_auth.outputs.settle_trial == 'true' && steps.finish_authorize.outcome == 'success'
+      - name: 提交运行结果
+        if: always() && steps.finish_auth.outputs.report_run == 'true' && steps.finish_authorize.outcome == 'success'
         run: |
           if [ "${{ steps.aggregate.outputs.status }}" = "success" ]; then STATUS=success; else STATUS=failure; fi
           cd runner

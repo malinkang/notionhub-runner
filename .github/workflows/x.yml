@@ -1,0 +1,100 @@
+# NotionHub generated X client import workflow v1
+name: X同步
+
+on:
+  workflow_dispatch:
+    inputs:
+      notionhub_run_id:
+        description: NotionHub 随机运行标识
+        required: true
+        type: string
+      reason:
+        description: 触发来源
+        required: false
+        type: string
+      sync_mode:
+        description: 同步模式
+        required: false
+        type: string
+      payload:
+        description: 隐私安全的任务参数
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: notionhub-x-sync-${{ inputs.notionhub_run_id }}
+  cancel-in-progress: true
+
+jobs:
+  sync:
+    name: 确认 X 数据写入
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      NOTIONHUB_API_BASE: https://i.notionhub.app/v1
+      NOTIONHUB_RUN_ID: ${{ inputs.notionhub_run_id }}
+      NOTIONHUB_ACTION_PAYLOAD: ${{ inputs.payload }}
+    steps:
+      - name: 跟踪同步进度
+        run: |
+          set -euo pipefail
+          IMPORT_ID=$(jq -nr --arg raw "$NOTIONHUB_ACTION_PAYLOAD" '($raw | fromjson? // {}) | .importId // empty')
+          if ! [[ "$IMPORT_ID" =~ ^ximp_[A-Za-z0-9_-]{8,160}$ ]] || ! [[ "$NOTIONHUB_RUN_ID" =~ ^run_[A-Za-z0-9_-]{8,160}$ ]]; then
+            echo "::error title=任务标识无效::本次 X 同步无法验证。"
+            exit 1
+          fi
+          OIDC_RESPONSE="$RUNNER_TEMP/notionhub-x-oidc.json"
+          STATUS_RESPONSE="$RUNNER_TEMP/notionhub-x-status.json"
+          OIDC_TOKEN=""
+          for ATTEMPT in $(seq 1 360); do
+            if [ -z "$OIDC_TOKEN" ] || [ $(( (ATTEMPT - 1) % 24 )) -eq 0 ]; then
+              HTTP_STATUS=$(curl --silent --show-error --output "$OIDC_RESPONSE" --write-out '%{http_code}'                 -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN"                 "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=https%3A%2F%2Fi.notionhub.app")
+              if [ "$HTTP_STATUS" -lt 200 ] || [ "$HTTP_STATUS" -ge 300 ]; then
+                echo "::error title=GitHub 身份验证失败::无法获取本次运行的身份凭证。"
+                exit 1
+              fi
+              OIDC_TOKEN=$(jq -r '.value // empty' "$OIDC_RESPONSE")
+              if [ -z "$OIDC_TOKEN" ]; then
+                echo "::error title=GitHub 身份验证失败::身份凭证为空。"
+                exit 1
+              fi
+              echo "::add-mask::$OIDC_TOKEN"
+            fi
+            STATUS_BODY=$(jq -cn --arg import_id "$IMPORT_ID" --arg run_id "$NOTIONHUB_RUN_ID" '{importId:$import_id,runId:$run_id}')
+            HTTP_STATUS=$(curl --silent --show-error --output "$STATUS_RESPONSE" --write-out '%{http_code}'               --request POST "$NOTIONHUB_API_BASE/github/runner/x/status"               -H "Authorization: Bearer $OIDC_TOKEN" -H 'Content-Type: application/json' --data "$STATUS_BODY")
+            unset STATUS_BODY
+            if [ "$HTTP_STATUS" -ge 200 ] && [ "$HTTP_STATUS" -lt 300 ]; then
+              TERMINAL=$(jq -r '.data.terminal // false' "$STATUS_RESPONSE")
+              if [ "$TERMINAL" = "true" ]; then
+                IMPORT_STATUS=$(jq -r '.data.status // "failure"' "$STATUS_RESPONSE")
+                CREATED=$(jq -r '.data.counts.created // 0' "$STATUS_RESPONSE")
+                UPDATED=$(jq -r '.data.counts.updated // 0' "$STATUS_RESPONSE")
+                FAILED=$(jq -r '.data.counts.failure // 0' "$STATUS_RESPONSE")
+                {
+                  echo '## X 同步'
+                  echo ''
+                  echo "- 新建：$CREATED"
+                  echo "- 更新：$UPDATED"
+                  echo "- 失败：$FAILED"
+                  echo '- 日志未记录帖子正文、Cookie、用户标识或访问凭证。'
+                } >> "$GITHUB_STEP_SUMMARY"
+                if [ "$IMPORT_STATUS" = "failure" ] || [ "$IMPORT_STATUS" = "cancelled" ]; then exit 1; fi
+                exit 0
+              fi
+            elif [ "$HTTP_STATUS" -ge 400 ] && [ "$HTTP_STATUS" -lt 500 ]; then
+              echo "::error title=X 同步状态验证失败::任务与本次 GitHub 运行不匹配。"
+              exit 1
+            fi
+            sleep 10
+          done
+          echo "::error title=X 同步超时::服务端仍在写入数据，请稍后在运行记录中查看。"
+          exit 1
+
+      - name: 清理临时身份文件
+        if: always()
+        run: |
+          rm -f -- "$RUNNER_TEMP/notionhub-x-oidc.json" "$RUNNER_TEMP/notionhub-x-status.json"

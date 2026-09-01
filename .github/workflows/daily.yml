@@ -1,9 +1,15 @@
 # NotionHub generated workflow v34
 name: 每日聚合
+run-name: >-
+  ${{ github.event_name == 'workflow_dispatch' && format('NotionHub {0}', inputs.notionhub_run_id) || format('{0} scheduled', github.workflow) }}
 
 on:
   workflow_dispatch:
     inputs:
+      notionhub_run_id:
+        description: NotionHub 内部运行标识
+        required: false
+        default: ''
       reason:
         description: 触发原因
         required: false
@@ -39,7 +45,7 @@ jobs:
       DAILY_CONFIG: ${{ secrets.DAILY_CONFIG }}
       NOTIONHUB_API_BASE: https://i.notionhub.app/v1
       NOTIONHUB_SERVICE: daily
-      NOTIONHUB_CONFIG_VERSION: '47'
+      NOTIONHUB_CONFIG_VERSION: '48'
       SYNC_POLICY_STATE_PATH: ${{ github.workspace }}/notionhub-state.json
       SYNC_POLICY_REPORT_PATH: ${{ github.workspace }}/notionhub-service-report.json
     steps:
@@ -191,6 +197,7 @@ jobs:
             echo "SYNC_POLICY_JSON=$POLICY_JSON"
             echo "SYNC_POLICY_SIGNATURE=$POLICY_SIGNATURE"
             echo "SYNC_POLICY_SIGNING_KEY=$ACCESS_TOKEN"
+            echo "NOTIONHUB_TARGET_RESULTS_PATH=$GITHUB_WORKSPACE/notionhub-target-results.json"
             echo 'DAILY_CONFIG<<NOTIONHUB_CONFIG_EOF'
             echo "$SERVICE_CONFIG"
             echo 'NOTIONHUB_CONFIG_EOF'
@@ -272,9 +279,9 @@ jobs:
           PAYLOAD=$(jq -cn --arg service "daily" --arg repository "${{ github.repository }}" --arg run_id "${{ github.run_id }}" --arg requested "$NOTIONHUB_REQUESTED_SYNC_MODE" --arg effective "$NOTIONHUB_EFFECTIVE_SYNC_MODE" '{service:$service,repository:$repository,githubRunId:$run_id,status:"success",requestedMode:$requested,effectiveMode:$effective,initialFullSyncForced:true}')
           curl -fsSL -X POST "$NOTIONHUB_API_BASE/internal/initial-full-sync/complete"             -H "Authorization: Bearer $NOTIONHUB_RUN_ACCESS_TOKEN" -H 'Content-Type: application/json' --data "$PAYLOAD" >/dev/null
 
-      - name: 结算免费体验
+      - name: 提交运行结果
         id: settle
-        if: always() && steps.authorize.outcome == 'success' && steps.authorize.outputs.plan == 'trial'
+        if: always() && steps.authorize.outcome == 'success'
         run: |
           if [ "${{ steps.sync.outcome }}" = "success" ]; then STATUS=success; else STATUS=failure; fi
           SETTLEMENT_REPORT="$RUNNER_TEMP/notionhub-settlement.json"

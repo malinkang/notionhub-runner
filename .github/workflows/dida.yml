@@ -1768,6 +1768,12 @@ jobs:
           } >> "$GITHUB_ENV"
           echo "plan=$PLAN" >> "$GITHUB_OUTPUT"
 
+      - name: 确认首次全量同步完成
+        if: always() && steps.finish_auth.outputs.complete_initial == 'true' && steps.finish_authorize.outcome == 'success'
+        run: |
+          PAYLOAD=$(jq -cn --arg service "dida" --arg repository "${{ github.repository }}" --arg run_id "${{ github.run_id }}" --arg requested "${{ steps.aggregate.outputs.requested_mode }}" --arg effective "${{ steps.aggregate.outputs.effective_mode }}" '{service:$service,repository:$repository,githubRunId:$run_id,status:"success",requestedMode:$requested,effectiveMode:$effective,initialFullSyncForced:true}')
+          curl -fsSL -X POST "$NOTIONHUB_API_BASE/internal/initial-full-sync/complete"             -H "Authorization: Bearer $NOTIONHUB_RUN_ACCESS_TOKEN" -H 'Content-Type: application/json' --data "$PAYLOAD" >/dev/null
+
       - name: 提交运行结果
         if: always() && steps.finish_auth.outputs.report_run == 'true' && steps.finish_authorize.outcome == 'success'
         run: |
@@ -1775,12 +1781,6 @@ jobs:
           cd runner
           python -m notionhub_runner report dida --status "$STATUS" --state "${{ github.workspace }}/notionhub-state.json" --output "$RUNNER_TEMP/notionhub-settlement.json" --failure-class "${{ steps.aggregate.outputs.failure_class || 'platform' }}"
           curl --retry 3 --retry-all-errors -fsSL -X POST "$NOTIONHUB_API_BASE/internal/trial-runs/$NOTIONHUB_POLICY_ID/report"             -H "Authorization: Bearer $NOTIONHUB_REPORT_TOKEN" -H 'Content-Type: application/json' --data-binary "@$RUNNER_TEMP/notionhub-settlement.json" >/dev/null
-
-      - name: 确认首次全量同步完成
-        if: always() && steps.finish_auth.outputs.complete_initial == 'true' && steps.finish_authorize.outcome == 'success'
-        run: |
-          PAYLOAD=$(jq -cn --arg service "dida" --arg repository "${{ github.repository }}" --arg run_id "${{ github.run_id }}" --arg requested "${{ steps.aggregate.outputs.requested_mode }}" --arg effective "${{ steps.aggregate.outputs.effective_mode }}" '{service:$service,repository:$repository,githubRunId:$run_id,status:"success",requestedMode:$requested,effectiveMode:$effective,initialFullSyncForced:true}')
-          curl -fsSL -X POST "$NOTIONHUB_API_BASE/internal/initial-full-sync/complete"             -H "Authorization: Bearer $NOTIONHUB_RUN_ACCESS_TOKEN" -H 'Content-Type: application/json' --data "$PAYLOAD" >/dev/null
 
       - name: 生成运行摘要
         if: always()

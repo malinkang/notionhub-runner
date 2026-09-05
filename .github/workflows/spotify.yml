@@ -725,7 +725,7 @@ jobs:
 
 
   media_files:
-    name: 上传已启用歌词
+    name: 上传已启用音频与歌词
     needs: [music, podcast]
     if: always()
     runs-on: ubuntu-latest
@@ -831,7 +831,7 @@ jobs:
           echo "::error title=同步进度恢复失败::GitHub 阶段结果在 6 次尝试后仍不可用。"
           exit 1
 
-      - name: 检查上传已启用歌词配置
+      - name: 检查上传已启用音频与歌词配置
         id: job_config
         if: needs.music.outputs.enabled == 'true' && needs.podcast.result == 'success' && steps.restore.outcome == 'success'
         continue-on-error: true
@@ -848,7 +848,7 @@ jobs:
           echo "enabled=$JOB_ENABLED" >> "$GITHUB_OUTPUT"
           echo "plan=$PLAN" >> "$GITHUB_OUTPUT"
           if [ "$JOB_ENABLED" != "true" ]; then
-            echo "::notice title=上传已启用歌词已跳过::$SKIP_REASON"
+            echo "::notice title=上传已启用音频与歌词已跳过::$SKIP_REASON"
           fi
 
       - name: 验证权限并获取运行程序
@@ -1002,7 +1002,7 @@ jobs:
           if [ -f "$SERVICE_REQUIREMENTS" ]; then pip install --quiet --disable-pip-version-check -r "$SERVICE_REQUIREMENTS"; fi
 
 
-      - name: 上传已启用歌词
+      - name: 上传已启用音频与歌词
         id: sync
         if: steps.job_config.outputs.enabled == 'true' && steps.install.outcome == 'success'
         continue-on-error: true
@@ -1046,7 +1046,7 @@ jobs:
           cd runner
           python -m notionhub_runner sync spotify --job media_files
 
-      - name: 记录上传已启用歌词结果
+      - name: 记录上传已启用音频与歌词结果
         if: always() && needs.music.outputs.enabled == 'true' && needs.podcast.result == 'success'
         continue-on-error: true
         run: |
@@ -1058,14 +1058,14 @@ jobs:
             STATUS=success
           elif [ "true" = "true" ]; then
             STATUS=warning
-            echo "::warning title=上传已启用歌词未完成::主同步结果不受影响，可稍后重试此辅助阶段。"
+            echo "::warning title=上传已启用音频与歌词未完成::主同步结果不受影响，可稍后重试此辅助阶段。"
           else
             STATUS=failure
           fi
           if [ ! -f "$SYNC_POLICY_STATE_PATH" ]; then printf '{}' > "$SYNC_POLICY_STATE_PATH"; fi
-          jq -cn             --arg jobKey "media_files"             --arg stageLabel "上传已启用歌词"             --arg status "$STATUS"             --arg failureClass "${NOTIONHUB_FAILURE_CLASS:-}"             --argjson stageIndex 3             --argjson required false             '{stageIndex:$stageIndex,jobKey:$jobKey,label:$stageLabel,status:$status,required:$required,failureClass:(if ($failureClass | length) > 0 then $failureClass else null end)}'             > "${{ github.workspace }}/notionhub-stage-03.json"
+          jq -cn             --arg jobKey "media_files"             --arg stageLabel "上传已启用音频与歌词"             --arg status "$STATUS"             --arg failureClass "${NOTIONHUB_FAILURE_CLASS:-}"             --argjson stageIndex 3             --argjson required false             '{stageIndex:$stageIndex,jobKey:$jobKey,label:$stageLabel,status:$status,required:$required,failureClass:(if ($failureClass | length) > 0 then $failureClass else null end)}'             > "${{ github.workspace }}/notionhub-stage-03.json"
 
-      - name: 保存上传已启用歌词进度
+      - name: 保存上传已启用音频与歌词进度
         if: always() && needs.music.outputs.enabled == 'true' && needs.podcast.result == 'success'
         continue-on-error: true
         uses: actions/upload-artifact@v4

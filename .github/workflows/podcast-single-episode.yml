@@ -1,0 +1,67 @@
+# NotionHub generated Podcast single episode workflow v1
+name: 小宇宙单集同步与转写
+run-name: 单集同步 (${{ inputs.request_id || inputs.eid || github.run_id }})
+
+on:
+  workflow_dispatch:
+    inputs:
+      request_id:
+        description: 'NotionHub 随机请求标识'
+        required: false
+        default: ''
+        type: string
+      eid:
+        description: '小宇宙单集 ID (eid)'
+        required: false
+        default: ''
+        type: string
+      sync_env_b64:
+        description: 'Base64 编码的同步配置'
+        required: false
+        default: ''
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: notionhub-podcast-single-${{ inputs.request_id || inputs.eid || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  single-episode-sync:
+    name: 单集同步 (${{ inputs.request_id || inputs.eid || github.run_id }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: 配置 Python 环境
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: 安装运行依赖
+        env:
+          SYNC_ENV_B64: ${{ github.event.inputs.sync_env_b64 }}
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          INSTALL_TOKEN=$(python3 -c "import json, base64, os; data=json.loads(base64.b64decode(os.environ.get('SYNC_ENV_B64', 'e30='))); print(data.get('GITHUB_PAT') or data.get('INSTALL_TOKEN') or '')")
+          if [ -n "$INSTALL_TOKEN" ]; then
+            echo "::add-mask::$INSTALL_TOKEN"
+            pip install --quiet --disable-pip-version-check "git+https://${INSTALL_TOKEN}@github.com/malinkang/notionhub-core.git"
+            pip install --quiet --disable-pip-version-check "git+https://${INSTALL_TOKEN}@github.com/malinkang/Podcast2NotionProNew.git"
+          else
+            pip install --quiet --disable-pip-version-check "git+https://github.com/malinkang/notionhub-core.git"
+            pip install --quiet --disable-pip-version-check "git+https://github.com/malinkang/Podcast2NotionProNew.git"
+          fi
+
+      - name: 运行小宇宙单集同步
+        env:
+          SYNC_ENV_B64: ${{ github.event.inputs.sync_env_b64 }}
+          EID: ${{ github.event.inputs.eid }}
+          REQUEST_ID: ${{ github.event.inputs.request_id }}
+          PYTHONUNBUFFERED: '1'
+          TZ: 'Asia/Shanghai'
+        run: |
+          python3 -m podcast2notion.single_episode

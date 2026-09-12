@@ -1844,7 +1844,7 @@ jobs:
       - name: 确认同步播客成功
         if: always() && needs.movie.outputs.enabled == 'true' && needs.game.result == 'success' && steps.job_config.outputs.enabled == 'true'
         run: |
-          if [ "${{ steps.sync.outcome }}" != "success" ]; then exit 1; fi
+          if [ "${{ steps.sync.outcome }}" != "success" ] && [ "${{ steps.target_status.outputs.notion_succeeded }}" != "true" ]; then exit 1; fi
 
 
   podcast_transcription:

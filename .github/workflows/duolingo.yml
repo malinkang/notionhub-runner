@@ -255,6 +255,8 @@ jobs:
       - name: 检查同步学习记录配置
         id: job_config
         if: steps.progress.outcome == 'success'
+        env:
+          RAW_ACTION_PAYLOAD: ${{ github.event.inputs.payload || '{}' }}
         run: |
           SERVICE_CONFIG="$DUOLINGO_CONFIG"
           PLAN=$(printf '%s' "$SERVICE_CONFIG" | jq -r '.DUOLINGO_SYNC_PLAN // "lifetime"')
@@ -475,6 +477,8 @@ jobs:
       - name: 检查同步单词配置
         id: job_config
         if: needs.learning.outputs.enabled == 'true' && needs.learning.result == 'success' && steps.restore.outcome == 'success'
+        env:
+          RAW_ACTION_PAYLOAD: ${{ github.event.inputs.payload || '{}' }}
         run: |
           SERVICE_CONFIG="$DUOLINGO_CONFIG"
           PLAN=$(printf '%s' "$SERVICE_CONFIG" | jq -r '.DUOLINGO_SYNC_PLAN // "lifetime"')

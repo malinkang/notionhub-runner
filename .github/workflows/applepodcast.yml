@@ -255,6 +255,8 @@ jobs:
       - name: 检查同步 Apple Podcasts 数据配置
         id: job_config
         if: steps.progress.outcome == 'success'
+        env:
+          RAW_ACTION_PAYLOAD: ${{ github.event.inputs.payload || '{}' }}
         run: |
           SERVICE_CONFIG="$APPLEPODCAST_CONFIG"
           PLAN=$(printf '%s' "$SERVICE_CONFIG" | jq -r '.APPLEPODCAST_SYNC_PLAN // "lifetime"')

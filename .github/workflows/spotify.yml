@@ -255,12 +255,20 @@ jobs:
       - name: 检查同步 Spotify 音乐配置
         id: job_config
         if: steps.progress.outcome == 'success'
+        env:
+          RAW_ACTION_PAYLOAD: ${{ github.event.inputs.payload || '{}' }}
         run: |
           SERVICE_CONFIG="$SPOTIFY_CONFIG"
           PLAN=$(printf '%s' "$SERVICE_CONFIG" | jq -r '.SPOTIFY_SYNC_PLAN // "lifetime"')
           JOB_ENABLED=true
           SKIP_REASON=""
-          SERVICE_OPTIONS=$(printf '%s' "$SERVICE_CONFIG" | jq -c '.SPOTIFY_SERVICE_OPTIONS // {}')
+          CONFIG_SERVICE_OPTIONS=$(printf '%s' "$SERVICE_CONFIG" | jq -c '.SPOTIFY_SERVICE_OPTIONS // {}')
+          PAYLOAD_SERVICE_OPTIONS=$(jq -cn --arg raw "$RAW_ACTION_PAYLOAD" '($raw | fromjson? // {}) | if (.serviceOptions | type) == "object" then .serviceOptions else null end')
+          if [ "$PAYLOAD_SERVICE_OPTIONS" != "null" ]; then
+            SERVICE_OPTIONS="$PAYLOAD_SERVICE_OPTIONS"
+          else
+            SERVICE_OPTIONS="$CONFIG_SERVICE_OPTIONS"
+          fi
           if ! printf '%s' "$SERVICE_OPTIONS" | jq -e --arg key "music" '(if type == "string" then (try fromjson catch {}) elif type == "object" then . else {} end) | (.enabledStreams // []) as $enabled | ($enabled | length == 0) or ($enabled | index($key) != null)' >/dev/null; then
             JOB_ENABLED=false
             SKIP_REASON="未在同步内容中启用"
@@ -479,12 +487,20 @@ jobs:
       - name: 检查同步 Spotify 播客配置
         id: job_config
         if: needs.music.outputs.enabled == 'true' && needs.music.result == 'success' && steps.restore.outcome == 'success'
+        env:
+          RAW_ACTION_PAYLOAD: ${{ github.event.inputs.payload || '{}' }}
         run: |
           SERVICE_CONFIG="$SPOTIFY_CONFIG"
           PLAN=$(printf '%s' "$SERVICE_CONFIG" | jq -r '.SPOTIFY_SYNC_PLAN // "lifetime"')
           JOB_ENABLED=true
           SKIP_REASON=""
-          SERVICE_OPTIONS=$(printf '%s' "$SERVICE_CONFIG" | jq -c '.SPOTIFY_SERVICE_OPTIONS // {}')
+          CONFIG_SERVICE_OPTIONS=$(printf '%s' "$SERVICE_CONFIG" | jq -c '.SPOTIFY_SERVICE_OPTIONS // {}')
+          PAYLOAD_SERVICE_OPTIONS=$(jq -cn --arg raw "$RAW_ACTION_PAYLOAD" '($raw | fromjson? // {}) | if (.serviceOptions | type) == "object" then .serviceOptions else null end')
+          if [ "$PAYLOAD_SERVICE_OPTIONS" != "null" ]; then
+            SERVICE_OPTIONS="$PAYLOAD_SERVICE_OPTIONS"
+          else
+            SERVICE_OPTIONS="$CONFIG_SERVICE_OPTIONS"
+          fi
           if ! printf '%s' "$SERVICE_OPTIONS" | jq -e --arg key "podcast" '(if type == "string" then (try fromjson catch {}) elif type == "object" then . else {} end) | (.enabledStreams // []) as $enabled | ($enabled | length == 0) or ($enabled | index($key) != null)' >/dev/null; then
             JOB_ENABLED=false
             SKIP_REASON="未在同步内容中启用"
@@ -837,6 +853,8 @@ jobs:
         id: job_config
         if: needs.music.outputs.enabled == 'true' && needs.podcast.result == 'success' && steps.restore.outcome == 'success'
         continue-on-error: true
+        env:
+          RAW_ACTION_PAYLOAD: ${{ github.event.inputs.payload || '{}' }}
         run: |
           SERVICE_CONFIG="$SPOTIFY_CONFIG"
           PLAN=$(printf '%s' "$SERVICE_CONFIG" | jq -r '.SPOTIFY_SYNC_PLAN // "lifetime"')

@@ -255,6 +255,8 @@ jobs:
       - name: 检查同步 Star 与 Lists配置
         id: job_config
         if: steps.progress.outcome == 'success'
+        env:
+          RAW_ACTION_PAYLOAD: ${{ github.event.inputs.payload || '{}' }}
         run: |
           SERVICE_CONFIG="$GHSTAR_CONFIG"
           PLAN=$(printf '%s' "$SERVICE_CONFIG" | jq -r '.GHSTAR_SYNC_PLAN // "lifetime"')

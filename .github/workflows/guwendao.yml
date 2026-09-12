@@ -326,6 +326,7 @@ jobs:
           cd runner
           python -m notionhub_runner sync guwendao --job data
 
+
       - name: 记录同步古文岛数据结果
         if: always() && steps.activation.outputs.enabled == 'true'
         run: |

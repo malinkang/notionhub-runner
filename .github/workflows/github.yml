@@ -327,6 +327,7 @@ jobs:
           cd runner
           python -m notionhub_runner sync github --job data
 
+
       - name: 记录同步 Star 与 Lists结果
         if: always() && steps.activation.outputs.enabled == 'true'
         run: |

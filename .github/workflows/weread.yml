@@ -327,6 +327,7 @@ jobs:
           cd runner
           python -m notionhub_runner sync weread --job books
 
+
       - name: 记录同步书籍结果
         if: always() && steps.activation.outputs.enabled == 'true'
         run: |
@@ -677,6 +678,7 @@ jobs:
           fi
           cd runner
           python -m notionhub_runner sync weread --job reading_time
+
 
       - name: 记录同步阅读时长结果
         if: always() && needs.books.outputs.enabled == 'true' && needs.books.result == 'success'
@@ -1037,6 +1039,7 @@ jobs:
           cd runner
           python -m notionhub_runner sync weread --job booklists
 
+
       - name: 记录同步书单结果
         if: always() && needs.books.outputs.enabled == 'true' && needs.reading_time.result == 'success'
         run: |
@@ -1396,6 +1399,7 @@ jobs:
           cd runner
           python -m notionhub_runner sync weread --job mp_articles
 
+
       - name: 记录同步公众号文章结果
         if: always() && needs.books.outputs.enabled == 'true' && needs.booklists.result == 'success'
         run: |
@@ -1751,6 +1755,7 @@ jobs:
           fi
           cd runner
           python -m notionhub_runner sync weread --job finalize
+
 
       - name: 记录修复 Notion 数据结果
         if: always() && needs.books.outputs.enabled == 'true' && needs.mp_articles.result == 'success'

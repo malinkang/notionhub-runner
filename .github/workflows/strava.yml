@@ -327,6 +327,7 @@ jobs:
           cd runner
           python -m notionhub_runner sync strava --job data
 
+
       - name: 记录同步运动数据结果
         if: always() && steps.activation.outputs.enabled == 'true'
         run: |
@@ -682,6 +683,7 @@ jobs:
           fi
           cd runner
           python -m notionhub_runner sync strava --job heatmap
+
 
       - name: 记录更新热力图结果
         if: always() && needs.data.outputs.enabled == 'true' && needs.data.result == 'success'

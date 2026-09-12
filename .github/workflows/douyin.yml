@@ -327,6 +327,7 @@ jobs:
           cd runner
           python -m notionhub_runner sync douyin --job data
 
+
       - name: 记录同步抖音数据结果
         if: always() && steps.activation.outputs.enabled == 'true'
         run: |
@@ -687,6 +688,7 @@ jobs:
           cd runner
           python -m notionhub_runner sync douyin --job get_notes_submit
 
+
       - name: 记录提交 Get 笔记处理结果
         if: always() && needs.data.outputs.enabled == 'true' && needs.data.result == 'success'
         continue-on-error: true
@@ -1044,6 +1046,7 @@ jobs:
           cd runner
           python -m notionhub_runner sync douyin --job media_files
 
+
       - name: 记录上传已启用视频与图集结果
         if: always() && needs.data.outputs.enabled == 'true' && needs.get_notes_submit.result == 'success'
         continue-on-error: true
@@ -1400,6 +1403,7 @@ jobs:
           fi
           cd runner
           python -m notionhub_runner sync douyin --job get_notes_results
+
 
       - name: 记录回填 Get 笔记结果结果
         if: always() && needs.data.outputs.enabled == 'true' && needs.media_files.result == 'success'

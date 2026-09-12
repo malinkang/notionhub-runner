@@ -331,6 +331,7 @@ jobs:
           cd runner
           python -m notionhub_runner sync dida --job task
 
+
       - name: 记录同步任务结果
         if: always() && steps.activation.outputs.enabled == 'true'
         run: |
@@ -685,6 +686,7 @@ jobs:
           fi
           cd runner
           python -m notionhub_runner sync dida --job pomodoro
+
 
       - name: 记录同步番茄结果
         if: always() && needs.task.outputs.enabled == 'true' && needs.task.result == 'success'
@@ -1041,6 +1043,7 @@ jobs:
           cd runner
           python -m notionhub_runner sync dida --job habit
 
+
       - name: 记录同步习惯与打卡结果
         if: always() && needs.task.outputs.enabled == 'true' && needs.pomodoro.result == 'success'
         run: |
@@ -1395,6 +1398,7 @@ jobs:
           fi
           cd runner
           python -m notionhub_runner sync dida --job countdown
+
 
       - name: 记录同步倒数日结果
         if: always() && needs.task.outputs.enabled == 'true' && needs.habit.result == 'success'

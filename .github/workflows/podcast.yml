@@ -325,6 +325,7 @@ jobs:
           cd runner
           python -m notionhub_runner sync podcast --job data
 
+
       - name: 记录同步小宇宙数据结果
         if: always() && steps.activation.outputs.enabled == 'true'
         run: |
@@ -675,6 +676,7 @@ jobs:
           fi
           cd runner
           python -m notionhub_runner sync podcast --job transcription
+
 
       - name: 记录语音转文字结果
         if: always() && needs.data.outputs.enabled == 'true' && needs.data.result == 'success'
@@ -1032,6 +1034,7 @@ jobs:
           cd runner
           python -m notionhub_runner sync podcast --job transcript_backfill
 
+
       - name: 记录补写逐字稿结果
         if: always() && needs.data.outputs.enabled == 'true' && needs.transcription.result == 'success'
         continue-on-error: true
@@ -1388,6 +1391,7 @@ jobs:
           fi
           cd runner
           python -m notionhub_runner sync podcast --job media_files
+
 
       - name: 记录上传已启用音频结果
         if: always() && needs.data.outputs.enabled == 'true' && needs.transcript_backfill.result == 'success'

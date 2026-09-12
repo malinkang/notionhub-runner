@@ -331,6 +331,7 @@ jobs:
           cd runner
           python -m notionhub_runner sync spotify --job music
 
+
       - name: 记录同步 Spotify 音乐结果
         if: always() && steps.activation.outputs.enabled == 'true'
         run: |
@@ -685,6 +686,7 @@ jobs:
           fi
           cd runner
           python -m notionhub_runner sync spotify --job podcast
+
 
       - name: 记录同步 Spotify 播客结果
         if: always() && needs.music.outputs.enabled == 'true' && needs.music.result == 'success'
@@ -1045,6 +1047,7 @@ jobs:
           fi
           cd runner
           python -m notionhub_runner sync spotify --job media_files
+
 
       - name: 记录上传已启用音频与歌词结果
         if: always() && needs.music.outputs.enabled == 'true' && needs.podcast.result == 'success'

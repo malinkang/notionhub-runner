@@ -327,6 +327,7 @@ jobs:
           cd runner
           python -m notionhub_runner sync xiaohongshu --job data
 
+
       - name: 记录同步笔记数据与图片结果
         if: always() && steps.activation.outputs.enabled == 'true'
         run: |
@@ -682,6 +683,7 @@ jobs:
           fi
           cd runner
           python -m notionhub_runner sync xiaohongshu --job heatmap
+
 
       - name: 记录更新热力图结果
         if: always() && needs.data.outputs.enabled == 'true' && needs.data.result == 'success'
@@ -1039,6 +1041,7 @@ jobs:
           fi
           cd runner
           python -m notionhub_runner sync xiaohongshu --job media_files
+
 
       - name: 记录上传已启用大文件结果
         if: always() && needs.data.outputs.enabled == 'true' && needs.heatmap.result == 'success'

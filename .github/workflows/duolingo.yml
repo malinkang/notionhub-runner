@@ -327,6 +327,7 @@ jobs:
           cd runner
           python -m notionhub_runner sync duolingo --job learning
 
+
       - name: 记录同步学习记录结果
         if: always() && steps.activation.outputs.enabled == 'true'
         run: |
@@ -677,6 +678,7 @@ jobs:
           fi
           cd runner
           python -m notionhub_runner sync duolingo --job words
+
 
       - name: 记录同步单词结果
         if: always() && needs.learning.outputs.enabled == 'true' && needs.learning.result == 'success'

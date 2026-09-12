@@ -327,6 +327,7 @@ jobs:
           cd runner
           python -m notionhub_runner sync applemusic --job data
 
+
       - name: 记录同步音乐数据结果
         if: always() && steps.activation.outputs.enabled == 'true'
         run: |
@@ -686,6 +687,7 @@ jobs:
           fi
           cd runner
           python -m notionhub_runner sync applemusic --job media_files
+
 
       - name: 记录上传已启用音频与歌词结果
         if: always() && needs.data.outputs.enabled == 'true' && needs.data.result == 'success'

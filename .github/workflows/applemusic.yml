@@ -216,7 +216,7 @@ jobs:
           RAW_ACTION_PAYLOAD: ${{ github.event.inputs.payload || '{}' }}
           INPUT_SYNC_MODE: ${{ github.event.inputs.sync_mode || '' }}
         run: |
-          REQUESTED_SYNC_MODE=$(jq -nr --arg raw "$RAW_ACTION_PAYLOAD" --arg input "$INPUT_SYNC_MODE" '($raw | fromjson? // {}) as $payload | ($payload.requestedSyncMode // $payload.syncMode // $payload.sync_mode // "") as $payload_mode | (if $payload_mode == "full" or $payload_mode == "incremental" then $payload_mode elif $input == "full" or $input == "incremental" then $input else "incremental" end)')
+          REQUESTED_SYNC_MODE=$(jq -nr --arg raw "$RAW_ACTION_PAYLOAD" --arg input "$INPUT_SYNC_MODE" --arg server "${NOTIONHUB_CAPTURE_SYNC_MODE:-}" '($raw | fromjson? // {}) as $payload | ($payload.requestedSyncMode // $payload.syncMode // $payload.sync_mode // "") as $payload_mode | (if $server == "full" or $server == "incremental" then $server elif $payload_mode == "full" or $payload_mode == "incremental" then $payload_mode elif $input == "full" or $input == "incremental" then $input else "incremental" end)')
           CONFIG_INITIAL_FULL_SYNC_REQUIRED=$(printf '%s' "$APPLEMUSIC_CONFIG" | jq -r '(.APPLEMUSIC_INITIAL_FULL_SYNC_REQUIRED // false) | tostring' 2>/dev/null || echo "false")
           PAYLOAD_INITIAL_FULL_SYNC_REQUIRED=$(jq -nr --arg raw "$RAW_ACTION_PAYLOAD" '($raw | fromjson? // {}) | (.initialFullSyncForced // false) | tostring')
           if [ "$CONFIG_INITIAL_FULL_SYNC_REQUIRED" = "true" ] || [ "$PAYLOAD_INITIAL_FULL_SYNC_REQUIRED" = "true" ]; then
@@ -297,7 +297,7 @@ jobs:
           SUPPORTS_FULL_SYNC: 'true'
           NOTIONHUB_DEFER_FILES: 'true'
         run: |
-          REQUESTED_SYNC_MODE=$(jq -nr --arg raw "$RAW_ACTION_PAYLOAD" --arg input "$INPUT_SYNC_MODE" '($raw | fromjson? // {}) as $payload | ($payload.requestedSyncMode // $payload.syncMode // $payload.sync_mode // "") as $payload_mode | (if $payload_mode == "full" or $payload_mode == "incremental" then $payload_mode elif $input == "full" or $input == "incremental" then $input else "incremental" end)')
+          REQUESTED_SYNC_MODE=$(jq -nr --arg raw "$RAW_ACTION_PAYLOAD" --arg input "$INPUT_SYNC_MODE" --arg server "${NOTIONHUB_CAPTURE_SYNC_MODE:-}" '($raw | fromjson? // {}) as $payload | ($payload.requestedSyncMode // $payload.syncMode // $payload.sync_mode // "") as $payload_mode | (if $server == "full" or $server == "incremental" then $server elif $payload_mode == "full" or $payload_mode == "incremental" then $payload_mode elif $input == "full" or $input == "incremental" then $input else "incremental" end)')
           CONFIG_INITIAL_FULL_SYNC_REQUIRED=$(printf '%s' "$APPLEMUSIC_CONFIG" | jq -r '(.APPLEMUSIC_INITIAL_FULL_SYNC_REQUIRED // false) | tostring' 2>/dev/null || echo "false")
           PAYLOAD_INITIAL_FULL_SYNC_REQUIRED=$(jq -nr --arg raw "$RAW_ACTION_PAYLOAD" '($raw | fromjson? // {}) | (.initialFullSyncForced // false) | tostring')
           if [ "$CONFIG_INITIAL_FULL_SYNC_REQUIRED" = "true" ] || [ "$PAYLOAD_INITIAL_FULL_SYNC_REQUIRED" = "true" ]; then
@@ -660,7 +660,7 @@ jobs:
           SUPPORTS_FULL_SYNC: 'true'
           NOTIONHUB_DEFER_FILES: 'true'
         run: |
-          REQUESTED_SYNC_MODE=$(jq -nr --arg raw "$RAW_ACTION_PAYLOAD" --arg input "$INPUT_SYNC_MODE" '($raw | fromjson? // {}) as $payload | ($payload.requestedSyncMode // $payload.syncMode // $payload.sync_mode // "") as $payload_mode | (if $payload_mode == "full" or $payload_mode == "incremental" then $payload_mode elif $input == "full" or $input == "incremental" then $input else "incremental" end)')
+          REQUESTED_SYNC_MODE=$(jq -nr --arg raw "$RAW_ACTION_PAYLOAD" --arg input "$INPUT_SYNC_MODE" --arg server "${NOTIONHUB_CAPTURE_SYNC_MODE:-}" '($raw | fromjson? // {}) as $payload | ($payload.requestedSyncMode // $payload.syncMode // $payload.sync_mode // "") as $payload_mode | (if $server == "full" or $server == "incremental" then $server elif $payload_mode == "full" or $payload_mode == "incremental" then $payload_mode elif $input == "full" or $input == "incremental" then $input else "incremental" end)')
           CONFIG_INITIAL_FULL_SYNC_REQUIRED=$(printf '%s' "$APPLEMUSIC_CONFIG" | jq -r '(.APPLEMUSIC_INITIAL_FULL_SYNC_REQUIRED // false) | tostring' 2>/dev/null || echo "false")
           PAYLOAD_INITIAL_FULL_SYNC_REQUIRED=$(jq -nr --arg raw "$RAW_ACTION_PAYLOAD" '($raw | fromjson? // {}) | (.initialFullSyncForced // false) | tostring')
           if [ "$CONFIG_INITIAL_FULL_SYNC_REQUIRED" = "true" ] || [ "$PAYLOAD_INITIAL_FULL_SYNC_REQUIRED" = "true" ]; then

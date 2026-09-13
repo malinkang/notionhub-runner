@@ -231,7 +231,7 @@ jobs:
           SUPPORTS_FULL_SYNC: 'true'
           NOTIONHUB_DEFER_FILES: 'true'
         run: |
-          REQUESTED_SYNC_MODE=$(jq -nr --arg raw "$RAW_ACTION_PAYLOAD" --arg input "$INPUT_SYNC_MODE" '($raw | fromjson? // {}) as $payload | ($payload.requestedSyncMode // $payload.syncMode // $payload.sync_mode // "") as $payload_mode | (if $payload_mode == "full" or $payload_mode == "incremental" then $payload_mode elif $input == "full" or $input == "incremental" then $input else "incremental" end)')
+          REQUESTED_SYNC_MODE=$(jq -nr --arg raw "$RAW_ACTION_PAYLOAD" --arg input "$INPUT_SYNC_MODE" --arg server "${NOTIONHUB_CAPTURE_SYNC_MODE:-}" '($raw | fromjson? // {}) as $payload | ($payload.requestedSyncMode // $payload.syncMode // $payload.sync_mode // "") as $payload_mode | (if $server == "full" or $server == "incremental" then $server elif $payload_mode == "full" or $payload_mode == "incremental" then $payload_mode elif $input == "full" or $input == "incremental" then $input else "incremental" end)')
           CONFIG_INITIAL_FULL_SYNC_REQUIRED=$(printf '%s' "$WEIBO_CONFIG" | jq -r '(.WEIBO_INITIAL_FULL_SYNC_REQUIRED // false) | tostring' 2>/dev/null || echo "false")
           PAYLOAD_INITIAL_FULL_SYNC_REQUIRED=$(jq -nr --arg raw "$RAW_ACTION_PAYLOAD" '($raw | fromjson? // {}) | (.initialFullSyncForced // false) | tostring')
           if [ "$CONFIG_INITIAL_FULL_SYNC_REQUIRED" = "true" ] || [ "$PAYLOAD_INITIAL_FULL_SYNC_REQUIRED" = "true" ]; then
@@ -276,13 +276,13 @@ jobs:
               if len(escaped) >= 8: print(f'::add-mask::{escaped}')
           PY
           python -m notionhub_runner sync weibo
-
       - name: 确认首次全量同步完成
         if: steps.sync.outcome == 'success'
         run: |
           if [ "$NOTIONHUB_INITIAL_FULL_SYNC_FORCED" != "true" ]; then exit 0; fi
           PAYLOAD=$(jq -cn --arg service "weibo" --arg repository "${{ github.repository }}" --arg run_id "${{ github.run_id }}" --arg requested "$NOTIONHUB_REQUESTED_SYNC_MODE" --arg effective "$NOTIONHUB_EFFECTIVE_SYNC_MODE" '{service:$service,repository:$repository,githubRunId:$run_id,status:"success",requestedMode:$requested,effectiveMode:$effective,initialFullSyncForced:true}')
           curl -fsSL -X POST "$NOTIONHUB_API_BASE/internal/initial-full-sync/complete"             -H "Authorization: Bearer $NOTIONHUB_RUN_ACCESS_TOKEN" -H 'Content-Type: application/json' --data "$PAYLOAD" >/dev/null
+
 
       - name: 提交运行结果
         id: settle

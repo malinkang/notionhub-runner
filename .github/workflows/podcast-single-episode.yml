@@ -1,6 +1,6 @@
 # NotionHub generated Podcast single episode workflow v1
-name: 小宇宙单集同步与转写
-run-name: 单集同步 (${{ inputs.request_id || inputs.eid || github.run_id }})
+name: 单集同步
+run-name: 单集同步
 
 on:
   workflow_dispatch:
@@ -30,7 +30,7 @@ concurrency:
 
 jobs:
   single-episode-sync:
-    name: 单集同步 (${{ inputs.request_id || inputs.eid || github.run_id }})
+    name: 单集同步
     runs-on: ubuntu-latest
     timeout-minutes: 60
 

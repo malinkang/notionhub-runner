@@ -740,6 +740,7 @@ jobs:
       - name: 恢复上一阶段进度
         id: restore
         if: needs.books.outputs.enabled == 'true' && needs.reading_time.result == 'success'
+        continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -831,6 +832,7 @@ jobs:
       - name: 检查同步书单配置
         id: job_config
         if: needs.books.outputs.enabled == 'true' && needs.reading_time.result == 'success' && steps.restore.outcome == 'success'
+        continue-on-error: true
         env:
           RAW_ACTION_PAYLOAD: ${{ github.event.inputs.payload || '{}' }}
         run: |
@@ -861,6 +863,7 @@ jobs:
 
       - name: 验证权限并获取运行程序
         id: authorize
+        continue-on-error: true
         if: steps.job_config.outputs.enabled == 'true'
         run: |
           OIDC_TOKEN=$(curl -fsSL -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=https%3A%2F%2Fi.notionhub.app" | jq -r '.value // empty')
@@ -993,6 +996,7 @@ jobs:
 
       - name: 配置 Python 环境
         if: steps.job_config.outputs.enabled == 'true' && steps.authorize.outcome == 'success'
+        continue-on-error: true
         uses: actions/setup-python@v6
         with:
           python-version: '3.11'
@@ -1000,6 +1004,7 @@ jobs:
       - name: 安装运行依赖
         id: install
         if: steps.job_config.outputs.enabled == 'true' && steps.authorize.outcome == 'success'
+        continue-on-error: true
         run: |
           python -m pip install --quiet --disable-pip-version-check --upgrade pip
           if [ -f runner/requirements.txt ]; then pip install --quiet --disable-pip-version-check -r runner/requirements.txt; fi
@@ -1054,24 +1059,26 @@ jobs:
 
       - name: 记录同步书单结果
         if: always() && needs.books.outputs.enabled == 'true' && needs.reading_time.result == 'success'
+        continue-on-error: true
         run: |
           if [ "${{ steps.restore.outcome }}" != "success" ] || [ "${{ steps.job_config.outcome }}" != "success" ]; then
-            if [ "false" = "true" ]; then STATUS=warning; else STATUS=failure; fi
+            if [ "true" = "true" ]; then STATUS=warning; else STATUS=failure; fi
           elif [ "${{ steps.job_config.outputs.enabled }}" != "true" ]; then
             STATUS=skipped
           elif [ "${{ steps.sync.outcome }}" = "success" ]; then
             STATUS=success
-          elif [ "false" = "true" ]; then
+          elif [ "true" = "true" ]; then
             STATUS=warning
             echo "::warning title=同步书单未完成::主同步结果不受影响，可稍后重试此辅助阶段。"
           else
             STATUS=failure
           fi
           if [ ! -f "$SYNC_POLICY_STATE_PATH" ]; then printf '{}' > "$SYNC_POLICY_STATE_PATH"; fi
-          jq -cn             --arg jobKey "booklists"             --arg stageLabel "同步书单"             --arg status "$STATUS"             --arg failureClass "${NOTIONHUB_FAILURE_CLASS:-}"             --argjson stageIndex 3             --argjson required true             '{stageIndex:$stageIndex,jobKey:$jobKey,label:$stageLabel,status:$status,required:$required,failureClass:(if ($failureClass | length) > 0 then $failureClass else null end)}'             > "${{ github.workspace }}/notionhub-stage-03.json"
+          jq -cn             --arg jobKey "booklists"             --arg stageLabel "同步书单"             --arg status "$STATUS"             --arg failureClass "${NOTIONHUB_FAILURE_CLASS:-}"             --argjson stageIndex 3             --argjson required false             '{stageIndex:$stageIndex,jobKey:$jobKey,label:$stageLabel,status:$status,required:$required,failureClass:(if ($failureClass | length) > 0 then $failureClass else null end)}'             > "${{ github.workspace }}/notionhub-stage-03.json"
 
       - name: 保存同步书单进度
         if: always() && needs.books.outputs.enabled == 'true' && needs.reading_time.result == 'success'
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: notionhub-weread-03-booklists-${{ github.run_id }}-${{ github.run_attempt }}
@@ -1083,11 +1090,6 @@ jobs:
             ${{ github.workspace }}/notionhub-stage-03.json
           if-no-files-found: error
           retention-days: 1
-
-      - name: 确认同步书单成功
-        if: always() && needs.books.outputs.enabled == 'true' && needs.reading_time.result == 'success' && steps.job_config.outputs.enabled == 'true'
-        run: |
-          if [ "${{ steps.sync.outcome }}" != "success" ]; then exit 1; fi
 
 
   mp_articles:
@@ -1108,6 +1110,7 @@ jobs:
       - name: 恢复上一阶段进度
         id: restore
         if: needs.books.outputs.enabled == 'true' && needs.booklists.result == 'success'
+        continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -1199,6 +1202,7 @@ jobs:
       - name: 检查同步公众号文章配置
         id: job_config
         if: needs.books.outputs.enabled == 'true' && needs.booklists.result == 'success' && steps.restore.outcome == 'success'
+        continue-on-error: true
         env:
           RAW_ACTION_PAYLOAD: ${{ github.event.inputs.payload || '{}' }}
         run: |
@@ -1229,6 +1233,7 @@ jobs:
 
       - name: 验证权限并获取运行程序
         id: authorize
+        continue-on-error: true
         if: steps.job_config.outputs.enabled == 'true'
         run: |
           OIDC_TOKEN=$(curl -fsSL -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=https%3A%2F%2Fi.notionhub.app" | jq -r '.value // empty')
@@ -1361,6 +1366,7 @@ jobs:
 
       - name: 配置 Python 环境
         if: steps.job_config.outputs.enabled == 'true' && steps.authorize.outcome == 'success'
+        continue-on-error: true
         uses: actions/setup-python@v6
         with:
           python-version: '3.11'
@@ -1368,6 +1374,7 @@ jobs:
       - name: 安装运行依赖
         id: install
         if: steps.job_config.outputs.enabled == 'true' && steps.authorize.outcome == 'success'
+        continue-on-error: true
         run: |
           python -m pip install --quiet --disable-pip-version-check --upgrade pip
           if [ -f runner/requirements.txt ]; then pip install --quiet --disable-pip-version-check -r runner/requirements.txt; fi
@@ -1422,24 +1429,26 @@ jobs:
 
       - name: 记录同步公众号文章结果
         if: always() && needs.books.outputs.enabled == 'true' && needs.booklists.result == 'success'
+        continue-on-error: true
         run: |
           if [ "${{ steps.restore.outcome }}" != "success" ] || [ "${{ steps.job_config.outcome }}" != "success" ]; then
-            if [ "false" = "true" ]; then STATUS=warning; else STATUS=failure; fi
+            if [ "true" = "true" ]; then STATUS=warning; else STATUS=failure; fi
           elif [ "${{ steps.job_config.outputs.enabled }}" != "true" ]; then
             STATUS=skipped
           elif [ "${{ steps.sync.outcome }}" = "success" ]; then
             STATUS=success
-          elif [ "false" = "true" ]; then
+          elif [ "true" = "true" ]; then
             STATUS=warning
             echo "::warning title=同步公众号文章未完成::主同步结果不受影响，可稍后重试此辅助阶段。"
           else
             STATUS=failure
           fi
           if [ ! -f "$SYNC_POLICY_STATE_PATH" ]; then printf '{}' > "$SYNC_POLICY_STATE_PATH"; fi
-          jq -cn             --arg jobKey "mp_articles"             --arg stageLabel "同步公众号文章"             --arg status "$STATUS"             --arg failureClass "${NOTIONHUB_FAILURE_CLASS:-}"             --argjson stageIndex 4             --argjson required true             '{stageIndex:$stageIndex,jobKey:$jobKey,label:$stageLabel,status:$status,required:$required,failureClass:(if ($failureClass | length) > 0 then $failureClass else null end)}'             > "${{ github.workspace }}/notionhub-stage-04.json"
+          jq -cn             --arg jobKey "mp_articles"             --arg stageLabel "同步公众号文章"             --arg status "$STATUS"             --arg failureClass "${NOTIONHUB_FAILURE_CLASS:-}"             --argjson stageIndex 4             --argjson required false             '{stageIndex:$stageIndex,jobKey:$jobKey,label:$stageLabel,status:$status,required:$required,failureClass:(if ($failureClass | length) > 0 then $failureClass else null end)}'             > "${{ github.workspace }}/notionhub-stage-04.json"
 
       - name: 保存同步公众号文章进度
         if: always() && needs.books.outputs.enabled == 'true' && needs.booklists.result == 'success'
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: notionhub-weread-04-mp_articles-${{ github.run_id }}-${{ github.run_attempt }}
@@ -1451,11 +1460,6 @@ jobs:
             ${{ github.workspace }}/notionhub-stage-04.json
           if-no-files-found: error
           retention-days: 1
-
-      - name: 确认同步公众号文章成功
-        if: always() && needs.books.outputs.enabled == 'true' && needs.booklists.result == 'success' && steps.job_config.outputs.enabled == 'true'
-        run: |
-          if [ "${{ steps.sync.outcome }}" != "success" ]; then exit 1; fi
 
 
   finalize:
@@ -1823,8 +1827,8 @@ jobs:
           ARTIFACT_SPECS=(
             "required|notionhub-weread-01-books-${{ github.run_id }}-${{ github.run_attempt }}|notionhub-stage-01.json"
             "required|notionhub-weread-02-reading_time-${{ github.run_id }}-${{ github.run_attempt }}|notionhub-stage-02.json"
-            "required|notionhub-weread-03-booklists-${{ github.run_id }}-${{ github.run_attempt }}|notionhub-stage-03.json"
-            "required|notionhub-weread-04-mp_articles-${{ github.run_id }}-${{ github.run_attempt }}|notionhub-stage-04.json"
+            "optional|notionhub-weread-03-booklists-${{ github.run_id }}-${{ github.run_attempt }}|notionhub-stage-03.json"
+            "optional|notionhub-weread-04-mp_articles-${{ github.run_id }}-${{ github.run_attempt }}|notionhub-stage-04.json"
             "optional|notionhub-weread-05-finalize-${{ github.run_id }}-${{ github.run_attempt }}|notionhub-stage-05.json"
           )
           ATTEMPT_DIR=""
@@ -1941,7 +1945,7 @@ jobs:
               if isinstance(value, dict) and isinstance(value.get('stageIndex'), int):
                   manifest_by_key[(value['stageIndex'], str(value.get('jobKey')))] = (value, path)
           manifests = list(manifest_by_key.values())
-          required = ["books","reading_time","booklists","mp_articles"]
+          required = ["books","reading_time"]
           enabled = os.environ.get('WORKFLOW_ENABLED') == 'true'
           status_by_key = {str(item.get('jobKey')): str(item.get('status')) for item, _ in manifests}
           required_failures = [key for key in required if status_by_key.get(key) == 'failure']

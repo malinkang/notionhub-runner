@@ -236,19 +236,62 @@ class DailyShortcutUpdater:
         self.validate_properties(properties)
         page = self.find_page(target_date)
         created = page is None
+        update_properties = dict(properties)
+        update_properties.update(self.year_relation_properties(target_date, page))
         icon_payload = {"type": "emoji", "emoji": icon} if icon else None
         if page:
             page_id = str(page["id"])
-            self.client.update_page(page_id, properties=dict(properties), icon=icon_payload)
+            self.client.update_page(page_id, properties=update_properties, icon=icon_payload)
         else:
             create_properties = self.build_create_properties(target_date)
-            create_properties.update(properties)
+            create_properties.update(update_properties)
             page_id = self.client.create_page(
                 self.data_source_id,
                 create_properties,
                 icon=icon_payload or {"type": "emoji", "emoji": "☀️"},
             )
         return {"pageId": page_id, "date": target_date.isoformat(), "created": created}
+
+    def year_relation_properties(
+        self, target_date: date, page: dict[str, Any] | None,
+    ) -> dict[str, Any]:
+        # The relation schema is authoritative, including after a template is copied.
+        name = self.property_name("relation", "年", "Year", "year", "年份")
+        if not name:
+            return {}
+        if page and (page.get("properties") or {}).get(name, {}).get("relation"):
+            return {}
+        relation = self.schema_properties[name].get("relation") or {}
+        data_source_id = relation.get("data_source_id")
+        if not data_source_id and relation.get("database_id"):
+            database = self.client.request("GET", f"/databases/{relation['database_id']}")
+            sources = database.get("data_sources") or []
+            if len(sources) == 1:
+                data_source_id = sources[0].get("id")
+        if not data_source_id:
+            raise ValueError("年关联缺少明确的目标数据源")
+        schema = self.client.request("GET", f"/data_sources/{data_source_id}")
+        fields = schema.get("properties") or {}
+        title_name = next((key for key, value in fields.items() if value.get("type") == "title"), None)
+        if not title_name:
+            raise ValueError("年数据库缺少 title 类型的标题属性")
+        year = str(target_date.year)
+        matches = self.client.query_data_source(data_source_id, {
+            "filter": {"property": title_name, "title": {"equals": year}},
+            "page_size": 2,
+        })
+        if matches:
+            year_id = str(matches[0]["id"])
+        else:
+            year_properties: dict[str, Any] = {title_name: {"title": rich_text(year)}}
+            for date_name in ("日期", "Date", "date"):
+                if (fields.get(date_name) or {}).get("type") == "date":
+                    year_properties[date_name] = {"date": {"start": f"{year}-01-01", "end": f"{year}-12-31"}}
+                    break
+            year_id = self.client.create_page(
+                data_source_id, year_properties, icon={"type": "emoji", "emoji": "📅"},
+            )
+        return {name: {"relation": [{"id": year_id}]}}
 
     def validate_properties(self, properties: Mapping[str, Any]) -> None:
         missing: list[str] = []

@@ -14,6 +14,7 @@ permissions:
 
 concurrency:
   group: notionhub-daily-shortcut-${{ github.ref_name }}
+  queue: max
   cancel-in-progress: false
 
 jobs:

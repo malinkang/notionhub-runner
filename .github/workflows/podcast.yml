@@ -52,6 +52,7 @@ jobs:
       SYNC_POLICY_CONTINUATION_PATH: ${{ github.workspace }}/notionhub-continuation-id
       SYNC_POLICY_REPORT_PATH: ${{ github.workspace }}/notionhub-service-report.json
       NOTIONHUB_RUN_META_PATH: ${{ github.workspace }}/notionhub-run-meta.json
+      NOTIONHUB_TARGET_RESULTS_PATH: ${{ github.workspace }}/notionhub-target-results.json
     steps:
       - name: 验证运行配置
         id: activation
@@ -380,6 +381,7 @@ jobs:
       SYNC_POLICY_CONTINUATION_PATH: ${{ github.workspace }}/notionhub-continuation-id
       SYNC_POLICY_REPORT_PATH: ${{ github.workspace }}/notionhub-service-report.json
       NOTIONHUB_RUN_META_PATH: ${{ github.workspace }}/notionhub-run-meta.json
+      NOTIONHUB_TARGET_RESULTS_PATH: ${{ github.workspace }}/notionhub-target-results.json
     steps:
       - name: 恢复上一阶段进度
         id: restore
@@ -734,6 +736,7 @@ jobs:
       SYNC_POLICY_CONTINUATION_PATH: ${{ github.workspace }}/notionhub-continuation-id
       SYNC_POLICY_REPORT_PATH: ${{ github.workspace }}/notionhub-service-report.json
       NOTIONHUB_RUN_META_PATH: ${{ github.workspace }}/notionhub-run-meta.json
+      NOTIONHUB_TARGET_RESULTS_PATH: ${{ github.workspace }}/notionhub-target-results.json
     steps:
       - name: 恢复上一阶段进度
         id: restore
@@ -1090,6 +1093,7 @@ jobs:
       SYNC_POLICY_CONTINUATION_PATH: ${{ github.workspace }}/notionhub-continuation-id
       SYNC_POLICY_REPORT_PATH: ${{ github.workspace }}/notionhub-service-report.json
       NOTIONHUB_RUN_META_PATH: ${{ github.workspace }}/notionhub-run-meta.json
+      NOTIONHUB_TARGET_RESULTS_PATH: ${{ github.workspace }}/notionhub-target-results.json
     steps:
       - name: 恢复上一阶段进度
         id: restore

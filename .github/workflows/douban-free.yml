@@ -1,4 +1,4 @@
-# NotionHub generated free workflow v2
+# NotionHub generated free workflow v3
 name: 豆瓣免费版
 run-name: ${{ github.workflow }}
 
@@ -19,6 +19,7 @@ on:
 
 permissions:
   contents: write
+  id-token: write
 
 concurrency:
   group: notionhub-douban-sync-${{ github.ref_name }}
@@ -38,6 +39,29 @@ jobs:
       NOTIONHUB_ARTIFACT_ROOT: ${{ github.workspace }}/.notionhub-artifacts/douban
       NOTIONHUB_ARTIFACT_PATH: .notionhub-artifacts/douban
     steps:
+      - name: 检查免费版同步授权
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          OIDC_TOKEN=$(curl -fsS --max-time 30 \
+            -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=https%3A%2F%2Fi.notionhub.app" | jq -er '.value | strings | select(length > 0)')
+          echo "::add-mask::$OIDC_TOKEN"
+          AUTHORIZATION_FILE="$RUNNER_TEMP/notionhub-free-douban-authorization.json"
+          trap 'rm -f "$AUTHORIZATION_FILE"' EXIT
+          if ! curl -fsS --max-time 30 -X POST \
+            "https://i.notionhub.app/v1/github/runner/free/douban/authorize-run" \
+            -H "Authorization: Bearer $OIDC_TOKEN" -H 'Content-Type: application/json' \
+            --data '{}' -o "$AUTHORIZATION_FILE"; then
+            echo "::error title=免费版同步授权失败::账号可能已退出或正在清理，请回到 NotionHub 插件查看连接状态。"
+            exit 1
+          fi
+          if ! jq -e '(.authorized == true) or (.data.authorized == true)' "$AUTHORIZATION_FILE" >/dev/null; then
+            echo "::error title=免费版同步未获授权::请回到 NotionHub 插件查看连接状态。"
+            exit 1
+          fi
+
       - name: Checkout Runner 仓库
         uses: actions/checkout@v4
 

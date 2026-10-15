@@ -60,20 +60,6 @@ jobs:
             exit 0
           fi
           PLAN=$(printf '%s' "$SERVICE_CONFIG" | jq -r '.FLOMO_SYNC_PLAN // "lifetime"')
-          REMAINING=$(printf '%s' "$SERVICE_CONFIG" | jq -r '.FLOMO_TRIAL_RUNS_REMAINING // 1')
-          if [ "$PLAN" = "trial" ] && { ! [[ "$REMAINING" =~ ^[0-9]+$ ]] || [ "$REMAINING" -le 0 ]; }; then
-            echo "免费体验次数已用完，请购买激活码。"
-            echo "获取激活码：https://www.notionhub.app/docs/get-activation-code.html"
-            {
-              echo "## 免费体验次数已用完"
-              echo ""
-              echo "请购买激活码并在 NotionHub 插件中完成激活后重新同步。"
-              echo ""
-              echo "[查看如何获取激活码](https://www.notionhub.app/docs/get-activation-code.html)"
-            } >> "$GITHUB_STEP_SUMMARY"
-            echo "::error title=免费体验次数已用完::免费体验次数已用完，请购买激活码并在 NotionHub 插件中完成激活后重新同步。%0A%0A获取激活码：https://www.notionhub.app/docs/get-activation-code.html"
-            exit 1
-          fi
           echo "enabled=true" >> "$GITHUB_OUTPUT"
           echo "plan=$PLAN" >> "$GITHUB_OUTPUT"
 

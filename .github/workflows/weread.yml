@@ -66,21 +66,7 @@ jobs:
             echo "enabled=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          PLAN=$(printf '%s' "$SERVICE_CONFIG" | jq -r '.WEREAD_SYNC_PLAN // "lifetime"')
-          REMAINING=$(printf '%s' "$SERVICE_CONFIG" | jq -r '.WEREAD_TRIAL_RUNS_REMAINING // 1')
-          if [ "$PLAN" = "trial" ] && { ! [[ "$REMAINING" =~ ^[0-9]+$ ]] || [ "$REMAINING" -le 0 ]; }; then
-            echo "免费体验次数已用完，请购买激活码。"
-            echo "获取激活码：https://www.notionhub.app/docs/get-activation-code.html"
-            {
-              echo "## 免费体验次数已用完"
-              echo ""
-              echo "请购买激活码并在 NotionHub 插件中完成激活后重新同步。"
-              echo ""
-              echo "[查看如何获取激活码](https://www.notionhub.app/docs/get-activation-code.html)"
-            } >> "$GITHUB_STEP_SUMMARY"
-            echo "::error title=免费体验次数已用完::免费体验次数已用完，请购买激活码并在 NotionHub 插件中完成激活后重新同步。%0A%0A获取激活码：https://www.notionhub.app/docs/get-activation-code.html"
-            exit 1
-          fi
+
           echo "enabled=true" >> "$GITHUB_OUTPUT"
 
       - name: 验证权限并获取运行程序
@@ -251,7 +237,14 @@ jobs:
           Path(os.environ['SYNC_POLICY_STATE_PATH']).write_text(json.dumps(state, ensure_ascii=False), encoding='utf-8')
           PY
           printf '%s' "$NOTIONHUB_POLICY_ID" > "$SYNC_POLICY_CONTINUATION_PATH"
-          jq -cn             --arg requested "$NOTIONHUB_REQUESTED_SYNC_MODE"             --arg effective "$NOTIONHUB_EFFECTIVE_SYNC_MODE"             --argjson initialFullSyncForced "${NOTIONHUB_INITIAL_FULL_SYNC_FORCED:-false}"             '{requestedMode:$requested,effectiveMode:$effective,initialFullSyncForced:$initialFullSyncForced}'             > "$NOTIONHUB_RUN_META_PATH"
+          RAW_CONFIG="${WEREAD_CONFIG:-$SERVICE_CONFIG}"
+          SAFE_CONFIG=$(printf '%s' "$RAW_CONFIG" | jq -c '{
+            ("WEREAD_SYNC_PLAN"): (."WEREAD_SYNC_PLAN" // null),
+            ("WEREAD_SERVICE_OPTIONS"): (."WEREAD_SERVICE_OPTIONS" // null),
+            ("WEREAD_INITIAL_FULL_SYNC_REQUIRED"): (."WEREAD_INITIAL_FULL_SYNC_REQUIRED" // null),
+            ("WEREAD_UPLOAD_FILES"): (."WEREAD_UPLOAD_FILES" // null)
+          } | with_entries(select(.value != null))' 2>/dev/null || echo '{}')
+          jq -cn             --arg requested "$NOTIONHUB_REQUESTED_SYNC_MODE"             --arg effective "$NOTIONHUB_EFFECTIVE_SYNC_MODE"             --argjson initialFullSyncForced "${NOTIONHUB_INITIAL_FULL_SYNC_FORCED:-false}"             --argjson serviceConfig "$SAFE_CONFIG"             '{requestedMode:$requested,effectiveMode:$effective,initialFullSyncForced:$initialFullSyncForced,serviceConfig:$serviceConfig}'             > "$NOTIONHUB_RUN_META_PATH"
 
       - name: 检查同步书籍配置
         id: job_config
@@ -843,14 +836,21 @@ jobs:
           PLAN=$(printf '%s' "$SERVICE_CONFIG" | jq -r '.WEREAD_SYNC_PLAN // "lifetime"')
           JOB_ENABLED=true
           SKIP_REASON=""
+          if [ -n "${NOTIONHUB_RUN_META_PATH:-}" ] && [ -f "${NOTIONHUB_RUN_META_PATH:-}" ]; then
+            META_PLAN=$(jq -r '.serviceConfig.WEREAD_SYNC_PLAN // empty' "$NOTIONHUB_RUN_META_PATH" 2>/dev/null || echo "")
+            if [ -n "$META_PLAN" ]; then PLAN="$META_PLAN"; fi
+          fi
           if [ "$PLAN" != "lifetime" ]; then
             JOB_ENABLED=false
             SKIP_REASON="仅永久会员可用"
           fi
           CONFIG_SERVICE_OPTIONS=$(printf '%s' "$SERVICE_CONFIG" | jq -c '.WEREAD_SERVICE_OPTIONS // {}')
           PAYLOAD_SERVICE_OPTIONS=$(jq -cn --arg raw "$RAW_ACTION_PAYLOAD" '($raw | fromjson? // {}) | if (.serviceOptions | type) == "object" then .serviceOptions else null end')
+          META_SERVICE_OPTIONS=$(if [ -n "${NOTIONHUB_RUN_META_PATH:-}" ] && [ -f "${NOTIONHUB_RUN_META_PATH:-}" ]; then jq -c '.serviceConfig.WEREAD_SERVICE_OPTIONS // empty' "$NOTIONHUB_RUN_META_PATH" 2>/dev/null || echo ""; fi)
           if [ "$PAYLOAD_SERVICE_OPTIONS" != "null" ]; then
             SERVICE_OPTIONS="$PAYLOAD_SERVICE_OPTIONS"
+          elif [ -n "$META_SERVICE_OPTIONS" ] && [ "$META_SERVICE_OPTIONS" != "null" ]; then
+            SERVICE_OPTIONS="$META_SERVICE_OPTIONS"
           else
             SERVICE_OPTIONS="$CONFIG_SERVICE_OPTIONS"
           fi
@@ -1214,14 +1214,21 @@ jobs:
           PLAN=$(printf '%s' "$SERVICE_CONFIG" | jq -r '.WEREAD_SYNC_PLAN // "lifetime"')
           JOB_ENABLED=true
           SKIP_REASON=""
+          if [ -n "${NOTIONHUB_RUN_META_PATH:-}" ] && [ -f "${NOTIONHUB_RUN_META_PATH:-}" ]; then
+            META_PLAN=$(jq -r '.serviceConfig.WEREAD_SYNC_PLAN // empty' "$NOTIONHUB_RUN_META_PATH" 2>/dev/null || echo "")
+            if [ -n "$META_PLAN" ]; then PLAN="$META_PLAN"; fi
+          fi
           if [ "$PLAN" != "lifetime" ]; then
             JOB_ENABLED=false
             SKIP_REASON="仅永久会员可用"
           fi
           CONFIG_SERVICE_OPTIONS=$(printf '%s' "$SERVICE_CONFIG" | jq -c '.WEREAD_SERVICE_OPTIONS // {}')
           PAYLOAD_SERVICE_OPTIONS=$(jq -cn --arg raw "$RAW_ACTION_PAYLOAD" '($raw | fromjson? // {}) | if (.serviceOptions | type) == "object" then .serviceOptions else null end')
+          META_SERVICE_OPTIONS=$(if [ -n "${NOTIONHUB_RUN_META_PATH:-}" ] && [ -f "${NOTIONHUB_RUN_META_PATH:-}" ]; then jq -c '.serviceConfig.WEREAD_SERVICE_OPTIONS // empty' "$NOTIONHUB_RUN_META_PATH" 2>/dev/null || echo ""; fi)
           if [ "$PAYLOAD_SERVICE_OPTIONS" != "null" ]; then
             SERVICE_OPTIONS="$PAYLOAD_SERVICE_OPTIONS"
+          elif [ -n "$META_SERVICE_OPTIONS" ] && [ "$META_SERVICE_OPTIONS" != "null" ]; then
+            SERVICE_OPTIONS="$META_SERVICE_OPTIONS"
           else
             SERVICE_OPTIONS="$CONFIG_SERVICE_OPTIONS"
           fi

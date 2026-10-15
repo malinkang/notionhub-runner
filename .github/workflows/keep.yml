@@ -251,7 +251,14 @@ jobs:
           Path(os.environ['SYNC_POLICY_STATE_PATH']).write_text(json.dumps(state, ensure_ascii=False), encoding='utf-8')
           PY
           printf '%s' "$NOTIONHUB_POLICY_ID" > "$SYNC_POLICY_CONTINUATION_PATH"
-          jq -cn             --arg requested "$NOTIONHUB_REQUESTED_SYNC_MODE"             --arg effective "$NOTIONHUB_EFFECTIVE_SYNC_MODE"             --argjson initialFullSyncForced "${NOTIONHUB_INITIAL_FULL_SYNC_FORCED:-false}"             '{requestedMode:$requested,effectiveMode:$effective,initialFullSyncForced:$initialFullSyncForced}'             > "$NOTIONHUB_RUN_META_PATH"
+          RAW_CONFIG="${KEEP_CONFIG:-$SERVICE_CONFIG}"
+          SAFE_CONFIG=$(printf '%s' "$RAW_CONFIG" | jq -c '{
+            ("KEEP_SYNC_PLAN"): (."KEEP_SYNC_PLAN" // null),
+            ("KEEP_SERVICE_OPTIONS"): (."KEEP_SERVICE_OPTIONS" // null),
+            ("KEEP_INITIAL_FULL_SYNC_REQUIRED"): (."KEEP_INITIAL_FULL_SYNC_REQUIRED" // null),
+            ("KEEP_UPLOAD_FILES"): (."KEEP_UPLOAD_FILES" // null)
+          } | with_entries(select(.value != null))' 2>/dev/null || echo '{}')
+          jq -cn             --arg requested "$NOTIONHUB_REQUESTED_SYNC_MODE"             --arg effective "$NOTIONHUB_EFFECTIVE_SYNC_MODE"             --argjson initialFullSyncForced "${NOTIONHUB_INITIAL_FULL_SYNC_FORCED:-false}"             --argjson serviceConfig "$SAFE_CONFIG"             '{requestedMode:$requested,effectiveMode:$effective,initialFullSyncForced:$initialFullSyncForced,serviceConfig:$serviceConfig}'             > "$NOTIONHUB_RUN_META_PATH"
 
       - name: 检查同步运动配置
         id: job_config
@@ -265,8 +272,11 @@ jobs:
           SKIP_REASON=""
           CONFIG_SERVICE_OPTIONS=$(printf '%s' "$SERVICE_CONFIG" | jq -c '.KEEP_SERVICE_OPTIONS // {}')
           PAYLOAD_SERVICE_OPTIONS=$(jq -cn --arg raw "$RAW_ACTION_PAYLOAD" '($raw | fromjson? // {}) | if (.serviceOptions | type) == "object" then .serviceOptions else null end')
+          META_SERVICE_OPTIONS=$(if [ -n "${NOTIONHUB_RUN_META_PATH:-}" ] && [ -f "${NOTIONHUB_RUN_META_PATH:-}" ]; then jq -c '.serviceConfig.KEEP_SERVICE_OPTIONS // empty' "$NOTIONHUB_RUN_META_PATH" 2>/dev/null || echo ""; fi)
           if [ "$PAYLOAD_SERVICE_OPTIONS" != "null" ]; then
             SERVICE_OPTIONS="$PAYLOAD_SERVICE_OPTIONS"
+          elif [ -n "$META_SERVICE_OPTIONS" ] && [ "$META_SERVICE_OPTIONS" != "null" ]; then
+            SERVICE_OPTIONS="$META_SERVICE_OPTIONS"
           else
             SERVICE_OPTIONS="$CONFIG_SERVICE_OPTIONS"
           fi
@@ -498,8 +508,11 @@ jobs:
           SKIP_REASON=""
           CONFIG_SERVICE_OPTIONS=$(printf '%s' "$SERVICE_CONFIG" | jq -c '.KEEP_SERVICE_OPTIONS // {}')
           PAYLOAD_SERVICE_OPTIONS=$(jq -cn --arg raw "$RAW_ACTION_PAYLOAD" '($raw | fromjson? // {}) | if (.serviceOptions | type) == "object" then .serviceOptions else null end')
+          META_SERVICE_OPTIONS=$(if [ -n "${NOTIONHUB_RUN_META_PATH:-}" ] && [ -f "${NOTIONHUB_RUN_META_PATH:-}" ]; then jq -c '.serviceConfig.KEEP_SERVICE_OPTIONS // empty' "$NOTIONHUB_RUN_META_PATH" 2>/dev/null || echo ""; fi)
           if [ "$PAYLOAD_SERVICE_OPTIONS" != "null" ]; then
             SERVICE_OPTIONS="$PAYLOAD_SERVICE_OPTIONS"
+          elif [ -n "$META_SERVICE_OPTIONS" ] && [ "$META_SERVICE_OPTIONS" != "null" ]; then
+            SERVICE_OPTIONS="$META_SERVICE_OPTIONS"
           else
             SERVICE_OPTIONS="$CONFIG_SERVICE_OPTIONS"
           fi
@@ -863,8 +876,11 @@ jobs:
           SKIP_REASON=""
           CONFIG_SERVICE_OPTIONS=$(printf '%s' "$SERVICE_CONFIG" | jq -c '.KEEP_SERVICE_OPTIONS // {}')
           PAYLOAD_SERVICE_OPTIONS=$(jq -cn --arg raw "$RAW_ACTION_PAYLOAD" '($raw | fromjson? // {}) | if (.serviceOptions | type) == "object" then .serviceOptions else null end')
+          META_SERVICE_OPTIONS=$(if [ -n "${NOTIONHUB_RUN_META_PATH:-}" ] && [ -f "${NOTIONHUB_RUN_META_PATH:-}" ]; then jq -c '.serviceConfig.KEEP_SERVICE_OPTIONS // empty' "$NOTIONHUB_RUN_META_PATH" 2>/dev/null || echo ""; fi)
           if [ "$PAYLOAD_SERVICE_OPTIONS" != "null" ]; then
             SERVICE_OPTIONS="$PAYLOAD_SERVICE_OPTIONS"
+          elif [ -n "$META_SERVICE_OPTIONS" ] && [ "$META_SERVICE_OPTIONS" != "null" ]; then
+            SERVICE_OPTIONS="$META_SERVICE_OPTIONS"
           else
             SERVICE_OPTIONS="$CONFIG_SERVICE_OPTIONS"
           fi
@@ -1228,8 +1244,11 @@ jobs:
           SKIP_REASON=""
           CONFIG_SERVICE_OPTIONS=$(printf '%s' "$SERVICE_CONFIG" | jq -c '.KEEP_SERVICE_OPTIONS // {}')
           PAYLOAD_SERVICE_OPTIONS=$(jq -cn --arg raw "$RAW_ACTION_PAYLOAD" '($raw | fromjson? // {}) | if (.serviceOptions | type) == "object" then .serviceOptions else null end')
+          META_SERVICE_OPTIONS=$(if [ -n "${NOTIONHUB_RUN_META_PATH:-}" ] && [ -f "${NOTIONHUB_RUN_META_PATH:-}" ]; then jq -c '.serviceConfig.KEEP_SERVICE_OPTIONS // empty' "$NOTIONHUB_RUN_META_PATH" 2>/dev/null || echo ""; fi)
           if [ "$PAYLOAD_SERVICE_OPTIONS" != "null" ]; then
             SERVICE_OPTIONS="$PAYLOAD_SERVICE_OPTIONS"
+          elif [ -n "$META_SERVICE_OPTIONS" ] && [ "$META_SERVICE_OPTIONS" != "null" ]; then
+            SERVICE_OPTIONS="$META_SERVICE_OPTIONS"
           else
             SERVICE_OPTIONS="$CONFIG_SERVICE_OPTIONS"
           fi
@@ -1593,8 +1612,11 @@ jobs:
           SKIP_REASON=""
           CONFIG_SERVICE_OPTIONS=$(printf '%s' "$SERVICE_CONFIG" | jq -c '.KEEP_SERVICE_OPTIONS // {}')
           PAYLOAD_SERVICE_OPTIONS=$(jq -cn --arg raw "$RAW_ACTION_PAYLOAD" '($raw | fromjson? // {}) | if (.serviceOptions | type) == "object" then .serviceOptions else null end')
+          META_SERVICE_OPTIONS=$(if [ -n "${NOTIONHUB_RUN_META_PATH:-}" ] && [ -f "${NOTIONHUB_RUN_META_PATH:-}" ]; then jq -c '.serviceConfig.KEEP_SERVICE_OPTIONS // empty' "$NOTIONHUB_RUN_META_PATH" 2>/dev/null || echo ""; fi)
           if [ "$PAYLOAD_SERVICE_OPTIONS" != "null" ]; then
             SERVICE_OPTIONS="$PAYLOAD_SERVICE_OPTIONS"
+          elif [ -n "$META_SERVICE_OPTIONS" ] && [ "$META_SERVICE_OPTIONS" != "null" ]; then
+            SERVICE_OPTIONS="$META_SERVICE_OPTIONS"
           else
             SERVICE_OPTIONS="$CONFIG_SERVICE_OPTIONS"
           fi
@@ -1960,8 +1982,11 @@ jobs:
           SKIP_REASON=""
           CONFIG_SERVICE_OPTIONS=$(printf '%s' "$SERVICE_CONFIG" | jq -c '.KEEP_SERVICE_OPTIONS // {}')
           PAYLOAD_SERVICE_OPTIONS=$(jq -cn --arg raw "$RAW_ACTION_PAYLOAD" '($raw | fromjson? // {}) | if (.serviceOptions | type) == "object" then .serviceOptions else null end')
+          META_SERVICE_OPTIONS=$(if [ -n "${NOTIONHUB_RUN_META_PATH:-}" ] && [ -f "${NOTIONHUB_RUN_META_PATH:-}" ]; then jq -c '.serviceConfig.KEEP_SERVICE_OPTIONS // empty' "$NOTIONHUB_RUN_META_PATH" 2>/dev/null || echo ""; fi)
           if [ "$PAYLOAD_SERVICE_OPTIONS" != "null" ]; then
             SERVICE_OPTIONS="$PAYLOAD_SERVICE_OPTIONS"
+          elif [ -n "$META_SERVICE_OPTIONS" ] && [ "$META_SERVICE_OPTIONS" != "null" ]; then
+            SERVICE_OPTIONS="$META_SERVICE_OPTIONS"
           else
             SERVICE_OPTIONS="$CONFIG_SERVICE_OPTIONS"
           fi
@@ -2327,8 +2352,11 @@ jobs:
           SKIP_REASON=""
           CONFIG_SERVICE_OPTIONS=$(printf '%s' "$SERVICE_CONFIG" | jq -c '.KEEP_SERVICE_OPTIONS // {}')
           PAYLOAD_SERVICE_OPTIONS=$(jq -cn --arg raw "$RAW_ACTION_PAYLOAD" '($raw | fromjson? // {}) | if (.serviceOptions | type) == "object" then .serviceOptions else null end')
+          META_SERVICE_OPTIONS=$(if [ -n "${NOTIONHUB_RUN_META_PATH:-}" ] && [ -f "${NOTIONHUB_RUN_META_PATH:-}" ]; then jq -c '.serviceConfig.KEEP_SERVICE_OPTIONS // empty' "$NOTIONHUB_RUN_META_PATH" 2>/dev/null || echo ""; fi)
           if [ "$PAYLOAD_SERVICE_OPTIONS" != "null" ]; then
             SERVICE_OPTIONS="$PAYLOAD_SERVICE_OPTIONS"
+          elif [ -n "$META_SERVICE_OPTIONS" ] && [ "$META_SERVICE_OPTIONS" != "null" ]; then
+            SERVICE_OPTIONS="$META_SERVICE_OPTIONS"
           else
             SERVICE_OPTIONS="$CONFIG_SERVICE_OPTIONS"
           fi

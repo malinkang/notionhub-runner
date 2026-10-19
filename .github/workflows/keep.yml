@@ -49,13 +49,31 @@ jobs:
       KEEP_CONFIG: ${{ secrets.KEEP_CONFIG }}
       NOTIONHUB_API_BASE: https://i.notionhub.app/v1
       NOTIONHUB_SERVICE: keep
-      NOTIONHUB_CONFIG_VERSION: '51'
+      NOTIONHUB_CONFIG_VERSION: '52'
       SYNC_POLICY_STATE_PATH: ${{ github.workspace }}/notionhub-state.json
       SYNC_POLICY_CONTINUATION_PATH: ${{ github.workspace }}/notionhub-continuation-id
       SYNC_POLICY_REPORT_PATH: ${{ github.workspace }}/notionhub-service-report.json
       NOTIONHUB_RUN_META_PATH: ${{ github.workspace }}/notionhub-run-meta.json
       NOTIONHUB_TARGET_RESULTS_PATH: ${{ github.workspace }}/notionhub-target-results.json
     steps:
+      - name: 清理历史同步临时文件
+        shell: bash
+        run: |
+          set -euo pipefail
+          : "${GITHUB_WORKSPACE:?GitHub workspace is required}"
+          rm -f -- \
+            "$GITHUB_WORKSPACE/notionhub-state.json" \
+            "$GITHUB_WORKSPACE/notionhub-continuation-id" \
+            "$GITHUB_WORKSPACE/notionhub-run-meta.json" \
+            "$GITHUB_WORKSPACE/notionhub-target-results.json" \
+            "$GITHUB_WORKSPACE/notionhub-service-report.json" \
+            "$GITHUB_WORKSPACE/notionhub-final.json"
+          shopt -s nullglob
+          for STAGE_FILE in "$GITHUB_WORKSPACE"/notionhub-stage-*.json; do
+            rm -f -- "$STAGE_FILE"
+          done
+          rm -rf -- "$GITHUB_WORKSPACE/notionhub-artifacts"
+
       - name: 验证运行配置
         id: activation
         env:
@@ -384,13 +402,31 @@ jobs:
       KEEP_CONFIG: ${{ secrets.KEEP_CONFIG }}
       NOTIONHUB_API_BASE: https://i.notionhub.app/v1
       NOTIONHUB_SERVICE: keep
-      NOTIONHUB_CONFIG_VERSION: '51'
+      NOTIONHUB_CONFIG_VERSION: '52'
       SYNC_POLICY_STATE_PATH: ${{ github.workspace }}/notionhub-state.json
       SYNC_POLICY_CONTINUATION_PATH: ${{ github.workspace }}/notionhub-continuation-id
       SYNC_POLICY_REPORT_PATH: ${{ github.workspace }}/notionhub-service-report.json
       NOTIONHUB_RUN_META_PATH: ${{ github.workspace }}/notionhub-run-meta.json
       NOTIONHUB_TARGET_RESULTS_PATH: ${{ github.workspace }}/notionhub-target-results.json
     steps:
+      - name: 清理历史同步临时文件
+        shell: bash
+        run: |
+          set -euo pipefail
+          : "${GITHUB_WORKSPACE:?GitHub workspace is required}"
+          rm -f -- \
+            "$GITHUB_WORKSPACE/notionhub-state.json" \
+            "$GITHUB_WORKSPACE/notionhub-continuation-id" \
+            "$GITHUB_WORKSPACE/notionhub-run-meta.json" \
+            "$GITHUB_WORKSPACE/notionhub-target-results.json" \
+            "$GITHUB_WORKSPACE/notionhub-service-report.json" \
+            "$GITHUB_WORKSPACE/notionhub-final.json"
+          shopt -s nullglob
+          for STAGE_FILE in "$GITHUB_WORKSPACE"/notionhub-stage-*.json; do
+            rm -f -- "$STAGE_FILE"
+          done
+          rm -rf -- "$GITHUB_WORKSPACE/notionhub-artifacts"
+
       - name: 恢复上一阶段进度
         id: restore
         if: needs.workout.outputs.enabled == 'true' && needs.workout.result == 'success'
@@ -752,13 +788,31 @@ jobs:
       KEEP_CONFIG: ${{ secrets.KEEP_CONFIG }}
       NOTIONHUB_API_BASE: https://i.notionhub.app/v1
       NOTIONHUB_SERVICE: keep
-      NOTIONHUB_CONFIG_VERSION: '51'
+      NOTIONHUB_CONFIG_VERSION: '52'
       SYNC_POLICY_STATE_PATH: ${{ github.workspace }}/notionhub-state.json
       SYNC_POLICY_CONTINUATION_PATH: ${{ github.workspace }}/notionhub-continuation-id
       SYNC_POLICY_REPORT_PATH: ${{ github.workspace }}/notionhub-service-report.json
       NOTIONHUB_RUN_META_PATH: ${{ github.workspace }}/notionhub-run-meta.json
       NOTIONHUB_TARGET_RESULTS_PATH: ${{ github.workspace }}/notionhub-target-results.json
     steps:
+      - name: 清理历史同步临时文件
+        shell: bash
+        run: |
+          set -euo pipefail
+          : "${GITHUB_WORKSPACE:?GitHub workspace is required}"
+          rm -f -- \
+            "$GITHUB_WORKSPACE/notionhub-state.json" \
+            "$GITHUB_WORKSPACE/notionhub-continuation-id" \
+            "$GITHUB_WORKSPACE/notionhub-run-meta.json" \
+            "$GITHUB_WORKSPACE/notionhub-target-results.json" \
+            "$GITHUB_WORKSPACE/notionhub-service-report.json" \
+            "$GITHUB_WORKSPACE/notionhub-final.json"
+          shopt -s nullglob
+          for STAGE_FILE in "$GITHUB_WORKSPACE"/notionhub-stage-*.json; do
+            rm -f -- "$STAGE_FILE"
+          done
+          rm -rf -- "$GITHUB_WORKSPACE/notionhub-artifacts"
+
       - name: 恢复上一阶段进度
         id: restore
         if: needs.workout.outputs.enabled == 'true' && needs.sleep.result == 'success'
@@ -1120,13 +1174,31 @@ jobs:
       KEEP_CONFIG: ${{ secrets.KEEP_CONFIG }}
       NOTIONHUB_API_BASE: https://i.notionhub.app/v1
       NOTIONHUB_SERVICE: keep
-      NOTIONHUB_CONFIG_VERSION: '51'
+      NOTIONHUB_CONFIG_VERSION: '52'
       SYNC_POLICY_STATE_PATH: ${{ github.workspace }}/notionhub-state.json
       SYNC_POLICY_CONTINUATION_PATH: ${{ github.workspace }}/notionhub-continuation-id
       SYNC_POLICY_REPORT_PATH: ${{ github.workspace }}/notionhub-service-report.json
       NOTIONHUB_RUN_META_PATH: ${{ github.workspace }}/notionhub-run-meta.json
       NOTIONHUB_TARGET_RESULTS_PATH: ${{ github.workspace }}/notionhub-target-results.json
     steps:
+      - name: 清理历史同步临时文件
+        shell: bash
+        run: |
+          set -euo pipefail
+          : "${GITHUB_WORKSPACE:?GitHub workspace is required}"
+          rm -f -- \
+            "$GITHUB_WORKSPACE/notionhub-state.json" \
+            "$GITHUB_WORKSPACE/notionhub-continuation-id" \
+            "$GITHUB_WORKSPACE/notionhub-run-meta.json" \
+            "$GITHUB_WORKSPACE/notionhub-target-results.json" \
+            "$GITHUB_WORKSPACE/notionhub-service-report.json" \
+            "$GITHUB_WORKSPACE/notionhub-final.json"
+          shopt -s nullglob
+          for STAGE_FILE in "$GITHUB_WORKSPACE"/notionhub-stage-*.json; do
+            rm -f -- "$STAGE_FILE"
+          done
+          rm -rf -- "$GITHUB_WORKSPACE/notionhub-artifacts"
+
       - name: 恢复上一阶段进度
         id: restore
         if: needs.workout.outputs.enabled == 'true' && needs.heart_rate.result == 'success'
@@ -1488,13 +1560,31 @@ jobs:
       KEEP_CONFIG: ${{ secrets.KEEP_CONFIG }}
       NOTIONHUB_API_BASE: https://i.notionhub.app/v1
       NOTIONHUB_SERVICE: keep
-      NOTIONHUB_CONFIG_VERSION: '51'
+      NOTIONHUB_CONFIG_VERSION: '52'
       SYNC_POLICY_STATE_PATH: ${{ github.workspace }}/notionhub-state.json
       SYNC_POLICY_CONTINUATION_PATH: ${{ github.workspace }}/notionhub-continuation-id
       SYNC_POLICY_REPORT_PATH: ${{ github.workspace }}/notionhub-service-report.json
       NOTIONHUB_RUN_META_PATH: ${{ github.workspace }}/notionhub-run-meta.json
       NOTIONHUB_TARGET_RESULTS_PATH: ${{ github.workspace }}/notionhub-target-results.json
     steps:
+      - name: 清理历史同步临时文件
+        shell: bash
+        run: |
+          set -euo pipefail
+          : "${GITHUB_WORKSPACE:?GitHub workspace is required}"
+          rm -f -- \
+            "$GITHUB_WORKSPACE/notionhub-state.json" \
+            "$GITHUB_WORKSPACE/notionhub-continuation-id" \
+            "$GITHUB_WORKSPACE/notionhub-run-meta.json" \
+            "$GITHUB_WORKSPACE/notionhub-target-results.json" \
+            "$GITHUB_WORKSPACE/notionhub-service-report.json" \
+            "$GITHUB_WORKSPACE/notionhub-final.json"
+          shopt -s nullglob
+          for STAGE_FILE in "$GITHUB_WORKSPACE"/notionhub-stage-*.json; do
+            rm -f -- "$STAGE_FILE"
+          done
+          rm -rf -- "$GITHUB_WORKSPACE/notionhub-artifacts"
+
       - name: 恢复上一阶段进度
         id: restore
         if: needs.workout.outputs.enabled == 'true' && needs.vo2max.result == 'success'
@@ -1856,13 +1946,31 @@ jobs:
       KEEP_CONFIG: ${{ secrets.KEEP_CONFIG }}
       NOTIONHUB_API_BASE: https://i.notionhub.app/v1
       NOTIONHUB_SERVICE: keep
-      NOTIONHUB_CONFIG_VERSION: '51'
+      NOTIONHUB_CONFIG_VERSION: '52'
       SYNC_POLICY_STATE_PATH: ${{ github.workspace }}/notionhub-state.json
       SYNC_POLICY_CONTINUATION_PATH: ${{ github.workspace }}/notionhub-continuation-id
       SYNC_POLICY_REPORT_PATH: ${{ github.workspace }}/notionhub-service-report.json
       NOTIONHUB_RUN_META_PATH: ${{ github.workspace }}/notionhub-run-meta.json
       NOTIONHUB_TARGET_RESULTS_PATH: ${{ github.workspace }}/notionhub-target-results.json
     steps:
+      - name: 清理历史同步临时文件
+        shell: bash
+        run: |
+          set -euo pipefail
+          : "${GITHUB_WORKSPACE:?GitHub workspace is required}"
+          rm -f -- \
+            "$GITHUB_WORKSPACE/notionhub-state.json" \
+            "$GITHUB_WORKSPACE/notionhub-continuation-id" \
+            "$GITHUB_WORKSPACE/notionhub-run-meta.json" \
+            "$GITHUB_WORKSPACE/notionhub-target-results.json" \
+            "$GITHUB_WORKSPACE/notionhub-service-report.json" \
+            "$GITHUB_WORKSPACE/notionhub-final.json"
+          shopt -s nullglob
+          for STAGE_FILE in "$GITHUB_WORKSPACE"/notionhub-stage-*.json; do
+            rm -f -- "$STAGE_FILE"
+          done
+          rm -rf -- "$GITHUB_WORKSPACE/notionhub-artifacts"
+
       - name: 恢复上一阶段进度
         id: restore
         if: needs.workout.outputs.enabled == 'true' && needs.blood_oxygen.result == 'success'
@@ -2226,13 +2334,31 @@ jobs:
       KEEP_CONFIG: ${{ secrets.KEEP_CONFIG }}
       NOTIONHUB_API_BASE: https://i.notionhub.app/v1
       NOTIONHUB_SERVICE: keep
-      NOTIONHUB_CONFIG_VERSION: '51'
+      NOTIONHUB_CONFIG_VERSION: '52'
       SYNC_POLICY_STATE_PATH: ${{ github.workspace }}/notionhub-state.json
       SYNC_POLICY_CONTINUATION_PATH: ${{ github.workspace }}/notionhub-continuation-id
       SYNC_POLICY_REPORT_PATH: ${{ github.workspace }}/notionhub-service-report.json
       NOTIONHUB_RUN_META_PATH: ${{ github.workspace }}/notionhub-run-meta.json
       NOTIONHUB_TARGET_RESULTS_PATH: ${{ github.workspace }}/notionhub-target-results.json
     steps:
+      - name: 清理历史同步临时文件
+        shell: bash
+        run: |
+          set -euo pipefail
+          : "${GITHUB_WORKSPACE:?GitHub workspace is required}"
+          rm -f -- \
+            "$GITHUB_WORKSPACE/notionhub-state.json" \
+            "$GITHUB_WORKSPACE/notionhub-continuation-id" \
+            "$GITHUB_WORKSPACE/notionhub-run-meta.json" \
+            "$GITHUB_WORKSPACE/notionhub-target-results.json" \
+            "$GITHUB_WORKSPACE/notionhub-service-report.json" \
+            "$GITHUB_WORKSPACE/notionhub-final.json"
+          shopt -s nullglob
+          for STAGE_FILE in "$GITHUB_WORKSPACE"/notionhub-stage-*.json; do
+            rm -f -- "$STAGE_FILE"
+          done
+          rm -rf -- "$GITHUB_WORKSPACE/notionhub-artifacts"
+
       - name: 恢复上一阶段进度
         id: restore
         if: needs.workout.outputs.enabled == 'true' && (needs.steps.result == 'success' || needs.steps.result == 'failure')
@@ -2596,13 +2722,31 @@ jobs:
       KEEP_CONFIG: ${{ secrets.KEEP_CONFIG }}
       NOTIONHUB_API_BASE: https://i.notionhub.app/v1
       NOTIONHUB_SERVICE: keep
-      NOTIONHUB_CONFIG_VERSION: '51'
+      NOTIONHUB_CONFIG_VERSION: '52'
       SYNC_POLICY_STATE_PATH: ${{ github.workspace }}/notionhub-state.json
       SYNC_POLICY_CONTINUATION_PATH: ${{ github.workspace }}/notionhub-continuation-id
       SYNC_POLICY_REPORT_PATH: ${{ github.workspace }}/notionhub-service-report.json
       NOTIONHUB_RUN_META_PATH: ${{ github.workspace }}/notionhub-run-meta.json
       NOTIONHUB_TARGET_RESULTS_PATH: ${{ github.workspace }}/notionhub-target-results.json
     steps:
+      - name: 清理历史同步临时文件
+        shell: bash
+        run: |
+          set -euo pipefail
+          : "${GITHUB_WORKSPACE:?GitHub workspace is required}"
+          rm -f -- \
+            "$GITHUB_WORKSPACE/notionhub-state.json" \
+            "$GITHUB_WORKSPACE/notionhub-continuation-id" \
+            "$GITHUB_WORKSPACE/notionhub-run-meta.json" \
+            "$GITHUB_WORKSPACE/notionhub-target-results.json" \
+            "$GITHUB_WORKSPACE/notionhub-service-report.json" \
+            "$GITHUB_WORKSPACE/notionhub-final.json"
+          shopt -s nullglob
+          for STAGE_FILE in "$GITHUB_WORKSPACE"/notionhub-stage-*.json; do
+            rm -f -- "$STAGE_FILE"
+          done
+          rm -rf -- "$GITHUB_WORKSPACE/notionhub-artifacts"
+
       - name: 恢复上一阶段进度
         id: restore
         if: needs.workout.outputs.enabled == 'true' && (needs.drinking_water.result == 'success' || needs.drinking_water.result == 'failure')
@@ -2966,13 +3110,31 @@ jobs:
       KEEP_CONFIG: ${{ secrets.KEEP_CONFIG }}
       NOTIONHUB_API_BASE: https://i.notionhub.app/v1
       NOTIONHUB_SERVICE: keep
-      NOTIONHUB_CONFIG_VERSION: '51'
+      NOTIONHUB_CONFIG_VERSION: '52'
       SYNC_POLICY_STATE_PATH: ${{ github.workspace }}/notionhub-state.json
       SYNC_POLICY_CONTINUATION_PATH: ${{ github.workspace }}/notionhub-continuation-id
       SYNC_POLICY_REPORT_PATH: ${{ github.workspace }}/notionhub-service-report.json
       NOTIONHUB_RUN_META_PATH: ${{ github.workspace }}/notionhub-run-meta.json
       NOTIONHUB_TARGET_RESULTS_PATH: ${{ github.workspace }}/notionhub-target-results.json
     steps:
+      - name: 清理历史同步临时文件
+        shell: bash
+        run: |
+          set -euo pipefail
+          : "${GITHUB_WORKSPACE:?GitHub workspace is required}"
+          rm -f -- \
+            "$GITHUB_WORKSPACE/notionhub-state.json" \
+            "$GITHUB_WORKSPACE/notionhub-continuation-id" \
+            "$GITHUB_WORKSPACE/notionhub-run-meta.json" \
+            "$GITHUB_WORKSPACE/notionhub-target-results.json" \
+            "$GITHUB_WORKSPACE/notionhub-service-report.json" \
+            "$GITHUB_WORKSPACE/notionhub-final.json"
+          shopt -s nullglob
+          for STAGE_FILE in "$GITHUB_WORKSPACE"/notionhub-stage-*.json; do
+            rm -f -- "$STAGE_FILE"
+          done
+          rm -rf -- "$GITHUB_WORKSPACE/notionhub-artifacts"
+
       - name: 恢复上一阶段进度
         id: restore
         if: needs.workout.outputs.enabled == 'true' && needs.workout_heatmap.result == 'success'
@@ -3336,13 +3498,31 @@ jobs:
       KEEP_CONFIG: ${{ secrets.KEEP_CONFIG }}
       NOTIONHUB_API_BASE: https://i.notionhub.app/v1
       NOTIONHUB_SERVICE: keep
-      NOTIONHUB_CONFIG_VERSION: '51'
+      NOTIONHUB_CONFIG_VERSION: '52'
       SYNC_POLICY_STATE_PATH: ${{ github.workspace }}/notionhub-state.json
       SYNC_POLICY_CONTINUATION_PATH: ${{ github.workspace }}/notionhub-continuation-id
       SYNC_POLICY_REPORT_PATH: ${{ github.workspace }}/notionhub-service-report.json
       NOTIONHUB_RUN_META_PATH: ${{ github.workspace }}/notionhub-run-meta.json
       NOTIONHUB_TARGET_RESULTS_PATH: ${{ github.workspace }}/notionhub-target-results.json
     steps:
+      - name: 清理历史同步临时文件
+        shell: bash
+        run: |
+          set -euo pipefail
+          : "${GITHUB_WORKSPACE:?GitHub workspace is required}"
+          rm -f -- \
+            "$GITHUB_WORKSPACE/notionhub-state.json" \
+            "$GITHUB_WORKSPACE/notionhub-continuation-id" \
+            "$GITHUB_WORKSPACE/notionhub-run-meta.json" \
+            "$GITHUB_WORKSPACE/notionhub-target-results.json" \
+            "$GITHUB_WORKSPACE/notionhub-service-report.json" \
+            "$GITHUB_WORKSPACE/notionhub-final.json"
+          shopt -s nullglob
+          for STAGE_FILE in "$GITHUB_WORKSPACE"/notionhub-stage-*.json; do
+            rm -f -- "$STAGE_FILE"
+          done
+          rm -rf -- "$GITHUB_WORKSPACE/notionhub-artifacts"
+
       - name: 恢复上一阶段进度
         id: restore
         if: needs.workout.outputs.enabled == 'true' && needs.sleep_heatmap.result == 'success'
@@ -3706,13 +3886,31 @@ jobs:
       KEEP_CONFIG: ${{ secrets.KEEP_CONFIG }}
       NOTIONHUB_API_BASE: https://i.notionhub.app/v1
       NOTIONHUB_SERVICE: keep
-      NOTIONHUB_CONFIG_VERSION: '51'
+      NOTIONHUB_CONFIG_VERSION: '52'
       SYNC_POLICY_STATE_PATH: ${{ github.workspace }}/notionhub-state.json
       SYNC_POLICY_CONTINUATION_PATH: ${{ github.workspace }}/notionhub-continuation-id
       SYNC_POLICY_REPORT_PATH: ${{ github.workspace }}/notionhub-service-report.json
       NOTIONHUB_RUN_META_PATH: ${{ github.workspace }}/notionhub-run-meta.json
       NOTIONHUB_TARGET_RESULTS_PATH: ${{ github.workspace }}/notionhub-target-results.json
     steps:
+      - name: 清理历史同步临时文件
+        shell: bash
+        run: |
+          set -euo pipefail
+          : "${GITHUB_WORKSPACE:?GitHub workspace is required}"
+          rm -f -- \
+            "$GITHUB_WORKSPACE/notionhub-state.json" \
+            "$GITHUB_WORKSPACE/notionhub-continuation-id" \
+            "$GITHUB_WORKSPACE/notionhub-run-meta.json" \
+            "$GITHUB_WORKSPACE/notionhub-target-results.json" \
+            "$GITHUB_WORKSPACE/notionhub-service-report.json" \
+            "$GITHUB_WORKSPACE/notionhub-final.json"
+          shopt -s nullglob
+          for STAGE_FILE in "$GITHUB_WORKSPACE"/notionhub-stage-*.json; do
+            rm -f -- "$STAGE_FILE"
+          done
+          rm -rf -- "$GITHUB_WORKSPACE/notionhub-artifacts"
+
       - name: 恢复上一阶段进度
         id: restore
         if: needs.workout.outputs.enabled == 'true' && needs.steps_heatmap.result == 'success'

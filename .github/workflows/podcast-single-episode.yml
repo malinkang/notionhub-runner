@@ -1,4 +1,4 @@
-# NotionHub generated Podcast single episode workflow v1
+# NotionHub generated Podcast single episode workflow v2
 name: 单集同步
 run-name: 单集同步
 
@@ -45,15 +45,39 @@ jobs:
           SYNC_ENV_B64: ${{ github.event.inputs.sync_env_b64 }}
         run: |
           set -euo pipefail
-          python -m pip install --upgrade pip
-          INSTALL_TOKEN=$(python3 -c "import json, base64, os; data=json.loads(base64.b64decode(os.environ.get('SYNC_ENV_B64', 'e30='))); print(data.get('GITHUB_PAT') or data.get('INSTALL_TOKEN') or '')")
-          if [ -n "$INSTALL_TOKEN" ]; then
-            echo "::add-mask::$INSTALL_TOKEN"
-            pip install --quiet --disable-pip-version-check "git+https://${INSTALL_TOKEN}@github.com/malinkang/notionhub-core.git"
-            pip install --quiet --disable-pip-version-check "git+https://${INSTALL_TOKEN}@github.com/malinkang/Podcast2NotionProNew.git"
-          else
-            pip install --quiet --disable-pip-version-check "git+https://github.com/malinkang/notionhub-core.git"
-            pip install --quiet --disable-pip-version-check "git+https://github.com/malinkang/Podcast2NotionProNew.git"
+          python -m pip install --quiet --disable-pip-version-check --upgrade pip
+
+          BUNDLE_URL="https://images.notionhub.app/runner-bundles/v120-podcast-single-episode-caa4fb7/podcast.tar.gz"
+          BUNDLE_ARCHIVE="$RUNNER_TEMP/podcast-bundle.tar.gz"
+          BUNDLE_DIR="$RUNNER_TEMP/podcast-runner"
+
+          INSTALLED_FROM_BUNDLE=false
+          echo "正在从 R2 下载 Podcast 运行程序包..."
+          if curl -fsSL --retry 3 --retry-all-errors --retry-delay 2 "$BUNDLE_URL" -o "$BUNDLE_ARCHIVE" 2>/dev/null; then
+            mkdir -p "$BUNDLE_DIR"
+            if tar -xzf "$BUNDLE_ARCHIVE" -C "$BUNDLE_DIR" 2>/dev/null; then
+              if [ -f "$BUNDLE_DIR/runner/scripts/podcast2notion/requirements.txt" ]; then
+                grep -v '^podcast2notion' "$BUNDLE_DIR/runner/scripts/podcast2notion/requirements.txt" | pip install --quiet --disable-pip-version-check -r /dev/stdin
+              fi
+              echo "PYTHONPATH=$BUNDLE_DIR/runner/scripts/podcast2notion:$BUNDLE_DIR/runner/scripts/notionhub-core:${PYTHONPATH:-}" >> "$GITHUB_ENV"
+              export PYTHONPATH="$BUNDLE_DIR/runner/scripts/podcast2notion:$BUNDLE_DIR/runner/scripts/notionhub-core:${PYTHONPATH:-}"
+              INSTALLED_FROM_BUNDLE=true
+              echo "成功从 R2 预编译包安装依赖。"
+            fi
+          fi
+
+          if [ "$INSTALLED_FROM_BUNDLE" != "true" ]; then
+            echo "::warning::从 R2 下载运行程序包失败，正在降级从 GitHub 仓库拉取..."
+            export GIT_TERMINAL_PROMPT=0
+            INSTALL_TOKEN=$(python3 -c "import json, base64, os; data=json.loads(base64.b64decode(os.environ.get('SYNC_ENV_B64', 'e30='))); print(data.get('GITHUB_PAT') or data.get('INSTALL_TOKEN') or '')")
+            if [ -n "$INSTALL_TOKEN" ]; then
+              echo "::add-mask::$INSTALL_TOKEN"
+              pip install --quiet --disable-pip-version-check "git+https://x-access-token:${INSTALL_TOKEN}@github.com/malinkang/notionhub-core.git"
+              pip install --quiet --disable-pip-version-check "git+https://x-access-token:${INSTALL_TOKEN}@github.com/malinkang/Podcast2NotionProNew.git"
+            else
+              pip install --quiet --disable-pip-version-check "git+https://github.com/malinkang/notionhub-core.git"
+              pip install --quiet --disable-pip-version-check "git+https://github.com/malinkang/Podcast2NotionProNew.git"
+            fi
           fi
 
       - name: 运行小宇宙单集同步

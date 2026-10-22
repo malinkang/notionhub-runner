@@ -103,7 +103,7 @@ jobs:
           RUNTIME_ARCHIVE="$RUNNER_TEMP/notionhub-runner.tar.gz"
           cleanup_runtime_files() { rm -f "$RUNTIME_RESPONSE" "$RUNTIME_METADATA" "$RUNTIME_ARCHIVE"; }
           trap cleanup_runtime_files EXIT
-          HTTP_STATUS=$(curl -sS -o "$RUNTIME_RESPONSE" -w '%{http_code}' -X POST "$NOTIONHUB_API_BASE/github/runner/runtime-bundle"             -H "Authorization: Bearer $OIDC_TOKEN" -H 'Content-Type: application/json' --data "$RUNTIME_PAYLOAD")
+          HTTP_STATUS=$(curl -sS --retry 3 --retry-all-errors --retry-delay 2 -o "$RUNTIME_RESPONSE" -w '%{http_code}' -X POST "$NOTIONHUB_API_BASE/github/runner/runtime-bundle"             -H "Authorization: Bearer $OIDC_TOKEN" -H 'Content-Type: application/json' --data "$RUNTIME_PAYLOAD")
           if [ "$HTTP_STATUS" = "418" ]; then
             echo "免费体验次数已用完，请购买激活码。"
             echo "获取激活码：https://www.notionhub.app/docs/get-activation-code.html"
@@ -569,7 +569,7 @@ jobs:
           RUNTIME_ARCHIVE="$RUNNER_TEMP/notionhub-runner.tar.gz"
           cleanup_runtime_files() { rm -f "$RUNTIME_RESPONSE" "$RUNTIME_METADATA" "$RUNTIME_ARCHIVE"; }
           trap cleanup_runtime_files EXIT
-          HTTP_STATUS=$(curl -sS -o "$RUNTIME_RESPONSE" -w '%{http_code}' -X POST "$NOTIONHUB_API_BASE/github/runner/runtime-bundle"             -H "Authorization: Bearer $OIDC_TOKEN" -H 'Content-Type: application/json' --data "$RUNTIME_PAYLOAD")
+          HTTP_STATUS=$(curl -sS --retry 3 --retry-all-errors --retry-delay 2 -o "$RUNTIME_RESPONSE" -w '%{http_code}' -X POST "$NOTIONHUB_API_BASE/github/runner/runtime-bundle"             -H "Authorization: Bearer $OIDC_TOKEN" -H 'Content-Type: application/json' --data "$RUNTIME_PAYLOAD")
           if [ "$HTTP_STATUS" = "418" ]; then
             echo "免费体验次数已用完，请购买激活码。"
             echo "获取激活码：https://www.notionhub.app/docs/get-activation-code.html"
@@ -955,7 +955,7 @@ jobs:
           RUNTIME_ARCHIVE="$RUNNER_TEMP/notionhub-runner.tar.gz"
           cleanup_runtime_files() { rm -f "$RUNTIME_RESPONSE" "$RUNTIME_METADATA" "$RUNTIME_ARCHIVE"; }
           trap cleanup_runtime_files EXIT
-          HTTP_STATUS=$(curl -sS -o "$RUNTIME_RESPONSE" -w '%{http_code}' -X POST "$NOTIONHUB_API_BASE/github/runner/runtime-bundle"             -H "Authorization: Bearer $OIDC_TOKEN" -H 'Content-Type: application/json' --data "$RUNTIME_PAYLOAD")
+          HTTP_STATUS=$(curl -sS --retry 3 --retry-all-errors --retry-delay 2 -o "$RUNTIME_RESPONSE" -w '%{http_code}' -X POST "$NOTIONHUB_API_BASE/github/runner/runtime-bundle"             -H "Authorization: Bearer $OIDC_TOKEN" -H 'Content-Type: application/json' --data "$RUNTIME_PAYLOAD")
           if [ "$HTTP_STATUS" = "418" ]; then
             echo "免费体验次数已用完，请购买激活码。"
             echo "获取激活码：https://www.notionhub.app/docs/get-activation-code.html"
@@ -1341,7 +1341,7 @@ jobs:
           RUNTIME_ARCHIVE="$RUNNER_TEMP/notionhub-runner.tar.gz"
           cleanup_runtime_files() { rm -f "$RUNTIME_RESPONSE" "$RUNTIME_METADATA" "$RUNTIME_ARCHIVE"; }
           trap cleanup_runtime_files EXIT
-          HTTP_STATUS=$(curl -sS -o "$RUNTIME_RESPONSE" -w '%{http_code}' -X POST "$NOTIONHUB_API_BASE/github/runner/runtime-bundle"             -H "Authorization: Bearer $OIDC_TOKEN" -H 'Content-Type: application/json' --data "$RUNTIME_PAYLOAD")
+          HTTP_STATUS=$(curl -sS --retry 3 --retry-all-errors --retry-delay 2 -o "$RUNTIME_RESPONSE" -w '%{http_code}' -X POST "$NOTIONHUB_API_BASE/github/runner/runtime-bundle"             -H "Authorization: Bearer $OIDC_TOKEN" -H 'Content-Type: application/json' --data "$RUNTIME_PAYLOAD")
           if [ "$HTTP_STATUS" = "418" ]; then
             echo "免费体验次数已用完，请购买激活码。"
             echo "获取激活码：https://www.notionhub.app/docs/get-activation-code.html"
@@ -1727,7 +1727,7 @@ jobs:
           RUNTIME_ARCHIVE="$RUNNER_TEMP/notionhub-runner.tar.gz"
           cleanup_runtime_files() { rm -f "$RUNTIME_RESPONSE" "$RUNTIME_METADATA" "$RUNTIME_ARCHIVE"; }
           trap cleanup_runtime_files EXIT
-          HTTP_STATUS=$(curl -sS -o "$RUNTIME_RESPONSE" -w '%{http_code}' -X POST "$NOTIONHUB_API_BASE/github/runner/runtime-bundle"             -H "Authorization: Bearer $OIDC_TOKEN" -H 'Content-Type: application/json' --data "$RUNTIME_PAYLOAD")
+          HTTP_STATUS=$(curl -sS --retry 3 --retry-all-errors --retry-delay 2 -o "$RUNTIME_RESPONSE" -w '%{http_code}' -X POST "$NOTIONHUB_API_BASE/github/runner/runtime-bundle"             -H "Authorization: Bearer $OIDC_TOKEN" -H 'Content-Type: application/json' --data "$RUNTIME_PAYLOAD")
           if [ "$HTTP_STATUS" = "418" ]; then
             echo "免费体验次数已用完，请购买激活码。"
             echo "获取激活码：https://www.notionhub.app/docs/get-activation-code.html"
@@ -2116,7 +2116,7 @@ jobs:
           RUNTIME_ARCHIVE="$RUNNER_TEMP/notionhub-runner.tar.gz"
           cleanup_runtime_files() { rm -f "$RUNTIME_RESPONSE" "$RUNTIME_METADATA" "$RUNTIME_ARCHIVE"; }
           trap cleanup_runtime_files EXIT
-          HTTP_STATUS=$(curl -sS -o "$RUNTIME_RESPONSE" -w '%{http_code}' -X POST "$NOTIONHUB_API_BASE/github/runner/runtime-bundle"             -H "Authorization: Bearer $OIDC_TOKEN" -H 'Content-Type: application/json' --data "$RUNTIME_PAYLOAD")
+          HTTP_STATUS=$(curl -sS --retry 3 --retry-all-errors --retry-delay 2 -o "$RUNTIME_RESPONSE" -w '%{http_code}' -X POST "$NOTIONHUB_API_BASE/github/runner/runtime-bundle"             -H "Authorization: Bearer $OIDC_TOKEN" -H 'Content-Type: application/json' --data "$RUNTIME_PAYLOAD")
           if [ "$HTTP_STATUS" = "418" ]; then
             echo "免费体验次数已用完，请购买激活码。"
             echo "获取激活码：https://www.notionhub.app/docs/get-activation-code.html"
@@ -2504,7 +2504,7 @@ jobs:
           RUNTIME_ARCHIVE="$RUNNER_TEMP/notionhub-runner.tar.gz"
           cleanup_runtime_files() { rm -f "$RUNTIME_RESPONSE" "$RUNTIME_METADATA" "$RUNTIME_ARCHIVE"; }
           trap cleanup_runtime_files EXIT
-          HTTP_STATUS=$(curl -sS -o "$RUNTIME_RESPONSE" -w '%{http_code}' -X POST "$NOTIONHUB_API_BASE/github/runner/runtime-bundle"             -H "Authorization: Bearer $OIDC_TOKEN" -H 'Content-Type: application/json' --data "$RUNTIME_PAYLOAD")
+          HTTP_STATUS=$(curl -sS --retry 3 --retry-all-errors --retry-delay 2 -o "$RUNTIME_RESPONSE" -w '%{http_code}' -X POST "$NOTIONHUB_API_BASE/github/runner/runtime-bundle"             -H "Authorization: Bearer $OIDC_TOKEN" -H 'Content-Type: application/json' --data "$RUNTIME_PAYLOAD")
           if [ "$HTTP_STATUS" = "418" ]; then
             echo "免费体验次数已用完，请购买激活码。"
             echo "获取激活码：https://www.notionhub.app/docs/get-activation-code.html"
@@ -2892,7 +2892,7 @@ jobs:
           RUNTIME_ARCHIVE="$RUNNER_TEMP/notionhub-runner.tar.gz"
           cleanup_runtime_files() { rm -f "$RUNTIME_RESPONSE" "$RUNTIME_METADATA" "$RUNTIME_ARCHIVE"; }
           trap cleanup_runtime_files EXIT
-          HTTP_STATUS=$(curl -sS -o "$RUNTIME_RESPONSE" -w '%{http_code}' -X POST "$NOTIONHUB_API_BASE/github/runner/runtime-bundle"             -H "Authorization: Bearer $OIDC_TOKEN" -H 'Content-Type: application/json' --data "$RUNTIME_PAYLOAD")
+          HTTP_STATUS=$(curl -sS --retry 3 --retry-all-errors --retry-delay 2 -o "$RUNTIME_RESPONSE" -w '%{http_code}' -X POST "$NOTIONHUB_API_BASE/github/runner/runtime-bundle"             -H "Authorization: Bearer $OIDC_TOKEN" -H 'Content-Type: application/json' --data "$RUNTIME_PAYLOAD")
           if [ "$HTTP_STATUS" = "418" ]; then
             echo "免费体验次数已用完，请购买激活码。"
             echo "获取激活码：https://www.notionhub.app/docs/get-activation-code.html"
@@ -3280,7 +3280,7 @@ jobs:
           RUNTIME_ARCHIVE="$RUNNER_TEMP/notionhub-runner.tar.gz"
           cleanup_runtime_files() { rm -f "$RUNTIME_RESPONSE" "$RUNTIME_METADATA" "$RUNTIME_ARCHIVE"; }
           trap cleanup_runtime_files EXIT
-          HTTP_STATUS=$(curl -sS -o "$RUNTIME_RESPONSE" -w '%{http_code}' -X POST "$NOTIONHUB_API_BASE/github/runner/runtime-bundle"             -H "Authorization: Bearer $OIDC_TOKEN" -H 'Content-Type: application/json' --data "$RUNTIME_PAYLOAD")
+          HTTP_STATUS=$(curl -sS --retry 3 --retry-all-errors --retry-delay 2 -o "$RUNTIME_RESPONSE" -w '%{http_code}' -X POST "$NOTIONHUB_API_BASE/github/runner/runtime-bundle"             -H "Authorization: Bearer $OIDC_TOKEN" -H 'Content-Type: application/json' --data "$RUNTIME_PAYLOAD")
           if [ "$HTTP_STATUS" = "418" ]; then
             echo "免费体验次数已用完，请购买激活码。"
             echo "获取激活码：https://www.notionhub.app/docs/get-activation-code.html"
@@ -3668,7 +3668,7 @@ jobs:
           RUNTIME_ARCHIVE="$RUNNER_TEMP/notionhub-runner.tar.gz"
           cleanup_runtime_files() { rm -f "$RUNTIME_RESPONSE" "$RUNTIME_METADATA" "$RUNTIME_ARCHIVE"; }
           trap cleanup_runtime_files EXIT
-          HTTP_STATUS=$(curl -sS -o "$RUNTIME_RESPONSE" -w '%{http_code}' -X POST "$NOTIONHUB_API_BASE/github/runner/runtime-bundle"             -H "Authorization: Bearer $OIDC_TOKEN" -H 'Content-Type: application/json' --data "$RUNTIME_PAYLOAD")
+          HTTP_STATUS=$(curl -sS --retry 3 --retry-all-errors --retry-delay 2 -o "$RUNTIME_RESPONSE" -w '%{http_code}' -X POST "$NOTIONHUB_API_BASE/github/runner/runtime-bundle"             -H "Authorization: Bearer $OIDC_TOKEN" -H 'Content-Type: application/json' --data "$RUNTIME_PAYLOAD")
           if [ "$HTTP_STATUS" = "418" ]; then
             echo "免费体验次数已用完，请购买激活码。"
             echo "获取激活码：https://www.notionhub.app/docs/get-activation-code.html"
@@ -4056,7 +4056,7 @@ jobs:
           RUNTIME_ARCHIVE="$RUNNER_TEMP/notionhub-runner.tar.gz"
           cleanup_runtime_files() { rm -f "$RUNTIME_RESPONSE" "$RUNTIME_METADATA" "$RUNTIME_ARCHIVE"; }
           trap cleanup_runtime_files EXIT
-          HTTP_STATUS=$(curl -sS -o "$RUNTIME_RESPONSE" -w '%{http_code}' -X POST "$NOTIONHUB_API_BASE/github/runner/runtime-bundle"             -H "Authorization: Bearer $OIDC_TOKEN" -H 'Content-Type: application/json' --data "$RUNTIME_PAYLOAD")
+          HTTP_STATUS=$(curl -sS --retry 3 --retry-all-errors --retry-delay 2 -o "$RUNTIME_RESPONSE" -w '%{http_code}' -X POST "$NOTIONHUB_API_BASE/github/runner/runtime-bundle"             -H "Authorization: Bearer $OIDC_TOKEN" -H 'Content-Type: application/json' --data "$RUNTIME_PAYLOAD")
           if [ "$HTTP_STATUS" = "418" ]; then
             echo "免费体验次数已用完，请购买激活码。"
             echo "获取激活码：https://www.notionhub.app/docs/get-activation-code.html"
@@ -4500,7 +4500,7 @@ jobs:
           RUNTIME_ARCHIVE="$RUNNER_TEMP/notionhub-runner.tar.gz"
           cleanup_runtime_files() { rm -f "$RUNTIME_RESPONSE" "$RUNTIME_METADATA" "$RUNTIME_ARCHIVE"; }
           trap cleanup_runtime_files EXIT
-          HTTP_STATUS=$(curl -sS -o "$RUNTIME_RESPONSE" -w '%{http_code}' -X POST "$NOTIONHUB_API_BASE/github/runner/runtime-bundle"             -H "Authorization: Bearer $OIDC_TOKEN" -H 'Content-Type: application/json' --data "$RUNTIME_PAYLOAD")
+          HTTP_STATUS=$(curl -sS --retry 3 --retry-all-errors --retry-delay 2 -o "$RUNTIME_RESPONSE" -w '%{http_code}' -X POST "$NOTIONHUB_API_BASE/github/runner/runtime-bundle"             -H "Authorization: Bearer $OIDC_TOKEN" -H 'Content-Type: application/json' --data "$RUNTIME_PAYLOAD")
           if [ "$HTTP_STATUS" = "418" ]; then
             echo "免费体验次数已用完，请购买激活码。"
             echo "获取激活码：https://www.notionhub.app/docs/get-activation-code.html"

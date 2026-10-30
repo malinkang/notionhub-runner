@@ -1,4 +1,4 @@
-# NotionHub generated free workflow v3
+# NotionHub generated free workflow v4
 name: 微信读书免费版
 run-name: ${{ github.workflow }}
 

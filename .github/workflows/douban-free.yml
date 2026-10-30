@@ -1,4 +1,4 @@
-# NotionHub generated free workflow v3
+# NotionHub generated free workflow v4
 name: 豆瓣免费版
 run-name: ${{ github.workflow }}
 
@@ -22,7 +22,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: notionhub-douban-sync-${{ github.ref_name }}
+  group: notionhub-douban-free-sync-${{ github.ref_name }}
   cancel-in-progress: true
 
 jobs:

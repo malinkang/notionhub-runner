@@ -32,8 +32,8 @@ jobs:
     env:
       FREE_CONFIG_JSON: ${{ secrets.DOUBAN_FREE_CONFIG }}
       SOURCE_REPOSITORY: malinkang/douban2notion
-      SOURCE_REF: 654ee32ad9fe34553d8b9244081e76db2826e3c6
-      SOURCE_SHA: 654ee32ad9fe34553d8b9244081e76db2826e3c6
+      SOURCE_REF: 87d206587e39ba9f9bc29d30da07c78a7f7b7f13
+      SOURCE_SHA: 87d206587e39ba9f9bc29d30da07c78a7f7b7f13
       REPOSITORY: ${{ github.repository }}
       ARTIFACT_BRANCH: ${{ github.event.repository.default_branch }}
       NOTIONHUB_ARTIFACT_ROOT: ${{ github.workspace }}/.notionhub-artifacts/douban
@@ -129,7 +129,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: malinkang/douban2notion
-          ref: 654ee32ad9fe34553d8b9244081e76db2826e3c6
+          ref: 87d206587e39ba9f9bc29d30da07c78a7f7b7f13
           path: .notionhub-source/douban
           persist-credentials: false
 
@@ -138,7 +138,7 @@ jobs:
         run: |
           ACTUAL_SHA=$(git rev-parse HEAD)
           if [ "$ACTUAL_SHA" != "$SOURCE_SHA" ]; then
-            echo "::error title=开源版本校验失败::malinkang/douban2notion@654ee32ad9fe34553d8b9244081e76db2826e3c6 的提交与预期 SHA 不一致。"
+            echo "::error title=开源版本校验失败::malinkang/douban2notion@87d206587e39ba9f9bc29d30da07c78a7f7b7f13 的提交与预期 SHA 不一致。"
             exit 1
           fi
 

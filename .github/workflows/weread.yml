@@ -49,7 +49,7 @@ jobs:
       WEREAD_CONFIG: ${{ secrets.WEREAD_CONFIG }}
       NOTIONHUB_API_BASE: https://i.notionhub.app/v1
       NOTIONHUB_SERVICE: weread
-      NOTIONHUB_CONFIG_VERSION: '57'
+      NOTIONHUB_CONFIG_VERSION: '58'
       SYNC_POLICY_STATE_PATH: ${{ github.workspace }}/notionhub-state.json
       SYNC_POLICY_CONTINUATION_PATH: ${{ github.workspace }}/notionhub-continuation-id
       SYNC_POLICY_REPORT_PATH: ${{ github.workspace }}/notionhub-service-report.json
@@ -296,7 +296,11 @@ jobs:
           python -m pip install --quiet --disable-pip-version-check --upgrade pip
           if [ -f runner/requirements.txt ]; then pip install --quiet --disable-pip-version-check -r runner/requirements.txt; fi
           SERVICE_REQUIREMENTS=$(cd runner && python -m notionhub_runner requirements weread)
-          if [ -f "$SERVICE_REQUIREMENTS" ]; then pip install --quiet --disable-pip-version-check -r "$SERVICE_REQUIREMENTS"; fi
+          if [ -f "$SERVICE_REQUIREMENTS" ]; then
+            SERVICE_REQUIREMENTS_DIR=$(dirname "$SERVICE_REQUIREMENTS")
+            SERVICE_REQUIREMENTS_FILE=$(basename "$SERVICE_REQUIREMENTS")
+            (cd "$SERVICE_REQUIREMENTS_DIR" && pip install --quiet --disable-pip-version-check -r "$SERVICE_REQUIREMENTS_FILE")
+          fi
 
 
       - name: 同步书籍
@@ -391,7 +395,7 @@ jobs:
       WEREAD_CONFIG: ${{ secrets.WEREAD_CONFIG }}
       NOTIONHUB_API_BASE: https://i.notionhub.app/v1
       NOTIONHUB_SERVICE: weread
-      NOTIONHUB_CONFIG_VERSION: '57'
+      NOTIONHUB_CONFIG_VERSION: '58'
       SYNC_POLICY_STATE_PATH: ${{ github.workspace }}/notionhub-state.json
       SYNC_POLICY_CONTINUATION_PATH: ${{ github.workspace }}/notionhub-continuation-id
       SYNC_POLICY_REPORT_PATH: ${{ github.workspace }}/notionhub-service-report.json
@@ -672,7 +676,11 @@ jobs:
           python -m pip install --quiet --disable-pip-version-check --upgrade pip
           if [ -f runner/requirements.txt ]; then pip install --quiet --disable-pip-version-check -r runner/requirements.txt; fi
           SERVICE_REQUIREMENTS=$(cd runner && python -m notionhub_runner requirements weread)
-          if [ -f "$SERVICE_REQUIREMENTS" ]; then pip install --quiet --disable-pip-version-check -r "$SERVICE_REQUIREMENTS"; fi
+          if [ -f "$SERVICE_REQUIREMENTS" ]; then
+            SERVICE_REQUIREMENTS_DIR=$(dirname "$SERVICE_REQUIREMENTS")
+            SERVICE_REQUIREMENTS_FILE=$(basename "$SERVICE_REQUIREMENTS")
+            (cd "$SERVICE_REQUIREMENTS_DIR" && pip install --quiet --disable-pip-version-check -r "$SERVICE_REQUIREMENTS_FILE")
+          fi
 
 
       - name: 同步阅读时长
@@ -767,7 +775,7 @@ jobs:
       WEREAD_CONFIG: ${{ secrets.WEREAD_CONFIG }}
       NOTIONHUB_API_BASE: https://i.notionhub.app/v1
       NOTIONHUB_SERVICE: weread
-      NOTIONHUB_CONFIG_VERSION: '57'
+      NOTIONHUB_CONFIG_VERSION: '58'
       SYNC_POLICY_STATE_PATH: ${{ github.workspace }}/notionhub-state.json
       SYNC_POLICY_CONTINUATION_PATH: ${{ github.workspace }}/notionhub-continuation-id
       SYNC_POLICY_REPORT_PATH: ${{ github.workspace }}/notionhub-service-report.json
@@ -1074,7 +1082,11 @@ jobs:
           python -m pip install --quiet --disable-pip-version-check --upgrade pip
           if [ -f runner/requirements.txt ]; then pip install --quiet --disable-pip-version-check -r runner/requirements.txt; fi
           SERVICE_REQUIREMENTS=$(cd runner && python -m notionhub_runner requirements weread)
-          if [ -f "$SERVICE_REQUIREMENTS" ]; then pip install --quiet --disable-pip-version-check -r "$SERVICE_REQUIREMENTS"; fi
+          if [ -f "$SERVICE_REQUIREMENTS" ]; then
+            SERVICE_REQUIREMENTS_DIR=$(dirname "$SERVICE_REQUIREMENTS")
+            SERVICE_REQUIREMENTS_FILE=$(basename "$SERVICE_REQUIREMENTS")
+            (cd "$SERVICE_REQUIREMENTS_DIR" && pip install --quiet --disable-pip-version-check -r "$SERVICE_REQUIREMENTS_FILE")
+          fi
 
 
       - name: 同步书单
@@ -1166,7 +1178,7 @@ jobs:
       WEREAD_CONFIG: ${{ secrets.WEREAD_CONFIG }}
       NOTIONHUB_API_BASE: https://i.notionhub.app/v1
       NOTIONHUB_SERVICE: weread
-      NOTIONHUB_CONFIG_VERSION: '57'
+      NOTIONHUB_CONFIG_VERSION: '58'
       SYNC_POLICY_STATE_PATH: ${{ github.workspace }}/notionhub-state.json
       SYNC_POLICY_CONTINUATION_PATH: ${{ github.workspace }}/notionhub-continuation-id
       SYNC_POLICY_REPORT_PATH: ${{ github.workspace }}/notionhub-service-report.json
@@ -1473,7 +1485,11 @@ jobs:
           python -m pip install --quiet --disable-pip-version-check --upgrade pip
           if [ -f runner/requirements.txt ]; then pip install --quiet --disable-pip-version-check -r runner/requirements.txt; fi
           SERVICE_REQUIREMENTS=$(cd runner && python -m notionhub_runner requirements weread)
-          if [ -f "$SERVICE_REQUIREMENTS" ]; then pip install --quiet --disable-pip-version-check -r "$SERVICE_REQUIREMENTS"; fi
+          if [ -f "$SERVICE_REQUIREMENTS" ]; then
+            SERVICE_REQUIREMENTS_DIR=$(dirname "$SERVICE_REQUIREMENTS")
+            SERVICE_REQUIREMENTS_FILE=$(basename "$SERVICE_REQUIREMENTS")
+            (cd "$SERVICE_REQUIREMENTS_DIR" && pip install --quiet --disable-pip-version-check -r "$SERVICE_REQUIREMENTS_FILE")
+          fi
 
 
       - name: 同步公众号文章
@@ -1565,7 +1581,7 @@ jobs:
       WEREAD_CONFIG: ${{ secrets.WEREAD_CONFIG }}
       NOTIONHUB_API_BASE: https://i.notionhub.app/v1
       NOTIONHUB_SERVICE: weread
-      NOTIONHUB_CONFIG_VERSION: '57'
+      NOTIONHUB_CONFIG_VERSION: '58'
       SYNC_POLICY_STATE_PATH: ${{ github.workspace }}/notionhub-state.json
       SYNC_POLICY_CONTINUATION_PATH: ${{ github.workspace }}/notionhub-continuation-id
       SYNC_POLICY_REPORT_PATH: ${{ github.workspace }}/notionhub-service-report.json
@@ -1851,7 +1867,11 @@ jobs:
           python -m pip install --quiet --disable-pip-version-check --upgrade pip
           if [ -f runner/requirements.txt ]; then pip install --quiet --disable-pip-version-check -r runner/requirements.txt; fi
           SERVICE_REQUIREMENTS=$(cd runner && python -m notionhub_runner requirements weread)
-          if [ -f "$SERVICE_REQUIREMENTS" ]; then pip install --quiet --disable-pip-version-check -r "$SERVICE_REQUIREMENTS"; fi
+          if [ -f "$SERVICE_REQUIREMENTS" ]; then
+            SERVICE_REQUIREMENTS_DIR=$(dirname "$SERVICE_REQUIREMENTS")
+            SERVICE_REQUIREMENTS_FILE=$(basename "$SERVICE_REQUIREMENTS")
+            (cd "$SERVICE_REQUIREMENTS_DIR" && pip install --quiet --disable-pip-version-check -r "$SERVICE_REQUIREMENTS_FILE")
+          fi
 
 
       - name: 修复 Notion 数据

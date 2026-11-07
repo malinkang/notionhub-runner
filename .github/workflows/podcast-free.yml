@@ -1,4 +1,4 @@
-# NotionHub generated free workflow v4
+# NotionHub generated free workflow v5
 name: 小宇宙免费版
 run-name: ${{ github.workflow }}
 

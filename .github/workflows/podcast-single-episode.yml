@@ -47,7 +47,7 @@ jobs:
           set -euo pipefail
           python -m pip install --quiet --disable-pip-version-check --upgrade pip
 
-          BUNDLE_URL="https://images.notionhub.app/runner-bundles/v120-podcast-single-episode-caa4fb7/podcast.tar.gz"
+          BUNDLE_URL="https://images.notionhub.app/runner-bundles/v20261108-sync-recovery-dd4253c/podcast.tar.gz"
           BUNDLE_ARCHIVE="$RUNNER_TEMP/podcast-bundle.tar.gz"
           BUNDLE_DIR="$RUNNER_TEMP/podcast-runner"
 

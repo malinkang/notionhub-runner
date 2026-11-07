@@ -47,7 +47,7 @@ jobs:
       DOUYIN_CONFIG: ${{ secrets.DOUYIN_CONFIG }}
       NOTIONHUB_API_BASE: https://i.notionhub.app/v1
       NOTIONHUB_SERVICE: douyin
-      NOTIONHUB_CONFIG_VERSION: '52'
+      NOTIONHUB_CONFIG_VERSION: '53'
       SYNC_POLICY_STATE_PATH: ${{ github.workspace }}/notionhub-state.json
       SYNC_POLICY_CONTINUATION_PATH: ${{ github.workspace }}/notionhub-continuation-id
       SYNC_POLICY_REPORT_PATH: ${{ github.workspace }}/notionhub-service-report.json
@@ -161,6 +161,7 @@ jobs:
           PY
           ACCESS_TOKEN=$(jq -r '.accessToken // empty' "$RUNTIME_METADATA")
           REPORT_TOKEN=$(jq -r '.reportToken // empty' "$RUNTIME_METADATA")
+          CONTINUATION_TOKEN=$(jq -r '.continuationToken // empty' "$RUNTIME_METADATA")
           POLICY_ID=$(jq -r '.context.id // empty' "$RUNTIME_METADATA")
           PLAN=$(jq -r '.context.plan // empty' "$RUNTIME_METADATA")
           POLICY_JSON=$(jq -c '.policy // {}' "$RUNTIME_METADATA")
@@ -168,11 +169,13 @@ jobs:
           SERVICE_CONFIG=$(jq -c '.serviceConfig // empty' "$RUNTIME_METADATA")
           EXPECTED_SIZE=$(jq -r '.bundle.size // empty' "$RUNTIME_METADATA")
           EXPECTED_SHA256=$(jq -r '.bundle.sha256 // empty' "$RUNTIME_METADATA")
-          if [ -z "$ACCESS_TOKEN" ] || [ -z "$REPORT_TOKEN" ] || [ -z "$POLICY_ID" ] || [ -z "$PLAN" ] || [ -z "$POLICY_SIGNATURE" ] || [ -z "$SERVICE_CONFIG" ] || [ -z "$EXPECTED_SIZE" ] || [ -z "$EXPECTED_SHA256" ]; then
+          if [ -z "$ACCESS_TOKEN" ] || [ -z "$REPORT_TOKEN" ] || [ -z "$CONTINUATION_TOKEN" ] || [ -z "$POLICY_ID" ] || [ -z "$PLAN" ] || [ -z "$POLICY_SIGNATURE" ] || [ -z "$SERVICE_CONFIG" ] || [ -z "$EXPECTED_SIZE" ] || [ -z "$EXPECTED_SHA256" ]; then
             echo "::error title=运行准备失败::运行配置缺少必要字段。"
             exit 1
           fi
-          for VALUE in "$ACCESS_TOKEN" "$REPORT_TOKEN" "$POLICY_SIGNATURE" "$SERVICE_CONFIG"; do echo "::add-mask::$VALUE"; done
+          for VALUE in "$ACCESS_TOKEN" "$REPORT_TOKEN" "$CONTINUATION_TOKEN" "$POLICY_SIGNATURE" "$SERVICE_CONFIG"; do echo "::add-mask::$VALUE"; done
+          printf '%s' "$CONTINUATION_TOKEN" > "$SYNC_POLICY_CONTINUATION_PATH"
+          chmod 600 "$SYNC_POLICY_CONTINUATION_PATH"
           python3 - "$RUNTIME_METADATA" <<'PY'
           import json
           import sys
@@ -252,7 +255,6 @@ jobs:
           state = initial if isinstance(initial, dict) else {}
           Path(os.environ['SYNC_POLICY_STATE_PATH']).write_text(json.dumps(state, ensure_ascii=False), encoding='utf-8')
           PY
-          printf '%s' "$NOTIONHUB_POLICY_ID" > "$SYNC_POLICY_CONTINUATION_PATH"
           RAW_CONFIG="${DOUYIN_CONFIG:-$SERVICE_CONFIG}"
           SAFE_CONFIG=$(printf '%s' "$RAW_CONFIG" | jq -c '{
             ("DOUYIN_SYNC_PLAN"): (."DOUYIN_SYNC_PLAN" // null),
@@ -387,7 +389,7 @@ jobs:
       DOUYIN_CONFIG: ${{ secrets.DOUYIN_CONFIG }}
       NOTIONHUB_API_BASE: https://i.notionhub.app/v1
       NOTIONHUB_SERVICE: douyin
-      NOTIONHUB_CONFIG_VERSION: '52'
+      NOTIONHUB_CONFIG_VERSION: '53'
       SYNC_POLICY_STATE_PATH: ${{ github.workspace }}/notionhub-state.json
       SYNC_POLICY_CONTINUATION_PATH: ${{ github.workspace }}/notionhub-continuation-id
       SYNC_POLICY_REPORT_PATH: ${{ github.workspace }}/notionhub-service-report.json
@@ -546,12 +548,12 @@ jobs:
             exit 1
           fi
           echo "::add-mask::$OIDC_TOKEN"
-          CONTINUATION_ID="$(cat "$SYNC_POLICY_CONTINUATION_PATH")"
-          if [ -z "$CONTINUATION_ID" ]; then
+          CONTINUATION_TOKEN="$(cat "$SYNC_POLICY_CONTINUATION_PATH")"
+          if [ -z "$CONTINUATION_TOKEN" ]; then
             echo "::error title=运行授权续接失败::同步进度中缺少续接标识。"
             exit 1
           fi
-          RUNTIME_PAYLOAD=$(jq -cn --arg service "douyin" --arg continuation "$CONTINUATION_ID" '{service:$service,purpose:"sync",continuationPolicyId:$continuation}')
+          RUNTIME_PAYLOAD=$(jq -cn --arg service "douyin" --arg continuation "$CONTINUATION_TOKEN" '{service:$service,purpose:"sync",continuationToken:$continuation}')
           RUNTIME_RESPONSE="$RUNNER_TEMP/notionhub-runtime-bundle.bin"
           RUNTIME_METADATA="$RUNNER_TEMP/notionhub-runtime-metadata.json"
           RUNTIME_ARCHIVE="$RUNNER_TEMP/notionhub-runner.tar.gz"
@@ -617,6 +619,7 @@ jobs:
           PY
           ACCESS_TOKEN=$(jq -r '.accessToken // empty' "$RUNTIME_METADATA")
           REPORT_TOKEN=$(jq -r '.reportToken // empty' "$RUNTIME_METADATA")
+          CONTINUATION_TOKEN=$(jq -r '.continuationToken // empty' "$RUNTIME_METADATA")
           POLICY_ID=$(jq -r '.context.id // empty' "$RUNTIME_METADATA")
           PLAN=$(jq -r '.context.plan // empty' "$RUNTIME_METADATA")
           POLICY_JSON=$(jq -c '.policy // {}' "$RUNTIME_METADATA")
@@ -624,11 +627,13 @@ jobs:
           SERVICE_CONFIG=$(jq -c '.serviceConfig // empty' "$RUNTIME_METADATA")
           EXPECTED_SIZE=$(jq -r '.bundle.size // empty' "$RUNTIME_METADATA")
           EXPECTED_SHA256=$(jq -r '.bundle.sha256 // empty' "$RUNTIME_METADATA")
-          if [ -z "$ACCESS_TOKEN" ] || [ -z "$REPORT_TOKEN" ] || [ -z "$POLICY_ID" ] || [ -z "$PLAN" ] || [ -z "$POLICY_SIGNATURE" ] || [ -z "$SERVICE_CONFIG" ] || [ -z "$EXPECTED_SIZE" ] || [ -z "$EXPECTED_SHA256" ]; then
+          if [ -z "$ACCESS_TOKEN" ] || [ -z "$REPORT_TOKEN" ] || [ -z "$CONTINUATION_TOKEN" ] || [ -z "$POLICY_ID" ] || [ -z "$PLAN" ] || [ -z "$POLICY_SIGNATURE" ] || [ -z "$SERVICE_CONFIG" ] || [ -z "$EXPECTED_SIZE" ] || [ -z "$EXPECTED_SHA256" ]; then
             echo "::error title=运行准备失败::运行配置缺少必要字段。"
             exit 1
           fi
-          for VALUE in "$ACCESS_TOKEN" "$REPORT_TOKEN" "$POLICY_SIGNATURE" "$SERVICE_CONFIG"; do echo "::add-mask::$VALUE"; done
+          for VALUE in "$ACCESS_TOKEN" "$REPORT_TOKEN" "$CONTINUATION_TOKEN" "$POLICY_SIGNATURE" "$SERVICE_CONFIG"; do echo "::add-mask::$VALUE"; done
+          printf '%s' "$CONTINUATION_TOKEN" > "$SYNC_POLICY_CONTINUATION_PATH"
+          chmod 600 "$SYNC_POLICY_CONTINUATION_PATH"
           python3 - "$RUNTIME_METADATA" <<'PY'
           import json
           import sys
@@ -775,7 +780,7 @@ jobs:
       DOUYIN_CONFIG: ${{ secrets.DOUYIN_CONFIG }}
       NOTIONHUB_API_BASE: https://i.notionhub.app/v1
       NOTIONHUB_SERVICE: douyin
-      NOTIONHUB_CONFIG_VERSION: '52'
+      NOTIONHUB_CONFIG_VERSION: '53'
       SYNC_POLICY_STATE_PATH: ${{ github.workspace }}/notionhub-state.json
       SYNC_POLICY_CONTINUATION_PATH: ${{ github.workspace }}/notionhub-continuation-id
       SYNC_POLICY_REPORT_PATH: ${{ github.workspace }}/notionhub-service-report.json
@@ -929,12 +934,12 @@ jobs:
             exit 1
           fi
           echo "::add-mask::$OIDC_TOKEN"
-          CONTINUATION_ID="$(cat "$SYNC_POLICY_CONTINUATION_PATH")"
-          if [ -z "$CONTINUATION_ID" ]; then
+          CONTINUATION_TOKEN="$(cat "$SYNC_POLICY_CONTINUATION_PATH")"
+          if [ -z "$CONTINUATION_TOKEN" ]; then
             echo "::error title=运行授权续接失败::同步进度中缺少续接标识。"
             exit 1
           fi
-          RUNTIME_PAYLOAD=$(jq -cn --arg service "douyin" --arg continuation "$CONTINUATION_ID" '{service:$service,purpose:"sync",continuationPolicyId:$continuation}')
+          RUNTIME_PAYLOAD=$(jq -cn --arg service "douyin" --arg continuation "$CONTINUATION_TOKEN" '{service:$service,purpose:"sync",continuationToken:$continuation}')
           RUNTIME_RESPONSE="$RUNNER_TEMP/notionhub-runtime-bundle.bin"
           RUNTIME_METADATA="$RUNNER_TEMP/notionhub-runtime-metadata.json"
           RUNTIME_ARCHIVE="$RUNNER_TEMP/notionhub-runner.tar.gz"
@@ -1000,6 +1005,7 @@ jobs:
           PY
           ACCESS_TOKEN=$(jq -r '.accessToken // empty' "$RUNTIME_METADATA")
           REPORT_TOKEN=$(jq -r '.reportToken // empty' "$RUNTIME_METADATA")
+          CONTINUATION_TOKEN=$(jq -r '.continuationToken // empty' "$RUNTIME_METADATA")
           POLICY_ID=$(jq -r '.context.id // empty' "$RUNTIME_METADATA")
           PLAN=$(jq -r '.context.plan // empty' "$RUNTIME_METADATA")
           POLICY_JSON=$(jq -c '.policy // {}' "$RUNTIME_METADATA")
@@ -1007,11 +1013,13 @@ jobs:
           SERVICE_CONFIG=$(jq -c '.serviceConfig // empty' "$RUNTIME_METADATA")
           EXPECTED_SIZE=$(jq -r '.bundle.size // empty' "$RUNTIME_METADATA")
           EXPECTED_SHA256=$(jq -r '.bundle.sha256 // empty' "$RUNTIME_METADATA")
-          if [ -z "$ACCESS_TOKEN" ] || [ -z "$REPORT_TOKEN" ] || [ -z "$POLICY_ID" ] || [ -z "$PLAN" ] || [ -z "$POLICY_SIGNATURE" ] || [ -z "$SERVICE_CONFIG" ] || [ -z "$EXPECTED_SIZE" ] || [ -z "$EXPECTED_SHA256" ]; then
+          if [ -z "$ACCESS_TOKEN" ] || [ -z "$REPORT_TOKEN" ] || [ -z "$CONTINUATION_TOKEN" ] || [ -z "$POLICY_ID" ] || [ -z "$PLAN" ] || [ -z "$POLICY_SIGNATURE" ] || [ -z "$SERVICE_CONFIG" ] || [ -z "$EXPECTED_SIZE" ] || [ -z "$EXPECTED_SHA256" ]; then
             echo "::error title=运行准备失败::运行配置缺少必要字段。"
             exit 1
           fi
-          for VALUE in "$ACCESS_TOKEN" "$REPORT_TOKEN" "$POLICY_SIGNATURE" "$SERVICE_CONFIG"; do echo "::add-mask::$VALUE"; done
+          for VALUE in "$ACCESS_TOKEN" "$REPORT_TOKEN" "$CONTINUATION_TOKEN" "$POLICY_SIGNATURE" "$SERVICE_CONFIG"; do echo "::add-mask::$VALUE"; done
+          printf '%s' "$CONTINUATION_TOKEN" > "$SYNC_POLICY_CONTINUATION_PATH"
+          chmod 600 "$SYNC_POLICY_CONTINUATION_PATH"
           python3 - "$RUNTIME_METADATA" <<'PY'
           import json
           import sys
@@ -1158,7 +1166,7 @@ jobs:
       DOUYIN_CONFIG: ${{ secrets.DOUYIN_CONFIG }}
       NOTIONHUB_API_BASE: https://i.notionhub.app/v1
       NOTIONHUB_SERVICE: douyin
-      NOTIONHUB_CONFIG_VERSION: '52'
+      NOTIONHUB_CONFIG_VERSION: '53'
       SYNC_POLICY_STATE_PATH: ${{ github.workspace }}/notionhub-state.json
       SYNC_POLICY_CONTINUATION_PATH: ${{ github.workspace }}/notionhub-continuation-id
       SYNC_POLICY_REPORT_PATH: ${{ github.workspace }}/notionhub-service-report.json
@@ -1317,12 +1325,12 @@ jobs:
             exit 1
           fi
           echo "::add-mask::$OIDC_TOKEN"
-          CONTINUATION_ID="$(cat "$SYNC_POLICY_CONTINUATION_PATH")"
-          if [ -z "$CONTINUATION_ID" ]; then
+          CONTINUATION_TOKEN="$(cat "$SYNC_POLICY_CONTINUATION_PATH")"
+          if [ -z "$CONTINUATION_TOKEN" ]; then
             echo "::error title=运行授权续接失败::同步进度中缺少续接标识。"
             exit 1
           fi
-          RUNTIME_PAYLOAD=$(jq -cn --arg service "douyin" --arg continuation "$CONTINUATION_ID" '{service:$service,purpose:"sync",continuationPolicyId:$continuation}')
+          RUNTIME_PAYLOAD=$(jq -cn --arg service "douyin" --arg continuation "$CONTINUATION_TOKEN" '{service:$service,purpose:"sync",continuationToken:$continuation}')
           RUNTIME_RESPONSE="$RUNNER_TEMP/notionhub-runtime-bundle.bin"
           RUNTIME_METADATA="$RUNNER_TEMP/notionhub-runtime-metadata.json"
           RUNTIME_ARCHIVE="$RUNNER_TEMP/notionhub-runner.tar.gz"
@@ -1388,6 +1396,7 @@ jobs:
           PY
           ACCESS_TOKEN=$(jq -r '.accessToken // empty' "$RUNTIME_METADATA")
           REPORT_TOKEN=$(jq -r '.reportToken // empty' "$RUNTIME_METADATA")
+          CONTINUATION_TOKEN=$(jq -r '.continuationToken // empty' "$RUNTIME_METADATA")
           POLICY_ID=$(jq -r '.context.id // empty' "$RUNTIME_METADATA")
           PLAN=$(jq -r '.context.plan // empty' "$RUNTIME_METADATA")
           POLICY_JSON=$(jq -c '.policy // {}' "$RUNTIME_METADATA")
@@ -1395,11 +1404,13 @@ jobs:
           SERVICE_CONFIG=$(jq -c '.serviceConfig // empty' "$RUNTIME_METADATA")
           EXPECTED_SIZE=$(jq -r '.bundle.size // empty' "$RUNTIME_METADATA")
           EXPECTED_SHA256=$(jq -r '.bundle.sha256 // empty' "$RUNTIME_METADATA")
-          if [ -z "$ACCESS_TOKEN" ] || [ -z "$REPORT_TOKEN" ] || [ -z "$POLICY_ID" ] || [ -z "$PLAN" ] || [ -z "$POLICY_SIGNATURE" ] || [ -z "$SERVICE_CONFIG" ] || [ -z "$EXPECTED_SIZE" ] || [ -z "$EXPECTED_SHA256" ]; then
+          if [ -z "$ACCESS_TOKEN" ] || [ -z "$REPORT_TOKEN" ] || [ -z "$CONTINUATION_TOKEN" ] || [ -z "$POLICY_ID" ] || [ -z "$PLAN" ] || [ -z "$POLICY_SIGNATURE" ] || [ -z "$SERVICE_CONFIG" ] || [ -z "$EXPECTED_SIZE" ] || [ -z "$EXPECTED_SHA256" ]; then
             echo "::error title=运行准备失败::运行配置缺少必要字段。"
             exit 1
           fi
-          for VALUE in "$ACCESS_TOKEN" "$REPORT_TOKEN" "$POLICY_SIGNATURE" "$SERVICE_CONFIG"; do echo "::add-mask::$VALUE"; done
+          for VALUE in "$ACCESS_TOKEN" "$REPORT_TOKEN" "$CONTINUATION_TOKEN" "$POLICY_SIGNATURE" "$SERVICE_CONFIG"; do echo "::add-mask::$VALUE"; done
+          printf '%s' "$CONTINUATION_TOKEN" > "$SYNC_POLICY_CONTINUATION_PATH"
+          chmod 600 "$SYNC_POLICY_CONTINUATION_PATH"
           python3 - "$RUNTIME_METADATA" <<'PY'
           import json
           import sys
@@ -1754,12 +1765,12 @@ jobs:
             exit 1
           fi
           echo "::add-mask::$OIDC_TOKEN"
-          CONTINUATION_ID="$(cat "$SYNC_POLICY_CONTINUATION_PATH")"
-          if [ -z "$CONTINUATION_ID" ]; then
+          CONTINUATION_TOKEN="$(cat "$SYNC_POLICY_CONTINUATION_PATH")"
+          if [ -z "$CONTINUATION_TOKEN" ]; then
             echo "::error title=运行授权续接失败::同步进度中缺少续接标识。"
             exit 1
           fi
-          RUNTIME_PAYLOAD=$(jq -cn --arg service "douyin" --arg continuation "$CONTINUATION_ID" '{service:$service,purpose:"sync",continuationPolicyId:$continuation}')
+          RUNTIME_PAYLOAD=$(jq -cn --arg service "douyin" --arg continuation "$CONTINUATION_TOKEN" '{service:$service,purpose:"sync",continuationToken:$continuation}')
           RUNTIME_RESPONSE="$RUNNER_TEMP/notionhub-runtime-bundle.bin"
           RUNTIME_METADATA="$RUNNER_TEMP/notionhub-runtime-metadata.json"
           RUNTIME_ARCHIVE="$RUNNER_TEMP/notionhub-runner.tar.gz"
@@ -1825,6 +1836,7 @@ jobs:
           PY
           ACCESS_TOKEN=$(jq -r '.accessToken // empty' "$RUNTIME_METADATA")
           REPORT_TOKEN=$(jq -r '.reportToken // empty' "$RUNTIME_METADATA")
+          CONTINUATION_TOKEN=$(jq -r '.continuationToken // empty' "$RUNTIME_METADATA")
           POLICY_ID=$(jq -r '.context.id // empty' "$RUNTIME_METADATA")
           PLAN=$(jq -r '.context.plan // empty' "$RUNTIME_METADATA")
           POLICY_JSON=$(jq -c '.policy // {}' "$RUNTIME_METADATA")
@@ -1832,11 +1844,13 @@ jobs:
           SERVICE_CONFIG=$(jq -c '.serviceConfig // empty' "$RUNTIME_METADATA")
           EXPECTED_SIZE=$(jq -r '.bundle.size // empty' "$RUNTIME_METADATA")
           EXPECTED_SHA256=$(jq -r '.bundle.sha256 // empty' "$RUNTIME_METADATA")
-          if [ -z "$ACCESS_TOKEN" ] || [ -z "$REPORT_TOKEN" ] || [ -z "$POLICY_ID" ] || [ -z "$PLAN" ] || [ -z "$POLICY_SIGNATURE" ] || [ -z "$SERVICE_CONFIG" ] || [ -z "$EXPECTED_SIZE" ] || [ -z "$EXPECTED_SHA256" ]; then
+          if [ -z "$ACCESS_TOKEN" ] || [ -z "$REPORT_TOKEN" ] || [ -z "$CONTINUATION_TOKEN" ] || [ -z "$POLICY_ID" ] || [ -z "$PLAN" ] || [ -z "$POLICY_SIGNATURE" ] || [ -z "$SERVICE_CONFIG" ] || [ -z "$EXPECTED_SIZE" ] || [ -z "$EXPECTED_SHA256" ]; then
             echo "::error title=运行准备失败::运行配置缺少必要字段。"
             exit 1
           fi
-          for VALUE in "$ACCESS_TOKEN" "$REPORT_TOKEN" "$POLICY_SIGNATURE" "$SERVICE_CONFIG"; do echo "::add-mask::$VALUE"; done
+          for VALUE in "$ACCESS_TOKEN" "$REPORT_TOKEN" "$CONTINUATION_TOKEN" "$POLICY_SIGNATURE" "$SERVICE_CONFIG"; do echo "::add-mask::$VALUE"; done
+          printf '%s' "$CONTINUATION_TOKEN" > "$SYNC_POLICY_CONTINUATION_PATH"
+          chmod 600 "$SYNC_POLICY_CONTINUATION_PATH"
           python3 - "$RUNTIME_METADATA" <<'PY'
           import json
           import sys

@@ -174,6 +174,7 @@ jobs:
           export NOTION_TOKEN="$(jq -r '.notion.targets.movie.token' "$FREE_CONFIG_FILE")"
           export NOTION_MOVIE_URL="$(jq -r '.notion.targets.movie.pages.root' "$FREE_CONFIG_FILE")"
           export DATABASE_ID="$(jq -r '.notion.targets.movie.pages.databaseId' "$FREE_CONFIG_FILE")"
+          export MOVIE_DATABASE_ID="$DATABASE_ID"
           NAME="$(jq -r '.account.name' "$FREE_CONFIG_FILE")"
           douban_heatmap notion --notion_token "$NOTION_TOKEN" --database_id "$DATABASE_ID" --date_prop_name "日期" --value_prop_name "看过" --unit "部" --year "$(date +%Y)" --me "$NAME" --without-type-name
           heatmap movie
@@ -196,6 +197,7 @@ jobs:
           export NOTION_TOKEN="$(jq -r '.notion.targets.book.token' "$FREE_CONFIG_FILE")"
           export NOTION_BOOK_URL="$(jq -r '.notion.targets.book.pages.root' "$FREE_CONFIG_FILE")"
           export DATABASE_ID="$(jq -r '.notion.targets.book.pages.databaseId' "$FREE_CONFIG_FILE")"
+          export BOOK_DATABASE_ID="$DATABASE_ID"
           NAME="$(jq -r '.account.name' "$FREE_CONFIG_FILE")"
           douban_heatmap notion --notion_token "$NOTION_TOKEN" --database_id "$DATABASE_ID" --date_prop_name "日期" --value_prop_name "读过" --unit "本" --year "$(date +%Y)" --me "$NAME" --without-type-name
           heatmap book

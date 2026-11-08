@@ -32,8 +32,8 @@ jobs:
     env:
       FREE_CONFIG_JSON: ${{ secrets.DOUBAN_FREE_CONFIG }}
       SOURCE_REPOSITORY: malinkang/douban2notion
-      SOURCE_REF: 6c5b64ba1cff06d7d0ca0170dd3d387959c603c6
-      SOURCE_SHA: 6c5b64ba1cff06d7d0ca0170dd3d387959c603c6
+      SOURCE_REF: 6cb6fcf28f86019a0ca8372b605a3a0f877f64de
+      SOURCE_SHA: 6cb6fcf28f86019a0ca8372b605a3a0f877f64de
       REPOSITORY: ${{ github.repository }}
       ARTIFACT_BRANCH: ${{ github.event.repository.default_branch }}
       NOTIONHUB_ARTIFACT_ROOT: ${{ github.workspace }}/.notionhub-artifacts/douban
@@ -131,7 +131,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: malinkang/douban2notion
-          ref: 6c5b64ba1cff06d7d0ca0170dd3d387959c603c6
+          ref: 6cb6fcf28f86019a0ca8372b605a3a0f877f64de
           path: .notionhub-source/douban
           persist-credentials: false
 
@@ -140,7 +140,7 @@ jobs:
         run: |
           ACTUAL_SHA=$(git rev-parse HEAD)
           if [ "$ACTUAL_SHA" != "$SOURCE_SHA" ]; then
-            echo "::error title=开源版本校验失败::malinkang/douban2notion@6c5b64ba1cff06d7d0ca0170dd3d387959c603c6 的提交与预期 SHA 不一致。"
+            echo "::error title=开源版本校验失败::malinkang/douban2notion@6cb6fcf28f86019a0ca8372b605a3a0f877f64de 的提交与预期 SHA 不一致。"
             exit 1
           fi
 
@@ -173,8 +173,9 @@ jobs:
         run: |
           export NOTION_TOKEN="$(jq -r '.notion.targets.movie.token' "$FREE_CONFIG_FILE")"
           export NOTION_MOVIE_URL="$(jq -r '.notion.targets.movie.pages.root' "$FREE_CONFIG_FILE")"
+          export DATABASE_ID="$(jq -r '.notion.targets.movie.pages.databaseId' "$FREE_CONFIG_FILE")"
           NAME="$(jq -r '.account.name' "$FREE_CONFIG_FILE")"
-          github_heatmap notion --notion_token "$NOTION_TOKEN" --database_id "$DATABASE_ID" --date_prop_name "日期" --value_prop_name "看过" --unit "部" --year "$(date +%Y)" --me "$NAME" --without-type-name
+          douban_heatmap notion --notion_token "$NOTION_TOKEN" --database_id "$DATABASE_ID" --date_prop_name "日期" --value_prop_name "看过" --unit "部" --year "$(date +%Y)" --me "$NAME" --without-type-name
           heatmap movie
 
       - name: 同步豆瓣图书
@@ -194,8 +195,9 @@ jobs:
         run: |
           export NOTION_TOKEN="$(jq -r '.notion.targets.book.token' "$FREE_CONFIG_FILE")"
           export NOTION_BOOK_URL="$(jq -r '.notion.targets.book.pages.root' "$FREE_CONFIG_FILE")"
+          export DATABASE_ID="$(jq -r '.notion.targets.book.pages.databaseId' "$FREE_CONFIG_FILE")"
           NAME="$(jq -r '.account.name' "$FREE_CONFIG_FILE")"
-          github_heatmap notion --notion_token "$NOTION_TOKEN" --database_id "$DATABASE_ID" --date_prop_name "日期" --value_prop_name "读过" --unit "本" --year "$(date +%Y)" --me "$NAME" --without-type-name
+          douban_heatmap notion --notion_token "$NOTION_TOKEN" --database_id "$DATABASE_ID" --date_prop_name "日期" --value_prop_name "读过" --unit "本" --year "$(date +%Y)" --me "$NAME" --without-type-name
           heatmap book
       - name: 保存公开热力图
         if: steps.config.outputs.heatmap == 'true' && (steps.config.outputs.movie == 'true' || steps.config.outputs.book == 'true')

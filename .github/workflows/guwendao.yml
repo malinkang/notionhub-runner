@@ -90,19 +90,37 @@ jobs:
         id: authorize
         if: steps.activation.outputs.enabled == 'true'
         run: |
-          OIDC_TOKEN=$(curl -fsSL -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=https%3A%2F%2Fi.notionhub.app" | jq -r '.value // empty')
-          if [ -z "$OIDC_TOKEN" ]; then
-            echo "::error title=GitHub 身份验证失败::未能获取本次运行的 OIDC token。"
-            exit 1
-          fi
-          echo "::add-mask::$OIDC_TOKEN"
           RUNTIME_PAYLOAD='{"service":"guwendao","purpose":"sync"}'
           RUNTIME_RESPONSE="$RUNNER_TEMP/notionhub-runtime-bundle.bin"
           RUNTIME_METADATA="$RUNNER_TEMP/notionhub-runtime-metadata.json"
           RUNTIME_ARCHIVE="$RUNNER_TEMP/notionhub-runner.tar.gz"
           cleanup_runtime_files() { rm -f "$RUNTIME_RESPONSE" "$RUNTIME_METADATA" "$RUNTIME_ARCHIVE"; }
           trap cleanup_runtime_files EXIT
-          HTTP_STATUS=$(curl -sS --retry 3 --retry-all-errors --retry-delay 2 -o "$RUNTIME_RESPONSE" -w '%{http_code}' -X POST "$NOTIONHUB_API_BASE/github/runner/runtime-bundle"             -H "Authorization: Bearer $OIDC_TOKEN" -H 'Content-Type: application/json' --data "$RUNTIME_PAYLOAD")
+          # GitHub OIDC tokens are single-use at the Worker. Never let a
+          # transport retry reuse a token that may already have been consumed
+          # by a request whose response was lost after the server accepted it.
+          HTTP_STATUS=000
+          for ATTEMPT in 1 2 3 4; do
+            OIDC_TOKEN=$(curl -fsSL --max-time 30 -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN"               "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=https%3A%2F%2Fi.notionhub.app" | jq -r '.value // empty') || OIDC_TOKEN=""
+            if [ -n "$OIDC_TOKEN" ]; then
+              echo "::add-mask::$OIDC_TOKEN"
+              HTTP_STATUS=$(curl -sS --max-time 120 -o "$RUNTIME_RESPONSE" -w '%{http_code}' -X POST "$NOTIONHUB_API_BASE/github/runner/runtime-bundle"                 -H "Authorization: Bearer $OIDC_TOKEN" -H 'Content-Type: application/json' --data "$RUNTIME_PAYLOAD") || HTTP_STATUS=000
+              unset OIDC_TOKEN
+            else
+              HTTP_STATUS=000
+            fi
+            case "$HTTP_STATUS" in
+              2??) break ;;
+              408|429|5??|000)
+                if [ "$ATTEMPT" -lt 4 ]; then sleep $((ATTEMPT * 2)); fi
+                ;;
+              4??|*) break ;;
+            esac
+          done
+          if [ "$HTTP_STATUS" = "000" ]; then
+            echo "::error title=运行准备失败::无法获取 GitHub OIDC token 或连接运行服务。"
+            exit 1
+          fi
           if [ "$HTTP_STATUS" = "418" ]; then
             echo "免费体验次数已用完，请购买激活码。"
             echo "获取激活码：https://www.notionhub.app/docs/get-activation-code.html"
@@ -588,12 +606,6 @@ jobs:
         id: finish_authorize
         if: always() && steps.finish_auth.outputs.enabled == 'true'
         run: |
-          OIDC_TOKEN=$(curl -fsSL -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=https%3A%2F%2Fi.notionhub.app" | jq -r '.value // empty')
-          if [ -z "$OIDC_TOKEN" ]; then
-            echo "::error title=GitHub 身份验证失败::未能获取本次运行的 OIDC token。"
-            exit 1
-          fi
-          echo "::add-mask::$OIDC_TOKEN"
           CONTINUATION_TOKEN="$(cat "$SYNC_POLICY_CONTINUATION_PATH")"
           if [ -z "$CONTINUATION_TOKEN" ]; then
             echo "::error title=运行授权续接失败::同步进度中缺少续接标识。"
@@ -605,7 +617,31 @@ jobs:
           RUNTIME_ARCHIVE="$RUNNER_TEMP/notionhub-runner.tar.gz"
           cleanup_runtime_files() { rm -f "$RUNTIME_RESPONSE" "$RUNTIME_METADATA" "$RUNTIME_ARCHIVE"; }
           trap cleanup_runtime_files EXIT
-          HTTP_STATUS=$(curl -sS --retry 3 --retry-all-errors --retry-delay 2 -o "$RUNTIME_RESPONSE" -w '%{http_code}' -X POST "$NOTIONHUB_API_BASE/github/runner/runtime-bundle"             -H "Authorization: Bearer $OIDC_TOKEN" -H 'Content-Type: application/json' --data "$RUNTIME_PAYLOAD")
+          # GitHub OIDC tokens are single-use at the Worker. Never let a
+          # transport retry reuse a token that may already have been consumed
+          # by a request whose response was lost after the server accepted it.
+          HTTP_STATUS=000
+          for ATTEMPT in 1 2 3 4; do
+            OIDC_TOKEN=$(curl -fsSL --max-time 30 -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN"               "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=https%3A%2F%2Fi.notionhub.app" | jq -r '.value // empty') || OIDC_TOKEN=""
+            if [ -n "$OIDC_TOKEN" ]; then
+              echo "::add-mask::$OIDC_TOKEN"
+              HTTP_STATUS=$(curl -sS --max-time 120 -o "$RUNTIME_RESPONSE" -w '%{http_code}' -X POST "$NOTIONHUB_API_BASE/github/runner/runtime-bundle"                 -H "Authorization: Bearer $OIDC_TOKEN" -H 'Content-Type: application/json' --data "$RUNTIME_PAYLOAD") || HTTP_STATUS=000
+              unset OIDC_TOKEN
+            else
+              HTTP_STATUS=000
+            fi
+            case "$HTTP_STATUS" in
+              2??) break ;;
+              408|429|5??|000)
+                if [ "$ATTEMPT" -lt 4 ]; then sleep $((ATTEMPT * 2)); fi
+                ;;
+              4??|*) break ;;
+            esac
+          done
+          if [ "$HTTP_STATUS" = "000" ]; then
+            echo "::error title=运行准备失败::无法获取 GitHub OIDC token 或连接运行服务。"
+            exit 1
+          fi
           if [ "$HTTP_STATUS" = "418" ]; then
             echo "免费体验次数已用完，请购买激活码。"
             echo "获取激活码：https://www.notionhub.app/docs/get-activation-code.html"

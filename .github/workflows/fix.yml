@@ -85,10 +85,31 @@ jobs:
       - name: 获取短期修复授权
         id: authorize
         run: |
-          OIDC_TOKEN=$(curl -fsSL -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=https%3A%2F%2Fi.notionhub.app" | jq -r '.value // empty')
-          echo "::add-mask::$OIDC_TOKEN"
           AUTH_RESPONSE="$RUNNER_TEMP/notionhub-authorize.json"
-          HTTP_STATUS=$(curl -sS --retry 3 --retry-all-errors --retry-delay 2 -o "$AUTH_RESPONSE" -w '%{http_code}' -X POST "$NOTIONHUB_API_BASE/github/runner/authorize-run"             -H "Authorization: Bearer $OIDC_TOKEN" -H 'Content-Type: application/json'             --data "{\"service\":\"${{ steps.validate.outputs.service }}\",\"purpose\":\"fix\"}")
+          # The Worker consumes the OIDC jti when authorize-run succeeds. A
+          # transport retry must therefore mint a fresh token before retrying.
+          HTTP_STATUS=000
+          for ATTEMPT in 1 2 3 4; do
+            OIDC_TOKEN=$(curl -fsSL --max-time 30 -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN"               "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=https%3A%2F%2Fi.notionhub.app" | jq -r '.value // empty') || OIDC_TOKEN=""
+            if [ -n "$OIDC_TOKEN" ]; then
+              echo "::add-mask::$OIDC_TOKEN"
+              HTTP_STATUS=$(curl -sS --max-time 120 -o "$AUTH_RESPONSE" -w '%{http_code}' -X POST "$NOTIONHUB_API_BASE/github/runner/authorize-run"                 -H "Authorization: Bearer $OIDC_TOKEN" -H 'Content-Type: application/json'                 --data "{\"service\":\"${{ steps.validate.outputs.service }}\",\"purpose\":\"fix\"}") || HTTP_STATUS=000
+              unset OIDC_TOKEN
+            else
+              HTTP_STATUS=000
+            fi
+            case "$HTTP_STATUS" in
+              2??) break ;;
+              408|429|5??|000)
+                if [ "$ATTEMPT" -lt 4 ]; then sleep $((ATTEMPT * 2)); fi
+                ;;
+              4??|*) break ;;
+            esac
+          done
+          if [ "$HTTP_STATUS" = "000" ]; then
+            echo "::error title=修复授权失败::无法获取 GitHub OIDC token 或连接授权服务。"
+            exit 1
+          fi
           if [ "$HTTP_STATUS" -lt 200 ] || [ "$HTTP_STATUS" -ge 300 ]; then
             MESSAGE=$(jq -r '.message // "修复授权失败"' "$AUTH_RESPONSE")
             echo "::error title=修复授权失败::$MESSAGE"

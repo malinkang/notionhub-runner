@@ -1,4 +1,4 @@
-# NotionHub generated Keep single-job workflow v39
+# NotionHub generated Keep single-job workflow v40
 name: Keep
 run-name: ${{ github.workflow }}
 
@@ -19,7 +19,8 @@ on:
         default: incremental
         type: choice
         options:
-          - incremental\n          - full
+          - incremental
+          - full
       payload:
         description: 同步参数 JSON
         required: false

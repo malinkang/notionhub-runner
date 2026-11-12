@@ -36,7 +36,7 @@ permissions:
 
 concurrency:
   group: notionhub-bilibili-sync-${{ github.ref_name }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name != 'schedule' }}
 
 jobs:
   data:

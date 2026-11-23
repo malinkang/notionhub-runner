@@ -1,4 +1,4 @@
-# NotionHub generated free workflow v5
+# NotionHub generated free workflow v6
 name: 豆瓣免费版
 run-name: ${{ github.workflow }}
 
@@ -53,7 +53,7 @@ jobs:
           if ! curl -fsS --max-time 30 -X POST \
             "https://i.notionhub.app/v1/github/runner/free/douban/authorize-run" \
             -H "Authorization: Bearer $OIDC_TOKEN" -H 'Content-Type: application/json' \
-            --data '{}' -o "$AUTHORIZATION_FILE"; then
+            --data '{"targetValidation":1}' -o "$AUTHORIZATION_FILE"; then
             echo "::error title=免费版同步授权失败::账号可能已退出或正在清理，请回到 NotionHub 插件查看连接状态。"
             exit 1
           fi
@@ -61,15 +61,22 @@ jobs:
             echo "::error title=免费版同步未获授权::请回到 NotionHub 插件查看连接状态。"
             exit 1
           fi
-
-      - name: Checkout Runner 仓库
-        uses: actions/checkout@v4
+          jq -ec '.data.targetHashes | select(type == "object")' "$AUTHORIZATION_FILE" \
+            > "$RUNNER_TEMP/notionhub-free-douban-targets.json"
 
       - name: 检查免费版配置
         id: config
         shell: bash
         run: |
           set -euo pipefail
+          umask 077
+          TARGETS_FILE="$RUNNER_TEMP/notionhub-free-douban-targets.json"
+          if jq -e 'length == 0' "$TARGETS_FILE" >/dev/null; then
+            echo "::notice::豆瓣电影和图书免费版模板均未就绪，本次跳过同步。"
+            echo "movie=false" >> "$GITHUB_OUTPUT"
+            echo "book=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           if [ -z "$FREE_CONFIG_JSON" ]; then
             echo "::error title=豆瓣免费版未配置::请先在 NotionHub 插件里保存免费版配置。"
             exit 1
@@ -108,26 +115,32 @@ jobs:
             fi
           }
           require_value '.account.name' '豆瓣用户名'
-          if ! jq -e '(.options.streams // []) | length > 0' "$CONFIG_FILE" >/dev/null; then
-            echo "::error title=豆瓣免费版同步内容缺失::请至少选择电影或图书。"
-            exit 1
-          fi
-          if jq -e '(.options.streams // []) | index("movie") != null' "$CONFIG_FILE" >/dev/null; then
-            require_value '.notion.targets.movie.token' '豆瓣电影 Notion token'
-            require_value '.notion.targets.movie.pages.root' '豆瓣电影模板'
-            require_value '.notion.targets.movie.pages.databaseId' '豆瓣电影数据库'
-          fi
-          if jq -e '(.options.streams // []) | index("book") != null' "$CONFIG_FILE" >/dev/null; then
-            require_value '.notion.targets.book.token' '豆瓣图书 Notion token'
-            require_value '.notion.targets.book.pages.root' '豆瓣图书模板'
-            require_value '.notion.targets.book.pages.databaseId' '豆瓣图书数据库'
-          fi
           echo "FREE_CONFIG_FILE=$CONFIG_FILE" >> "$GITHUB_ENV"
-          echo "movie=$(jq -r '(.options.streams // []) | index("movie") != null' "$CONFIG_FILE")" >> "$GITHUB_OUTPUT"
-          echo "book=$(jq -r '(.options.streams // []) | index("book") != null' "$CONFIG_FILE")" >> "$GITHUB_OUTPUT"
-          echo "heatmap=$(jq -r '.options.heatmap // true' "$CONFIG_FILE")" >> "$GITHUB_OUTPUT"
+          for stream in movie book; do
+            enabled=false
+            expected="$(jq -r --arg stream "$stream" '.[$stream] // empty' "$TARGETS_FILE")"
+            if [ -z "$expected" ]; then
+              echo "::notice::豆瓣免费版 $stream 模板未就绪，跳过。"
+            elif jq -e --arg stream "$stream" '(.options.streams // []) | index($stream) != null' "$CONFIG_FILE" >/dev/null; then
+              actual="$(jq -cj --arg stream "$stream" '.notion.targets[$stream] | [.token, .pages.root, .pages.databaseId]' "$CONFIG_FILE" | sha256sum)"
+              if [ "${actual%% *}" = "$expected" ]; then
+                enabled=true
+              else
+                echo "::warning::豆瓣免费版 $stream 配置已变化，跳过。请在插件重新保存免费版配置。"
+              fi
+            else
+              echo "::warning::豆瓣免费版 $stream 缺少已就绪的配置，跳过。请在插件重新保存免费版配置。"
+            fi
+            echo "$stream=$enabled" >> "$GITHUB_OUTPUT"
+          done
+          echo "heatmap=$(jq -r '.options.heatmap != false' "$CONFIG_FILE")" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout Runner 仓库
+        if: steps.config.outputs.movie == 'true' || steps.config.outputs.book == 'true'
+        uses: actions/checkout@v4
 
       - name: Checkout 固定开源版本
+        if: steps.config.outputs.movie == 'true' || steps.config.outputs.book == 'true'
         uses: actions/checkout@v4
         with:
           repository: malinkang/douban2notion
@@ -136,6 +149,7 @@ jobs:
           persist-credentials: false
 
       - name: 校验开源版本
+        if: steps.config.outputs.movie == 'true' || steps.config.outputs.book == 'true'
         working-directory: .notionhub-source/douban
         run: |
           ACTUAL_SHA=$(git rev-parse HEAD)
@@ -145,11 +159,13 @@ jobs:
           fi
 
       - name: 设置 Python
+        if: steps.config.outputs.movie == 'true' || steps.config.outputs.book == 'true'
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
       - name: 安装开源同步程序
+        if: steps.config.outputs.movie == 'true' || steps.config.outputs.book == 'true'
         working-directory: .notionhub-source/douban
         run: |
           python -m pip install --upgrade pip
